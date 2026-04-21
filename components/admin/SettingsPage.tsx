@@ -161,7 +161,6 @@ export default function SettingsPage({ restaurant: init }: { restaurant: Restaur
                   restaurant.plan === 'enterprise' ? 'bg-purple-100 text-purple-600' :
                   restaurant.plan === 'pro' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
                 }`}>{restaurant.plan?.toUpperCase()}</span>
-                <a href="/superadmin" className="text-xs font-bold" style={{ color: p }}>Changer →</a>
               </div>
             </div>
           </div>

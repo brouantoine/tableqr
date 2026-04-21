@@ -1,4 +1,3 @@
-cat > /home/zen/Bureau/TableQR_Projet/tableqr_final/components/admin/AdminShell.tsx << 'EOF'
 'use client'
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
@@ -85,4 +84,3 @@ export default function AdminShell({ children, restaurantName, primaryColor }: {
     </div>
   )
 }
-EOF

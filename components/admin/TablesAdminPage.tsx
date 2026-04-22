@@ -90,7 +90,7 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
     document.body.appendChild(link); link.click(); document.body.removeChild(link)
   }
 
-  const activeTables = tables.filter(t => t.is_active).length
+  const activeTables = tables.filter(t => t.is_active).length + qrCodes.length
 
   return (
     <div className="min-h-screen bg-gray-50">

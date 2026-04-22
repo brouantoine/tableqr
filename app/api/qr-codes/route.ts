@@ -19,7 +19,8 @@ export async function GET(req: NextRequest) {
     .eq('restaurant_id', restaurantId)
     .order('linked_at', { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  // Si la table n'existe pas encore (migration pas exécutée), retourner tableau vide
+  if (error) return NextResponse.json({ data: [] })
   return NextResponse.json({ data })
 }
 
@@ -57,13 +58,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'code, restaurant_id et table_name requis' }, { status: 400 })
     }
 
-    const { data: existing } = await admin.from('qr_codes').select('id').eq('code', code.toUpperCase()).maybeSingle()
-    if (!existing) return NextResponse.json({ error: 'Code QR introuvable' }, { status: 404 })
+    const cleanCode = code.trim().toUpperCase()
 
+    // Vérifier si ce QR est déjà lié à un AUTRE restaurant
+    const { data: existing } = await admin
+      .from('qr_codes')
+      .select('id, restaurant_id, table_name')
+      .eq('code', cleanCode)
+      .maybeSingle()
+
+    if (existing?.restaurant_id && existing.restaurant_id !== restaurant_id) {
+      return NextResponse.json({ error: 'Ce QR est déjà lié à un autre restaurant' }, { status: 409 })
+    }
+
+    // Vérifier si déjà lié à la même table de ce restaurant (doublon)
+    if (existing?.restaurant_id === restaurant_id && existing?.table_name === table_name) {
+      return NextResponse.json({ error: `Ce QR est déjà lié à "${table_name}"` }, { status: 409 })
+    }
+
+    // Upsert — crée le code s'il n'existe pas, met à jour s'il existe
+    // Cela permet de lier n'importe quel code sans pré-génération
     const { data, error } = await admin
       .from('qr_codes')
-      .update({ restaurant_id, table_name, linked_at: new Date().toISOString() })
-      .eq('code', code.toUpperCase())
+      .upsert(
+        { code: cleanCode, restaurant_id, table_name, linked_at: new Date().toISOString() },
+        { onConflict: 'code' }
+      )
       .select()
       .single()
 

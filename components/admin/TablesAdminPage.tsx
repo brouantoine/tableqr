@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, QrCode, Download, ToggleLeft, ToggleRight, Users, Link2, X, Check, Unlink } from 'lucide-react'
+import { Plus, QrCode, Download, ToggleLeft, ToggleRight, Users, Link, X, Check, Trash2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import type { RestaurantTable, Restaurant, QRCode } from '@/types'
 
@@ -104,7 +104,7 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
           <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowLinkModal(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-black"
             style={{ backgroundColor: p }}>
-            <Link2 size={15} strokeWidth={2.5} />
+            <Link size={15} strokeWidth={2.5} />
             Lier un QR
           </motion.button>
         </div>
@@ -215,7 +215,7 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
                   <div className="w-px bg-blue-50" />
                   <button onClick={() => unlinkQR(qr.code)}
                     className="flex-1 py-2.5 flex items-center justify-center gap-1 text-xs font-bold text-red-400 hover:bg-red-50 transition-colors">
-                    <Unlink size={13} /> Délier
+                    <Trash2 size={13} /> Délier
                   </button>
                 </div>
               </motion.div>

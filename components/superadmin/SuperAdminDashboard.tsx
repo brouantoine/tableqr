@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { TwemojiIcon } from '@/components/Twemoji'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Search, Store, Users, TrendingUp, Settings, ChevronRight, X, Check, Globe, Phone, Mail, Palette, LogOut, QrCode, Download, Printer } from 'lucide-react'
+import { Plus, Search, Store, Users, TrendingUp, Settings, ChevronRight, X, Check, Globe, Phone, Mail, LogOut, QrCode } from 'lucide-react'
 import { formatPrice, formatTimeAgo } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
 import type { Restaurant } from '@/types'
@@ -199,7 +199,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
     if (key === 'name') {
       setForm(prev => ({
         ...prev, name: value,
-        slug: value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+        slug: value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
       }))
     }
   }

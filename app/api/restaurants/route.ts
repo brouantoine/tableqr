@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       if (!body.name) return NextResponse.json({ error: 'Le nom du restaurant est requis' }, { status: 400 })
 
       const slug = body.name.toLowerCase()
-        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
       const { data: existingSlug } = await admin.from('restaurants').select('id').eq('slug', slug).maybeSingle()

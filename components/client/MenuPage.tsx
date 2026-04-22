@@ -1,8 +1,8 @@
 'use client'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import TwemojiAvatar from './TwemojiAvatar'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Star, Clock, Flame, Leaf, Heart, ChevronRight, UtensilsCrossed, MessageCircle, Gamepad2, Bell, Package } from 'lucide-react'
+import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Heart, UtensilsCrossed, MessageCircle, Gamepad2, Bell, Package } from 'lucide-react'
 import { useSessionStore } from '@/lib/store'
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/utils'
@@ -20,31 +20,37 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   const [liked, setLiked] = useState<string[]>([])
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [ordering, setOrdering] = useState(false)
-  const [pendingHref, setPendingHref] = useState<string | null>(null)
   const [activeOrdersCount, setActiveOrdersCount] = useState(0)
-  const p = restaurant.primary_color
+  const [pendingHref, setPendingHref] = useState<string | null>(null)
 
-  // Si pas de session → onboarding d'abord
-  const [tableId, setTableId] = useState('')
+  // ── Onboarding uniquement déclenché au "Confirmer la commande" ──
   const [showOnboarding, setShowOnboarding] = useState(false)
 
+  // Snapshot du panier + notes figé au moment du clic "Confirmer"
+  // La commande sera envoyée automatiquement après l'identification
+  const pendingOrderRef = useRef<{ items: typeof cart.items; notes: Record<string, string> } | null>(null)
+
+  const p = restaurant.primary_color
+
+  const [tableId, setTableId] = useState('')
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
-    const tid = params.get('table') || ''
-    setTableId(tid)
-    // Session valide = même restaurant + présent
-    const valid = session && session.restaurant_id === restaurant.id && session.is_present
-    if (!valid && tid) setShowOnboarding(true)
-  }, [session])
+    setTableId(params.get('table') || '')
+  }, [])
 
   useEffect(() => {
     if (!session) return
-    setShowOnboarding(false)
-    supabase.from('orders').select('id', { count: 'exact' })
+    supabase
+      .from('orders')
+      .select('id', { count: 'exact' })
       .eq('session_id', session.id)
       .in('status', ['pending', 'confirmed', 'preparing', 'ready'])
       .then(({ count }) => setActiveOrdersCount(count || 0))
   }, [session])
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tableId)
+  const sessionValid = session && session.restaurant_id === restaurant.id && session.is_present
+  const tableObj = { id: isUuid ? tableId : null, table_number: tableId, restaurant_id: restaurant.id } as any
 
   const allItems = categories.flatMap(c => c.items || [])
   const featured = allItems.filter(i => i.is_available).slice(0, 5)
@@ -53,35 +59,33 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     : categories.find(c => c.id === activeCategory)?.items?.filter(i => i.is_available) || []
   const cartQty = (id: string) => cart.items.find(i => i.menu_item.id === id)?.quantity || 0
 
-  // Vérifie si tableId est un UUID valide
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tableId)
-
-  async function placeOrder() {
-    if (!session || cart.items.length === 0 || ordering) return
+  // ── Envoi effectif de la commande ──
+  async function sendOrder(sess: typeof session, itemsSnapshot: typeof cart.items, notesSnapshot: Record<string, string>) {
+    if (!sess || itemsSnapshot.length === 0) return
     setOrdering(true)
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          session_id: session.id,
+          session_id: sess.id,
           restaurant_id: restaurant.id,
-          // ✅ FIX : on n'envoie tableId que s'il s'agit d'un vrai UUID
-          table_id: session.table_id || (isUuid ? tableId : null),
-          items: cart.items.map(i => ({
+          table_id: sess.table_id || (isUuid ? tableId : null),
+          items: itemsSnapshot.map(i => ({
             menu_item_id: i.menu_item.id,
             quantity: i.quantity,
-            notes: notes[i.menu_item.id] || null,
+            notes: notesSnapshot[i.menu_item.id] || null,
           })),
         }),
       })
       if (res.ok) {
         const data = await res.json()
         const orderId = data?.data?.id
-        setOrderPlaced(true)
+        setOrderPlaced(true)   // → affiche la popup jeux/loisirs
         setShowCart(false)
         setNotes({})
         clearCart()
+        pendingOrderRef.current = null
         if (orderId) {
           setTimeout(async () => {
             await fetch('/api/orders/auto-confirm', {
@@ -99,21 +103,40 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     }
   }
 
-  // Table object minimal pour OnboardingPage
-  // Si tableId est un UUID → vraie table classique ; sinon c'est un nom de table physique (QR physique)
-  const tableObj = { id: isUuid ? tableId : null, table_number: tableId, restaurant_id: restaurant.id } as any
+  // ── Bouton "Confirmer la commande" ──
+  async function placeOrder() {
+    if (cart.items.length === 0 || ordering) return
 
-  // Vérifier que la session est bien pour CE restaurant
-  const sessionValid = session && session.restaurant_id === restaurant.id && session.is_present
+    if (!sessionValid) {
+      // Pas encore identifié → snapshot + onboarding
+      pendingOrderRef.current = { items: [...cart.items], notes: { ...notes } }
+      setShowCart(false)
+      setShowOnboarding(true)
+      return
+    }
 
-  if (showOnboarding && tableId) {
-    return <OnboardingPage restaurant={restaurant} table={tableObj} onDone={() => {
-      setShowOnboarding(false)
-      if (pendingHref) {
-        window.location.href = pendingHref
-        setPendingHref(null)
-      }
-    }} />
+    // Déjà identifié → envoi direct
+    await sendOrder(session, cart.items, notes)
+  }
+
+  // ── Appelé par OnboardingPage une fois l'identification terminée ──
+  // La session est maintenant dans le store Zustand
+  function handleOnboardingDone() {
+    setShowOnboarding(false)
+    const pending = pendingOrderRef.current
+    if (pending) {
+      // Commande en attente → on l'envoie maintenant, automatiquement
+      const freshSession = useSessionStore.getState().session
+      sendOrder(freshSession, pending.items, pending.notes)
+    } else if (pendingHref) {
+      window.location.href = pendingHref
+      setPendingHref(null)
+    }
+  }
+
+  // ── Onboarding : remplace la page entière (pas de modal superposée) ──
+  if (showOnboarding) {
+    return <OnboardingPage restaurant={restaurant} table={tableObj} onDone={handleOnboardingDone} />
   }
 
   return (
@@ -388,7 +411,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         )}
       </AnimatePresence>
 
-      {/* ── MODAL CONFIRMATION POST-COMMANDE ── */}
+      {/* ── POPUP POST-COMMANDE : jeux / loisirs / retour menu ── */}
       <AnimatePresence>
         {orderPlaced && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -404,7 +427,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-green-100 flex items-center justify-center">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 6L9 17L4 12"/>
+                      <path d="M20 6L9 17L4 12" />
                     </svg>
                   </div>
                   <div>
@@ -412,10 +435,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                     <p className="text-xs text-gray-400 mt-0.5">Le chef prépare votre plat</p>
                   </div>
                 </div>
-                <button onClick={() => setOrderPlaced(false)}
-                  className="w-8 h-8 rounded-2xl bg-gray-100 flex items-center justify-center">
-                  <X size={16} className="text-gray-500" />
-                </button>
               </div>
 
               <div className="h-px bg-gray-100 mx-5 mb-4" />
@@ -430,15 +449,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                     { Icon: Bell, title: 'Alertes', desc: 'Mes notifications', href: `/${restaurant.slug}/notifications`, color: '#8B5CF6' },
                   ].map(f => (
                     <button key={f.title}
-                      onClick={() => {
-                        setOrderPlaced(false)
-                        if (!sessionValid) {
-                          setPendingHref(f.href)
-                          setShowOnboarding(true)
-                        } else {
-                          window.location.href = f.href
-                        }
-                      }}
+                      onClick={() => { window.location.href = f.href }}
                       className="flex flex-col p-4 rounded-3xl bg-white text-left"
                       style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: `1.5px solid ${f.color}20` }}>
                       <f.Icon size={24} className="mb-2" style={{ color: f.color }} />
@@ -447,6 +458,13 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                     </button>
                   ))}
                 </div>
+
+                {/* Retour au menu → ferme simplement la popup */}
+                <button
+                  onClick={() => setOrderPlaced(false)}
+                  className="w-full py-3 rounded-2xl text-center font-bold text-gray-500 bg-gray-100 text-sm">
+                  Retourner au menu
+                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -523,7 +541,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                         </motion.button>
                       </div>
                     </div>
-                    {/* NOTE INPUT — fontSize 16px obligatoire anti-zoom iOS */}
                     <div className="px-3 pb-3">
                       <input
                         type="text"

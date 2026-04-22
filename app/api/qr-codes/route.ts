@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     // Code déjà lié à CE restaurant (peu importe la table) → erreur explicite
     if (existing?.restaurant_id === restaurant_id) {
       return NextResponse.json({
-        error: `Ce QR est déjà lié à la table "${existing.table_name || '?'}" — déliez-le d'abord`
+        error: `Ce QR est déjà lié à la table "${existing?.table_name || '?'}" — déliez-le d'abord`
       }, { status: 409 })
     }
 

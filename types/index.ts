@@ -12,6 +12,7 @@ export interface Restaurant {
   country: string
   phone?: string
   email?: string
+  admin_email?: string
   primary_color: string
   secondary_color: string
   accent_color: string
@@ -27,8 +28,20 @@ export interface Restaurant {
   plan: 'starter' | 'pro' | 'enterprise'
   plan_expires_at?: string
   is_active: boolean
+  is_preview?: boolean
   created_at: string
   updated_at: string
+}
+
+export interface QRCode {
+  id: string
+  code: string
+  batch_name?: string
+  restaurant_id?: string
+  table_name?: string
+  linked_at?: string
+  scan_count: number
+  created_at: string
 }
 
 export interface AdminUser {

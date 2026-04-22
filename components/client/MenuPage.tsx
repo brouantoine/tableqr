@@ -53,6 +53,9 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     : categories.find(c => c.id === activeCategory)?.items?.filter(i => i.is_available) || []
   const cartQty = (id: string) => cart.items.find(i => i.menu_item.id === id)?.quantity || 0
 
+  // Vérifie si tableId est un UUID valide
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tableId)
+
   async function placeOrder() {
     if (!session || cart.items.length === 0 || ordering) return
     setOrdering(true)
@@ -63,7 +66,8 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         body: JSON.stringify({
           session_id: session.id,
           restaurant_id: restaurant.id,
-          table_id: session.table_id || tableId,
+          // ✅ FIX : on n'envoie tableId que s'il s'agit d'un vrai UUID
+          table_id: session.table_id || (isUuid ? tableId : null),
           items: cart.items.map(i => ({
             menu_item_id: i.menu_item.id,
             quantity: i.quantity,
@@ -97,7 +101,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
 
   // Table object minimal pour OnboardingPage
   // Si tableId est un UUID → vraie table classique ; sinon c'est un nom de table physique (QR physique)
-  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tableId)
   const tableObj = { id: isUuid ? tableId : null, table_number: tableId, restaurant_id: restaurant.id } as any
 
   // Vérifier que la session est bien pour CE restaurant

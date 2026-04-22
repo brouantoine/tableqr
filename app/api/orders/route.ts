@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function POST(req: NextRequest) {
   try {
     const admin = getSupabaseAdmin()
@@ -25,11 +27,18 @@ export async function POST(req: NextRequest) {
     const { data: cnt } = await admin.from('orders').select('id', { count: 'exact' }).eq('restaurant_id', restaurant_id)
     const order_number = `CMD-${String((cnt?.length || 0) + 1).padStart(4, '0')}`
 
+    // ✅ FIX : on ne transmet table_id que s'il s'agit d'un UUID valide,
+    // pour éviter un rejet 400 de Supabase quand c'est un nom de table physique (ex: "table")
+    const safeTableId = table_id && UUID_REGEX.test(table_id) ? table_id : null
+
     const { data: order, error } = await admin.from('orders')
-      .insert({ restaurant_id, session_id, table_id: table_id || null, order_number, status: 'pending', payment_status: 'unpaid', subtotal, tax_amount: 0, total: subtotal, order_type: order_type || 'dine_in', notes: notes || null, is_remote: order_type === 'delivery' })
+      .insert({ restaurant_id, session_id, table_id: safeTableId, order_number, status: 'pending', payment_status: 'unpaid', subtotal, tax_amount: 0, total: subtotal, order_type: order_type || 'dine_in', notes: notes || null, is_remote: order_type === 'delivery' })
       .select().single()
 
-    if (error || !order) return NextResponse.json({ error: 'Erreur création' }, { status: 500 })
+    if (error || !order) {
+      console.error('Supabase insert error:', JSON.stringify(error))
+      return NextResponse.json({ error: 'Erreur création' }, { status: 500 })
+    }
     await admin.from('order_items').insert(lines.map((l: any) => ({ ...l, order_id: order.id })))
 
     return NextResponse.json({ data: order })

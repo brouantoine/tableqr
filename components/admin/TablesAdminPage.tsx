@@ -264,7 +264,7 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
           <LinkQRModal
             restaurantId={restaurant.id}
             onClose={() => setShowLinkModal(false)}
-            onLinked={(qr) => setQrCodes(prev => [qr, ...prev])}
+            onLinked={(qr) => setQrCodes(prev => [qr, ...prev.filter(q => q.code !== qr.code)])}
             primaryColor={p}
           />
         )}

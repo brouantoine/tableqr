@@ -20,9 +20,25 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
   const p = restaurant.primary_color
 
   useEffect(() => {
-    fetch(`/api/qr-codes?restaurant_id=${restaurant.id}`)
+    fetch(`/api/qr-codes?restaurant_id=${restaurant.id}`, { cache: 'no-store' })
       .then(r => r.json())
-      .then(r => setQrCodes(r.data || []))
+      .then(r => { if (r.data) setQrCodes(r.data) })
+      .catch(() => {})
+
+    // Realtime — sync automatique sur tous les appareils
+    const channel = supabase.channel('qr-codes-changes')
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'qr_codes',
+        filter: `restaurant_id=eq.${restaurant.id}`
+      }, () => {
+        fetch(`/api/qr-codes?restaurant_id=${restaurant.id}`, { cache: 'no-store' })
+          .then(r => r.json())
+          .then(r => { if (r.data) setQrCodes(r.data) })
+          .catch(() => {})
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [restaurant.id])
 
   async function addTable() {

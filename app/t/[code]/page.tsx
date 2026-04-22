@@ -6,25 +6,42 @@ export default async function QRRedirectPage({ params }: { params: Promise<{ cod
   const upperCode = code.toUpperCase()
   const admin = getSupabaseAdmin()
 
+  // Deux requêtes séparées — plus fiable que le join PostgREST
   const { data: qr } = await admin
     .from('qr_codes')
-    .select('restaurant_id, table_name, scan_count, restaurants(slug, is_active, name, primary_color)')
+    .select('restaurant_id, table_name, scan_count')
     .eq('code', upperCode)
     .maybeSingle()
 
-  if (qr) {
-    admin.from('qr_codes').update({ scan_count: (qr.scan_count || 0) + 1 }).eq('code', upperCode).then(() => {})
+  if (!qr) {
+    return <NotLinkedPage code={upperCode} color="#F26522" restoName={null} />
   }
 
-  const resto = qr?.restaurants as any
-  if (qr?.restaurant_id && resto?.is_active) {
-    const tableParam = qr.table_name ? `?table=${encodeURIComponent(qr.table_name)}` : ''
-    redirect(`/${resto.slug}/menu${tableParam}`)
+  // Incrémenter le scan count (await pour garantir l'exécution)
+  await admin
+    .from('qr_codes')
+    .update({ scan_count: (qr.scan_count || 0) + 1 })
+    .eq('code', upperCode)
+
+  if (!qr.restaurant_id) {
+    return <NotLinkedPage code={upperCode} color="#F26522" restoName={null} />
   }
 
-  const color = resto?.primary_color || '#F26522'
-  const restoName = resto?.name
+  const { data: resto } = await admin
+    .from('restaurants')
+    .select('slug, is_active, name, primary_color')
+    .eq('id', qr.restaurant_id)
+    .maybeSingle()
 
+  if (!resto || !resto.is_active) {
+    return <NotLinkedPage code={upperCode} color={resto?.primary_color || '#F26522'} restoName={resto?.name || null} />
+  }
+
+  const tableParam = qr.table_name ? `?table=${encodeURIComponent(qr.table_name)}` : ''
+  redirect(`/${resto.slug}/menu${tableParam}`)
+}
+
+function NotLinkedPage({ code, color, restoName }: { code: string; color: string; restoName: string | null }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
       <div className="text-center max-w-xs w-full">
@@ -34,11 +51,9 @@ export default async function QRRedirectPage({ params }: { params: Promise<{ cod
         >
           <span className="text-white text-3xl font-black">T</span>
         </div>
-
         <h1 className="text-2xl font-black text-gray-900 mb-1">
           TABLE<span style={{ color: '#F26522' }}>QR</span>
         </h1>
-
         {restoName ? (
           <>
             <p className="text-gray-700 font-bold mt-3 mb-1">{restoName}</p>
@@ -49,10 +64,9 @@ export default async function QRRedirectPage({ params }: { params: Promise<{ cod
             Ce QR code n&apos;est pas encore configuré.
           </p>
         )}
-
         <div className="bg-white rounded-2xl px-4 py-3 border border-gray-100 shadow-sm">
           <p className="text-xs text-gray-400 mb-1">Code</p>
-          <p className="text-lg font-black tracking-widest text-gray-800">{upperCode}</p>
+          <p className="text-lg font-black tracking-widest text-gray-800">{code}</p>
         </div>
       </div>
     </div>

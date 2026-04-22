@@ -7,14 +7,14 @@ export default async function QRRedirectPage({ params }: { params: Promise<{ cod
   const admin = getSupabaseAdmin()
 
   // Deux requêtes séparées — plus fiable que le join PostgREST
-  const { data: qr } = await admin
+  const { data: qr, error: qrError } = await admin
     .from('qr_codes')
     .select('restaurant_id, table_name, scan_count')
     .eq('code', upperCode)
     .maybeSingle()
 
-  if (!qr) {
-    return <NotLinkedPage code={upperCode} color="#F26522" restoName={null} />
+  if (qrError || !qr) {
+    return <NotLinkedPage code={upperCode} color="#F26522" restoName={null} migrationMissing={qrError?.code === '42P01'} />
   }
 
   // Incrémenter le scan count (await pour garantir l'exécution)
@@ -41,7 +41,9 @@ export default async function QRRedirectPage({ params }: { params: Promise<{ cod
   redirect(`/${resto.slug}/menu${tableParam}`)
 }
 
-function NotLinkedPage({ code, color, restoName }: { code: string; color: string; restoName: string | null }) {
+function NotLinkedPage({ code, color, restoName, migrationMissing }: {
+  code: string; color: string; restoName: string | null; migrationMissing?: boolean
+}) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
       <div className="text-center max-w-xs w-full">
@@ -54,7 +56,11 @@ function NotLinkedPage({ code, color, restoName }: { code: string; color: string
         <h1 className="text-2xl font-black text-gray-900 mb-1">
           TABLE<span style={{ color: '#F26522' }}>QR</span>
         </h1>
-        {restoName ? (
+        {migrationMissing ? (
+          <p className="text-amber-600 text-sm mt-3 mb-8 font-semibold">
+            Configuration en cours — revenez dans quelques instants.
+          </p>
+        ) : restoName ? (
           <>
             <p className="text-gray-700 font-bold mt-3 mb-1">{restoName}</p>
             <p className="text-gray-400 text-sm mb-8">Ce restaurant arrive bientôt sur TableQR.</p>

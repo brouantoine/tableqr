@@ -78,7 +78,7 @@ export default function OnboardingPage({ restaurant, table, onDone }: {
     const pseudo = getAvatarLabel(selectedAvatar.id)
     const sessionData = {
       restaurant_id: restaurant.id,
-      table_id: table.id,
+      ...(table.id ? { table_id: table.id } : {}),
       pseudo,
       avatar_icon: selectedAvatar.id,
       device_fingerprint: fingerprint,

@@ -1,9 +1,8 @@
 'use client'
 import { useState, useEffect, Suspense } from 'react'
-import { TwemojiIcon } from '@/components/Twemoji'
 import TwemojiAvatar from './TwemojiAvatar'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Star, Clock, Flame, Leaf, Heart, ChevronRight } from 'lucide-react'
+import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Star, Clock, Flame, Leaf, Heart, ChevronRight, UtensilsCrossed, MessageCircle, Gamepad2, Bell, Package } from 'lucide-react'
 import { useSessionStore } from '@/lib/store'
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/utils'
@@ -97,7 +96,9 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   }
 
   // Table object minimal pour OnboardingPage
-  const tableObj = { id: tableId, table_number: '', restaurant_id: restaurant.id } as any
+  // Si tableId est un UUID → vraie table classique ; sinon c'est un nom de table physique (QR physique)
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tableId)
+  const tableObj = { id: isUuid ? tableId : null, table_number: tableId, restaurant_id: restaurant.id } as any
 
   // Vérifier que la session est bien pour CE restaurant
   const sessionValid = session && session.restaurant_id === restaurant.id && session.is_present
@@ -197,7 +198,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                 style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.15)' }}>
                 {item.image_url
                   ? <img src={item.image_url} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
-                  : <div className="absolute inset-0 flex items-center justify-center text-7xl" style={{ backgroundColor: p + '20' }}>🍽️</div>
+                  : <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: p + '20' }}><UtensilsCrossed size={56} style={{ color: p + '80' }} /></div>
                 }
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.2) 50%, transparent 100%)' }} />
                 <div className="absolute top-3 right-3 w-8 h-8 rounded-2xl flex items-center justify-center"
@@ -262,7 +263,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
               style={{ height: '180px', boxShadow: '0 6px 24px rgba(0,0,0,0.12)' }}>
               {item.image_url
                 ? <img src={item.image_url} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
-                : <div className="absolute inset-0 flex items-center justify-center text-8xl" style={{ backgroundColor: p + '20' }}>🍽️</div>
+                : <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: p + '20' }}><UtensilsCrossed size={64} style={{ color: p + '80' }} /></div>
               }
               <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 45%, transparent 100%)' }} />
               <div className="absolute top-3 left-3 flex gap-1.5">
@@ -357,7 +358,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
               <div className="relative">
                 {selectedItem.image_url
                   ? <img src={selectedItem.image_url} alt={selectedItem.name} className="w-full h-64 object-cover" />
-                  : <div className="w-full h-52 flex items-center justify-center text-8xl" style={{ backgroundColor: p + '15' }}>🍽️</div>
+                  : <div className="w-full h-52 flex items-center justify-center" style={{ backgroundColor: p + '15' }}><UtensilsCrossed size={64} style={{ color: p + '60' }} /></div>
                 }
                 <button onClick={() => setSelectedItem(null)}
                   className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/40 backdrop-blur flex items-center justify-center">
@@ -420,16 +421,15 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">En attendant votre plat</p>
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   {[
-                    { icon: '💬', title: 'Social', desc: 'Chattez avec les autres clients', href: `/${restaurant.slug}/social`, color: p },
-                    { icon: '🎮', title: 'Mini-Jeux', desc: 'Jouez en multijoueur', href: `/${restaurant.slug}/games`, color: restaurant.secondary_color || '#D4A017' },
-                    { icon: '📦', title: 'Commandes', desc: 'Suivre ma commande', href: `/${restaurant.slug}/commandes`, color: '#10B981' },
-                    { icon: '🔔', title: 'Alertes', desc: 'Mes notifications', href: `/${restaurant.slug}/notifications`, color: '#8B5CF6' },
+                    { Icon: MessageCircle, title: 'Social', desc: 'Chattez avec les autres clients', href: `/${restaurant.slug}/social`, color: p },
+                    { Icon: Gamepad2, title: 'Mini-Jeux', desc: 'Jouez en multijoueur', href: `/${restaurant.slug}/games`, color: restaurant.secondary_color || '#D4A017' },
+                    { Icon: Package, title: 'Commandes', desc: 'Suivre ma commande', href: `/${restaurant.slug}/commandes`, color: '#10B981' },
+                    { Icon: Bell, title: 'Alertes', desc: 'Mes notifications', href: `/${restaurant.slug}/notifications`, color: '#8B5CF6' },
                   ].map(f => (
                     <button key={f.title}
                       onClick={() => {
                         setOrderPlaced(false)
                         if (!sessionValid) {
-                          // Pas de session valide pour CE restaurant → onboarding
                           setPendingHref(f.href)
                           setShowOnboarding(true)
                         } else {
@@ -438,7 +438,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                       }}
                       className="flex flex-col p-4 rounded-3xl bg-white text-left"
                       style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: `1.5px solid ${f.color}20` }}>
-                      <span className="text-2xl mb-2">{f.icon}</span>
+                      <f.Icon size={24} className="mb-2" style={{ color: f.color }} />
                       <p className="font-black text-gray-900 text-sm mb-0.5">{f.title}</p>
                       <p className="text-xs text-gray-400">{f.desc}</p>
                     </button>
@@ -500,7 +500,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                       <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0">
                         {ci.menu_item.image_url
                           ? <img src={ci.menu_item.image_url} alt="" className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center text-2xl bg-gray-200">🍽️</div>
+                          : <div className="w-full h-full flex items-center justify-center bg-gray-200"><UtensilsCrossed size={20} className="text-gray-400" /></div>
                         }
                       </div>
                       <div className="flex-1 min-w-0">

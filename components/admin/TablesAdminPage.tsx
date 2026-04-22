@@ -5,7 +5,12 @@ import { Plus, QrCode, Download, ToggleLeft, ToggleRight, Users, Link, X, Check,
 import { supabase } from '@/lib/supabase/client'
 import type { RestaurantTable, Restaurant, QRCode } from '@/types'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')
+// Toujours utiliser l'origine courante du navigateur pour que les QR pointent
+// vers le bon serveur peu importe le déploiement Vercel actif
+function getAppUrl(): string {
+  if (typeof window !== 'undefined') return window.location.origin
+  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+}
 
 export default function TablesAdminPage({ restaurant, initialTables }: {
   restaurant: Restaurant
@@ -67,7 +72,7 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
   }
 
   function getQRUrl(table: RestaurantTable) {
-    return `${APP_URL}/${restaurant.slug}/table/${table.id}`
+    return `${getAppUrl()}/${restaurant.slug}/table/${table.id}`
   }
 
   function downloadQR(table: RestaurantTable) {
@@ -79,7 +84,7 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
   }
 
   function getPhysicalQRUrl(code: string) {
-    return `${APP_URL}/t/${code}`
+    return `${getAppUrl()}/t/${code}`
   }
 
   function downloadPhysicalQR(code: string, tableName: string) {

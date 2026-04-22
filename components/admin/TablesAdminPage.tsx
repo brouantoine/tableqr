@@ -206,6 +206,10 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
                   {qr.scan_count > 0 && (
                     <p className="text-xs text-blue-500 text-center mt-1 font-semibold">{qr.scan_count} scan{qr.scan_count > 1 ? 's' : ''}</p>
                   )}
+                  <a href={getPhysicalQRUrl(qr.code)} target="_blank" rel="noopener noreferrer"
+                    className="block text-center text-xs text-blue-500 underline mt-1.5 font-semibold">
+                    Tester le lien →
+                  </a>
                 </div>
                 <div className="flex border-t border-blue-50">
                   <button onClick={() => downloadPhysicalQR(qr.code, qr.table_name || qr.code)}

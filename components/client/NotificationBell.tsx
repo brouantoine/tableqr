@@ -1,5 +1,6 @@
 'use client'
 import { useEffect } from 'react'
+import { Bell } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { formatTimeAgo } from '@/lib/utils'
@@ -24,7 +25,7 @@ export default function NotificationBell({ primaryColor }: { primaryColor: strin
     <div className="relative">
       <button onClick={() => { setOpen((v: boolean) => !v); if (unread_count > 0) markAllRead() }}
         className="relative p-2 rounded-full bg-gray-100">
-        <span className="text-xl">🔔</span>
+        <Bell size={20} color={primaryColor} strokeWidth={2} />
         {unread_count > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center">
             {unread_count}

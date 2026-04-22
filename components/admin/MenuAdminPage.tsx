@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Eye, EyeOff, Edit2, X, Check, Flame, Leaf, Search, Image } from 'lucide-react'
+import { Plus, Eye, EyeOff, Edit2, X, Check, Flame, Leaf, Search, Image, UtensilsCrossed, Camera } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/utils'
 import type { MenuCategory, MenuItem, Restaurant } from '@/types'
@@ -122,8 +122,8 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
               className={`bg-white rounded-2xl p-4 shadow-sm flex gap-3 ${!item.is_available ? 'opacity-60' : ''}`}>
               {item.image_url
                 ? <img src={item.image_url} alt={item.name} className="w-16 h-16 rounded-xl object-cover flex-shrink-0" />
-                : <div className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
-                    style={{ backgroundColor: p + '15' }}>🍽️</div>
+                : <div className="w-16 h-16 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: p + '15' }}><UtensilsCrossed size={24} style={{ color: p }} /></div>
               }
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
@@ -159,7 +159,7 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
         </AnimatePresence>
         {activeItems.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-4xl mb-2">🍽️</p>
+            <UtensilsCrossed size={40} className="text-gray-300 mb-2 mx-auto" />
             <p className="text-gray-400 font-medium">Aucun plat dans cette catégorie</p>
             <button onClick={() => { setEditItem({ category_id: activeCategory, allergens: [], is_vegetarian: false, is_vegan: false, is_halal: false, is_spicy: false, spicy_level: 0, is_available: true, order_count: 0, position: 0 }); setShowForm(true) }}
               className="mt-3 text-sm font-bold" style={{ color: p }}>+ Ajouter un plat</button>
@@ -292,7 +292,7 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
             ) : (
               <button onClick={() => setShowPicker(true)}
                 className="w-full h-32 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-2 hover:bg-gray-100 transition-colors">
-                <span className="text-2xl">📷</span>
+                <Camera size={24} className="text-gray-400" />
                 <span className="text-sm font-bold text-gray-500">Ajouter une photo</span>
                 <span className="text-xs text-gray-400">Bibliothèque · Caméra · URL</span>
               </button>

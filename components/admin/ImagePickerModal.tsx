@@ -1,7 +1,7 @@
 'use client'
 import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Camera, Upload, Search, Check } from 'lucide-react'
+import { X, Camera, Upload, Search, Check, BookOpen, Link } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 
 interface Props {
@@ -104,13 +104,14 @@ export default function ImagePickerModal({ onSelect, onClose, restaurantId }: Pr
         {/* Tabs */}
         <div className="flex gap-2 px-5 pb-3 flex-shrink-0">
           {[
-            { key: 'library', label: '📚 Bibliothèque' },
-            { key: 'upload', label: '📷 Photo' },
-            { key: 'url', label: '🔗 URL' },
+            { key: 'library', label: 'Bibliothèque', Icon: BookOpen },
+            { key: 'upload', label: 'Photo', Icon: Camera },
+            { key: 'url', label: 'URL', Icon: Link },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key as any)}
-              className="px-3 py-2 rounded-xl text-xs font-bold transition-all"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
               style={tab === t.key ? { backgroundColor: '#F26522', color: '#fff' } : { backgroundColor: '#F3F4F6', color: '#6B7280' }}>
+              <t.Icon size={12} />
               {t.label}
             </button>
           ))}

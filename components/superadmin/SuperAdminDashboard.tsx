@@ -1,8 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { TwemojiIcon } from '@/components/Twemoji'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Search, Store, Users, TrendingUp, Settings, ChevronRight, X, Check, Globe, Phone, Mail, LogOut, QrCode } from 'lucide-react'
+import { Plus, Search, Store, Users, TrendingUp, Settings, ChevronRight, X, Check, Globe, Phone, Mail, LogOut, QrCode, Eye, Rocket, AlertTriangle, UtensilsCrossed, DollarSign, FileText, Smartphone } from 'lucide-react'
 import { formatPrice, formatTimeAgo } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
 import type { Restaurant } from '@/types'
@@ -281,7 +280,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
                 className="w-full p-5 rounded-3xl border-2 border-yellow-200 bg-yellow-50/50 text-left hover:border-yellow-400 hover:bg-yellow-50 transition-all">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-yellow-100 flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl">👁️</span>
+                    <Eye size={22} className="text-yellow-600" />
                   </div>
                   <div>
                     <p className="font-black text-gray-900 text-sm mb-1">Mode Preview / Prospection</p>
@@ -514,7 +513,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
                   <motion.button whileTap={{ scale: 0.97 }} onClick={createNormal} disabled={loading}
                     className="flex-1 py-3.5 rounded-2xl font-bold text-white disabled:opacity-60"
                     style={{ backgroundColor: '#F26522' }}>
-                    {loading ? 'Création...' : '🚀 Créer le restaurant'}
+                    {loading ? 'Création...' : <span className="flex items-center justify-center gap-2"><Rocket size={16} /> Créer le restaurant</span>}
                   </motion.button>
                 )}
               </div>
@@ -552,7 +551,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-red-50">
-                  <span className="text-red-400 text-xs">⚠️</span>
+                  <AlertTriangle size={14} className="text-red-400 flex-shrink-0" />
                   <p className="text-xs text-red-500 font-medium">Notez ces identifiants — ils ne seront plus affichés</p>
                 </div>
               </div>
@@ -750,10 +749,10 @@ function RestaurantDetailModal({ restaurant, onClose }: { restaurant: Restaurant
   }
 
   const actions = [
-    { label: 'Voir le menu client', icon: '🍽️', href: `/${restaurant.slug}/menu` },
-    { label: 'Dashboard caisse', icon: '💰', href: '/admin/dashboard' },
-    { label: 'Gestion menu', icon: '📝', href: '/admin/menu' },
-    { label: 'Tables & QR Codes', icon: '📱', href: '/admin/tables' },
+    { label: 'Voir le menu client', Icon: UtensilsCrossed, href: `/${restaurant.slug}/menu` },
+    { label: 'Dashboard caisse', Icon: DollarSign, href: '/admin/dashboard' },
+    { label: 'Gestion menu', Icon: FileText, href: '/admin/menu' },
+    { label: 'Tables & QR Codes', Icon: Smartphone, href: '/admin/tables' },
   ]
 
   return (
@@ -768,7 +767,7 @@ function RestaurantDetailModal({ restaurant, onClose }: { restaurant: Restaurant
         {/* Banner preview ou couleur */}
         {restaurant.is_preview ? (
           <div className="h-16 rounded-t-[2rem] flex items-center px-5 gap-3" style={{ backgroundColor: '#FEF9C3' }}>
-            <span className="text-2xl">👁️</span>
+            <Eye size={24} className="text-yellow-600 flex-shrink-0" />
             <div>
               <p className="font-black text-yellow-800 text-sm">Mode Preview / Prospection</p>
               <p className="text-xs text-yellow-600">Ce restaurant n&apos;a pas encore de compte admin</p>
@@ -830,7 +829,7 @@ function RestaurantDetailModal({ restaurant, onClose }: { restaurant: Restaurant
             {actions.map(a => (
               <a key={a.label} href={a.href}
                 className="flex items-center gap-3 p-3.5 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                <span className="text-xl">{a.icon}</span>
+                <a.Icon size={18} className="text-gray-500 flex-shrink-0" />
                 <span className="font-semibold text-sm text-gray-800 flex-1">{a.label}</span>
                 <ChevronRight size={15} className="text-gray-400" />
               </a>
@@ -879,7 +878,7 @@ function RestaurantDetailModal({ restaurant, onClose }: { restaurant: Restaurant
 
               {activateSuccess && (
                 <div className="bg-green-50 rounded-2xl p-4 border border-green-100 space-y-2">
-                  <p className="font-black text-green-700 text-sm">✅ Restaurant activé !</p>
+                  <p className="font-black text-green-700 text-sm flex items-center gap-1.5"><Check size={14} /> Restaurant activé !</p>
                   <div className="bg-white rounded-xl p-3 space-y-2 border border-green-100">
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-400">Email</span>
@@ -893,7 +892,7 @@ function RestaurantDetailModal({ restaurant, onClose }: { restaurant: Restaurant
                       </span>
                     </div>
                   </div>
-                  <p className="text-xs text-red-500 font-medium">⚠️ Notez ces identifiants maintenant</p>
+                  <p className="text-xs text-red-500 font-medium flex items-center gap-1"><AlertTriangle size={12} /> Notez ces identifiants maintenant</p>
                   <button onClick={() => { onClose(); window.location.reload() }}
                     className="w-full py-2.5 rounded-xl bg-green-600 text-white font-bold text-sm">
                     Fermer

@@ -1,7 +1,7 @@
 'use client'
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp, Users, MessageCircle, Heart, ShoppingBag, Star, ArrowUpRight } from 'lucide-react'
+import { TrendingUp, Users, MessageCircle, Heart, ShoppingBag, Star, ArrowUpRight, DollarSign, Trophy, BarChart3 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import type { Restaurant, Order } from '@/types'
 
@@ -77,7 +77,7 @@ export default function StatsPage({ restaurant, orders, sessions, messages, matc
 
         {/* Revenus */}
         <div>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">💰 Revenus</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><DollarSign size={12} /> Revenus</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {revenueCards.map((card, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -98,7 +98,7 @@ export default function StatsPage({ restaurant, orders, sessions, messages, matc
 
         {/* Social */}
         <div>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">👥 Clients & Social</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><Users size={12} /> Clients & Social</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {socialCards.map((card, i) => (
               <motion.div key={i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
@@ -146,10 +146,10 @@ export default function StatsPage({ restaurant, orders, sessions, messages, matc
 
           {/* Top plats */}
           <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-            <p className="font-black text-gray-900 mb-4">🏆 Plats populaires</p>
+            <p className="font-black text-gray-900 mb-4 flex items-center gap-2"><Trophy size={16} className="text-yellow-500" /> Plats populaires</p>
             {stats.topItems.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
-                <p className="text-3xl mb-2">📊</p>
+                <BarChart3 size={32} className="text-gray-300 mb-2" />
                 <p className="text-gray-400 text-sm">Pas encore de données</p>
               </div>
             ) : (

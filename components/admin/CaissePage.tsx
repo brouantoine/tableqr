@@ -1,11 +1,10 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { TwemojiIcon } from '@/components/Twemoji'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice, formatTimeAgo } from '@/lib/utils'
 import type { Order, Restaurant } from '@/types'
-import { TrendingUp, ShoppingBag, Clock, CheckCircle, ChefHat, X, CreditCard, Plus, Receipt, Bell, Calendar, ChevronDown, History } from 'lucide-react'
+import { TrendingUp, ShoppingBag, Clock, CheckCircle, ChefHat, X, CreditCard, Plus, Receipt, Bell, Calendar, ChevronDown, History, FileText, AlertTriangle } from 'lucide-react'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 
@@ -314,7 +313,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                             </div>
                             {((item as any).notes || (item as any).note) && (
                               <div className="ml-7 mt-0.5 px-2 py-1 rounded-lg bg-orange-50 flex items-center gap-1">
-                                <span className="text-orange-500 text-xs"><TwemojiIcon emoji="📝" size={20} /></span>
+                                <FileText size={12} className="text-orange-500 flex-shrink-0" />
                                 <span className="text-xs text-orange-700 font-medium">{(item as any).notes || (item as any).note}</span>
                               </div>
                             )}
@@ -607,7 +606,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
           {pendingPayment.length > 0 && (
             <div className="bg-amber-50 rounded-3xl p-4 border border-amber-100 flex items-center justify-between">
               <div>
-                <p className="font-bold text-amber-800 text-sm">⚠️ En attente d&apos;encaissement</p>
+                <p className="font-bold text-amber-800 text-sm flex items-center gap-1.5"><AlertTriangle size={14} /> En attente d&apos;encaissement</p>
                 <p className="text-xs text-amber-600 mt-0.5">{pendingPayment.length} commande{pendingPayment.length > 1 ? 's' : ''} servie{pendingPayment.length > 1 ? 's' : ''} non encaissée{pendingPayment.length > 1 ? 's' : ''}</p>
               </div>
               <p className="font-black text-amber-800">{formatPrice(pendingPayment.reduce((s, o) => s + (Number(o.total) || 0), 0), restaurant.currency)}</p>
@@ -720,7 +719,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                     </div>
                     {((item as any).notes || (item as any).note) && (
                       <div className="ml-9 mb-1 px-2 py-1 rounded-lg bg-orange-50 flex items-center gap-1">
-                        <span className="text-xs"><TwemojiIcon emoji="📝" size={20} /></span>
+                        <FileText size={12} className="text-orange-500 flex-shrink-0" />
                         <span className="text-xs text-orange-700 font-medium">{(item as any).notes || (item as any).note}</span>
                       </div>
                     )}

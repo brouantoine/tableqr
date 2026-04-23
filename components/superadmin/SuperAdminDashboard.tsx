@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Search, Store, Users, TrendingUp, Settings, ChevronRight, X, Check, Globe, Phone, Mail, LogOut, QrCode, Eye, Rocket, AlertTriangle, UtensilsCrossed, DollarSign, FileText, Smartphone } from 'lucide-react'
 import { formatPrice, formatTimeAgo } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
+import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { Restaurant } from '@/types'
 
 interface Props {
@@ -591,27 +592,8 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
 
   function printBatch() {
     const appUrl = APP_URL
-    const html = `<!DOCTYPE html><html><head><title>QR Codes — ${batchName}</title>
-    <style>
-      body { font-family: Arial, sans-serif; margin: 0; padding: 10px; }
-      .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-      .card { border: 1px solid #eee; border-radius: 8px; padding: 10px; text-align: center; page-break-inside: avoid; }
-      .card img { width: 100%; max-width: 120px; }
-      .code { font-family: monospace; font-size: 11px; font-weight: bold; color: #333; margin-top: 6px; letter-spacing: 2px; }
-      .logo { font-size: 9px; color: #F26522; font-weight: bold; margin-top: 2px; }
-      @media print { body { margin: 0; } }
-    </style></head><body>
-    <h2 style="font-size:14px;color:#F26522;margin-bottom:12px;">TableQR — ${batchName} (${generated.length} codes)</h2>
-    <div class="grid">
-    ${generated.map(qr => `
-      <div class="card">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${appUrl}/t/${qr.code}`)}&qzone=1" />
-        <div class="code">${qr.code}</div>
-        <div class="logo">TABLEQR</div>
-      </div>`).join('')}
-    </div>
-    <script>window.onload=()=>window.print()</script>
-    </body></html>`
+    const items = generated.map(qr => ({ code: qr.code }))
+    const html = generateQRPrintHTML(items, appUrl, batchName)
 
     const win = window.open('', '_blank')
     win?.document.write(html)

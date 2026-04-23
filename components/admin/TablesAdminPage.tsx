@@ -1,8 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, QrCode, Download, ToggleLeft, ToggleRight, Users, Link, X, Check, Trash2 } from 'lucide-react'
+import { Plus, QrCode, Download, ToggleLeft, ToggleRight, Users, Link, X, Check, Trash2, Printer } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { RestaurantTable, Restaurant, QRCode } from '@/types'
 
 // Toujours utiliser l'origine courante du navigateur pour que les QR pointent
@@ -95,6 +96,41 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
     document.body.appendChild(link); link.click(); document.body.removeChild(link)
   }
 
+  function printAllTables() {
+    const allTables = tables.filter(t => t.is_active)
+    if (allTables.length === 0) {
+      alert('Aucune table active à imprimer')
+      return
+    }
+
+    const items = allTables.map(table => ({
+      code: table.qr_code,
+      label: `Table ${table.table_number}`
+    }))
+
+    const html = generateQRPrintHTML(items, getAppUrl(), `Toutes les tables — ${restaurant.name}`)
+    const win = window.open('', '_blank')
+    win?.document.write(html)
+    win?.document.close()
+  }
+
+  function printPhysicalQRCodes() {
+    if (qrCodes.length === 0) {
+      alert('Aucun code QR physique à imprimer')
+      return
+    }
+
+    const items = qrCodes.map(qr => ({
+      code: qr.code,
+      label: qr.table_name || qr.code
+    }))
+
+    const html = generateQRPrintHTML(items, getAppUrl(), `QR Codes physiques — ${restaurant.name}`)
+    const win = window.open('', '_blank')
+    win?.document.write(html)
+    win?.document.close()
+  }
+
   const activeTables = tables.filter(t => t.is_active).length + qrCodes.length
 
   return (
@@ -106,12 +142,20 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
             <h2 className="font-black text-xl text-gray-900">Tables & QR Codes</h2>
             <p className="text-sm text-gray-400 mt-0.5">{activeTables} table{activeTables > 1 ? 's' : ''} active{activeTables > 1 ? 's' : ''}</p>
           </div>
-          <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowLinkModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-black"
-            style={{ backgroundColor: p }}>
-            <Link size={15} strokeWidth={2.5} />
-            Lier un QR
-          </motion.button>
+          <div className="flex items-center gap-2">
+            <motion.button whileTap={{ scale: 0.95 }} onClick={printAllTables}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-black"
+              style={{ backgroundColor: p }}>
+              <Printer size={15} strokeWidth={2.5} />
+              Imprimer
+            </motion.button>
+            <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowLinkModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-black"
+              style={{ backgroundColor: p }}>
+              <Link size={15} strokeWidth={2.5} />
+              Lier un QR
+            </motion.button>
+          </div>
         </div>
       </div>
 
@@ -189,7 +233,14 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
         <div className="px-4 sm:px-6 pb-24 max-w-7xl mx-auto">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">QR Codes physiques liés</p>
-            <span className="text-xs text-gray-400">{qrCodes.length} code{qrCodes.length > 1 ? 's' : ''}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-400">{qrCodes.length} code{qrCodes.length > 1 ? 's' : ''}</span>
+              <motion.button whileTap={{ scale: 0.95 }} onClick={printPhysicalQRCodes}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-xs font-bold hover:bg-blue-100 transition-colors">
+                <Printer size={13} />
+                Imprimer
+              </motion.button>
+            </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {qrCodes.map((qr, i) => (

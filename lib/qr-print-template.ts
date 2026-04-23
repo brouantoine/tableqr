@@ -1,6 +1,6 @@
 /**
  * Générateur de template d'impression QR personnalisé
- * Design: Orange vif sur fond noir, 8 QR par A4, scanables à 100%
+ * Design: Orange sur fond blanc, 8 QR par A4, carrés, scanables
  */
 
 export interface QRItem {
@@ -13,7 +13,7 @@ export function generateQRPrintHTML(
   appUrl: string,
   batchName?: string
 ): string {
-  // Grouper les QR codes par 8 (8 par page A4)
+  // Grouper les QR codes par 8 (8 par page A4 - 4x2)
   const pages: QRItem[][] = [];
   for (let i = 0; i < items.length; i += 8) {
     pages.push(items.slice(i, i + 8));
@@ -35,12 +35,12 @@ export function generateQRPrintHTML(
 
     @page {
       size: A4;
-      margin: 0;
+      margin: 10mm;
     }
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #1a1a1a;
+      background: #f5f5f5;
       padding: 0;
     }
 
@@ -51,7 +51,8 @@ export function generateQRPrintHTML(
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       grid-template-rows: repeat(2, 1fr);
-      gap: 0;
+      gap: 8mm;
+      padding: 10mm;
       page-break-after: always;
       margin-bottom: 20px;
       box-shadow: 0 0 10px rgba(0,0,0,0.1);
@@ -62,121 +63,77 @@ export function generateQRPrintHTML(
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      background: black;
-      padding: 16px;
+      justify-content: flex-start;
+      background: white;
+      border: 1px solid #eee;
+      padding: 12px;
       page-break-inside: avoid;
-      overflow: hidden;
-      border: 0.5px solid #333;
+      overflow: visible;
+      aspect-ratio: 1;
     }
 
     /* Marques de découpe - croix aux 4 coins */
-    .qr-card::before,
-    .qr-card::after {
-      content: '';
-      position: absolute;
-      background: #FF8C00;
-    }
-
     .qr-card::before {
-      width: 2px;
-      height: 10px;
-      top: 0;
-      left: 0;
+      content: '';
+      position: absolute;
+      width: 8px;
+      height: 1px;
+      background: #FF8C00;
+      top: -4px;
+      left: -4px;
     }
 
     .qr-card::after {
-      width: 10px;
-      height: 2px;
-      top: 0;
-      left: 0;
-    }
-
-    /* Marques coin haut-droit */
-    .qr-corner-tr::before,
-    .qr-corner-tr::after {
       content: '';
       position: absolute;
+      width: 1px;
+      height: 8px;
       background: #FF8C00;
+      top: -4px;
+      left: -4px;
     }
 
-    .qr-corner-tr::before {
-      width: 2px;
-      height: 10px;
-      top: 0;
-      right: 0;
+    /* Titre TableQR */
+    .header {
+      font-family: 'Great Vibes', cursive;
+      font-size: 16px;
+      color: #FF8C00;
+      font-weight: 600;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+      font-style: italic;
     }
 
-    .qr-corner-tr::after {
-      width: 10px;
-      height: 2px;
-      top: 0;
-      right: 0;
-    }
-
-    /* Marques coin bas-gauche */
-    .qr-corner-bl {
-      position: relative;
-    }
-
-    .qr-corner-bl::before,
-    .qr-corner-bl::after {
-      content: '';
+    /* Badge numéro - JUSTE AU-DESSUS du QR */
+    .badge-number {
       position: absolute;
+      width: 22px;
+      height: 22px;
       background: #FF8C00;
-    }
-
-    .qr-corner-bl::before {
-      width: 2px;
-      height: 10px;
-      bottom: 0;
-      left: 0;
-    }
-
-    .qr-corner-bl::after {
-      width: 10px;
-      height: 2px;
-      bottom: 0;
-      left: 0;
-    }
-
-    /* Marques coin bas-droit */
-    .qr-corner-br {
-      position: relative;
-    }
-
-    .qr-corner-br::before,
-    .qr-corner-br::after {
-      content: '';
-      position: absolute;
-      background: #FF8C00;
-    }
-
-    .qr-corner-br::before {
-      width: 2px;
-      height: 10px;
-      bottom: 0;
-      right: 0;
-    }
-
-    .qr-corner-br::after {
-      width: 10px;
-      height: 2px;
-      bottom: 0;
-      right: 0;
-    }
-
-    /* Container QR - SANS OVERLAY pour le rendre scannable */
-    .qr-container {
-      position: relative;
-      width: 140px;
-      height: 140px;
-      margin: 8px 0;
+      color: white;
+      border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: black;
-      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      z-index: 11;
+      top: 54px;
+      left: 50%;
+      transform: translateX(-50%);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Container QR - CARRÉ, NO overlay */
+    .qr-container {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      margin: 14px 0 8px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: white;
       overflow: hidden;
     }
 
@@ -186,57 +143,39 @@ export function generateQRPrintHTML(
       object-fit: contain;
     }
 
-    /* Texte sous le QR */
+    /* Footer texte */
     .footer {
       text-align: center;
       margin-top: 6px;
+      font-size: 0;
     }
 
     .footer-main {
-      font-size: 11px;
+      font-size: 9px;
       font-weight: 700;
       color: #FF8C00;
-      letter-spacing: 0.5px;
-      line-height: 1.2;
+      letter-spacing: 0.3px;
+      line-height: 1.1;
     }
 
     .footer-sub {
-      font-size: 9px;
+      font-size: 7px;
       color: #FF8C00;
       margin-top: 1px;
-      letter-spacing: 0.3px;
-      opacity: 0.85;
-      line-height: 1.1;
+      letter-spacing: 0.2px;
+      opacity: 0.8;
+      line-height: 1;
     }
 
     /* Code QR discret */
     .qr-code-text {
-      font-size: 7px;
-      color: #666;
-      margin-top: 4px;
+      font-size: 6px;
+      color: #999;
+      margin-top: 3px;
       font-family: 'Courier New', monospace;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
       text-align: center;
       font-weight: 600;
-    }
-
-    /* Badge de numérotation - haut à droite */
-    .badge-number {
-      position: absolute;
-      top: 6px;
-      right: 6px;
-      width: 28px;
-      height: 28px;
-      background: #FF8C00;
-      color: black;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: bold;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-      z-index: 11;
     }
 
     @media print {
@@ -255,7 +194,7 @@ export function generateQRPrintHTML(
     @media screen {
       body {
         padding: 20px;
-        background: #1a1a1a;
+        background: #f5f5f5;
       }
       .page {
         margin: 0 auto 20px;
@@ -273,21 +212,12 @@ export function generateQRPrintHTML(
     pageItems.forEach((item, itemIndex) => {
       const absoluteIndex = pageIndex * 8 + itemIndex + 1;
       const qrUrl = `${appUrl}/t/${item.code}`;
-      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(qrUrl)}&color=FF8C00&bgcolor=000000&qzone=0`;
-
-      // Déterminer les classes de coin
-      const isFirstRow = itemIndex < 4;
-      const isLastRow = itemIndex >= 4;
-      const isLeftColumn = itemIndex % 4 === 0;
-      const isRightColumn = itemIndex % 4 === 3;
-
-      let cornerClasses = 'qr-card';
-      if (isFirstRow && isRightColumn) cornerClasses += ' qr-corner-tr';
-      if (isLastRow && isLeftColumn) cornerClasses += ' qr-corner-bl';
-      if (isLastRow && isRightColumn) cornerClasses += ' qr-corner-br';
+      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}&color=FF8C00&bgcolor=ffffff&qzone=0`;
 
       html += `
-        <div class="${cornerClasses}">
+        <div class="qr-card">
+          <div class="header">TableQR</div>
+          
           <div class="badge-number">${absoluteIndex}</div>
           
           <div class="qr-container">

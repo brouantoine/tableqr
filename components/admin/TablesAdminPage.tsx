@@ -6,11 +6,8 @@ import { supabase } from '@/lib/supabase/client'
 import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { RestaurantTable, Restaurant, QRCode } from '@/types'
 
-// Toujours utiliser l'origine courante du navigateur pour que les QR pointent
-// vers le bon serveur peu importe le déploiement Vercel actif
 function getAppUrl(): string {
-  if (typeof window !== 'undefined') return window.location.origin
-  return process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  return process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')
 }
 
 export default function TablesAdminPage({ restaurant, initialTables }: {
@@ -103,12 +100,52 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
       return
     }
 
-    const items = allTables.map(table => ({
-      code: table.qr_code,
-      label: `Table ${table.table_number}`
-    }))
+    // Les tables classiques ont leur propre URL directe (/slug/table/id),
+    // distincte du système QR physique (/t/code).
+    // On génère un HTML simple avec ces URLs directes.
+    const appUrl = getAppUrl()
+    const rows = allTables.map(table => {
+      const url = `${appUrl}/${restaurant.slug}/table/${table.id}`
+      const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}&color=000000&bgcolor=FFFFFF&qzone=1`
+      return `
+        <div class="label">
+          <div class="card">
+            <div class="badge">${table.table_number}</div>
+            <img class="qr-img" src="${qrSrc}" alt="Table ${table.table_number}" />
+            <div class="text-main">Scanner pour le menu</div>
+            <div class="text-sub">Scan for Menu</div>
+          </div>
+          <div class="code-text">${restaurant.name}</div>
+        </div>`
+    }).join('')
 
-    const html = generateQRPrintHTML(items, getAppUrl(), `Toutes les tables — ${restaurant.name}`)
+    const html = `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><title>Tables — ${restaurant.name}</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  @page{size:A4 portrait;margin:0}
+  body{font-family:'Segoe UI',sans-serif;background:#d0d0d0;padding:24px}
+  .page{width:210mm;min-height:297mm;padding:8mm;display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(4,1fr);gap:4mm;background:#fff;margin:0 auto 24px;box-shadow:0 4px 20px rgba(0,0,0,.2)}
+  .label{position:relative;border:1.2px dashed #bbb;border-radius:2px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:6mm 3.5mm 2.5mm}
+  .label::before{content:'✂';position:absolute;top:-8px;left:2px;font-size:12px;color:#aaa;background:white;padding:0 2px}
+  .card{width:100%;flex:1;background:#000;border-radius:3mm;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5mm 3mm 4mm;position:relative;gap:2mm}
+  .badge{position:absolute;top:-10px;left:8px;min-width:22px;height:22px;padding:0 5px;background:#FF8C00;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#000;z-index:5;box-shadow:0 1px 5px rgba(0,0,0,.4)}
+  .qr-img{width:38mm;height:38mm;display:block;border-radius:1.5mm}
+  .text-main{font-size:8px;font-weight:700;color:#FF8C00;text-align:center}
+  .text-sub{font-size:6.5px;color:#FF8C00;opacity:.8;text-align:center}
+  .code-text{font-family:'Courier New',monospace;font-size:6px;color:#888;letter-spacing:1.2px;margin-top:2mm;text-align:center}
+  @media print{body{background:white;padding:0}.page{box-shadow:none}}
+</style></head><body>
+<div class="page">${rows}</div>
+<script>
+  window.addEventListener('load',()=>{
+    const imgs=document.querySelectorAll('img');let done=0;
+    const fire=()=>{if(++done>=imgs.length)setTimeout(()=>window.print(),400)};
+    if(!imgs.length)return setTimeout(()=>window.print(),400);
+    imgs.forEach(img=>{if(img.complete)fire();else{img.addEventListener('load',fire);img.addEventListener('error',fire)}});
+  });
+</script></body></html>`
+
     const win = window.open('', '_blank')
     win?.document.write(html)
     win?.document.close()

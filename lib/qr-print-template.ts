@@ -1,8 +1,3 @@
-/**
- * Générateur de template d'impression QR personnalisé
- * Design: Orange sur fond blanc, 8 QR par A4, carrés, scanables
- */
-
 export interface QRItem {
   code: string
   label?: string
@@ -13,10 +8,10 @@ export function generateQRPrintHTML(
   appUrl: string,
   batchName?: string
 ): string {
-  // Grouper les QR codes par 8 (8 par page A4 - 4x2)
-  const pages: QRItem[][] = [];
-  for (let i = 0; i < items.length; i += 8) {
-    pages.push(items.slice(i, i + 8));
+  const ITEMS_PER_PAGE = 8
+  const pages: QRItem[][] = []
+  for (let i = 0; i < items.length; i += ITEMS_PER_PAGE) {
+    pages.push(items.slice(i, i + ITEMS_PER_PAGE))
   }
 
   let html = `<!DOCTYPE html>
@@ -24,232 +19,200 @@ export function generateQRPrintHTML(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QR Codes Personnalisés ${batchName ? `— ${batchName}` : ''}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+  <title>QR Codes${batchName ? ` — ${batchName}` : ''}</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
     @page {
-      size: A4;
-      margin: 10mm;
+      size: A4 portrait;
+      margin: 0;
     }
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f5f5f5;
-      padding: 0;
     }
 
+    /*
+     * Page A4 : 210mm × 297mm
+     * Padding : 8mm de chaque côté
+     * Grille   : 2 colonnes × 4 lignes, gap 4mm
+     * → largeur cellule  : (210 - 16 - 4) / 2  = 95mm
+     * → hauteur cellule  : (297 - 16 - 12) / 4  = 67.25mm
+     */
     .page {
       width: 210mm;
       height: 297mm;
-      background: white;
+      padding: 8mm;
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      grid-template-rows: repeat(2, 1fr);
-      gap: 8mm;
-      padding: 10mm;
+      grid-template-columns: repeat(2, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: 4mm;
+      background: #fff;
+      overflow: hidden;
       page-break-after: always;
-      margin-bottom: 20px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
 
-    .qr-card {
+    /* ── Zone de découpe : bordure grise en pointillés ── */
+    .label {
       position: relative;
+      border: 1.2px dashed #bbb;
+      border-radius: 2px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: space-between;
+      padding: 6mm 3.5mm 2.5mm;
+    }
+
+    /* Icône ciseaux coin supérieur gauche */
+    .scissors {
+      position: absolute;
+      top: -8px;
+      left: 2px;
+      font-size: 12px;
+      color: #aaa;
       background: white;
-      border: 1px solid #eee;
-      padding: 12px;
-      page-break-inside: avoid;
-      overflow: visible;
-      aspect-ratio: 1;
+      padding: 0 2px;
+      line-height: 1;
+      user-select: none;
     }
 
-    /* Marques de découpe - croix aux 4 coins */
-    .qr-card::before {
-      content: '';
+    /* ── Bloc principal fond noir ── */
+    .card {
+      width: 100%;
+      flex: 1;
+      background: #000;
+      border-radius: 3mm;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 5mm 3mm 4mm;
+      position: relative;
+      gap: 2mm;
+    }
+
+    /* ── Pastille orange numérotée, à cheval sur le coin ── */
+    .badge {
       position: absolute;
-      width: 8px;
-      height: 1px;
-      background: #FF8C00;
-      top: -4px;
-      left: -4px;
-    }
-
-    .qr-card::after {
-      content: '';
-      position: absolute;
-      width: 1px;
-      height: 8px;
-      background: #FF8C00;
-      top: -4px;
-      left: -4px;
-    }
-
-    /* Titre TableQR */
-    .header {
-      font-family: 'Great Vibes', cursive;
-      font-size: 16px;
-      color: #FF8C00;
-      font-weight: 600;
-      margin-bottom: 6px;
-      letter-spacing: 0.5px;
-      font-style: italic;
-    }
-
-    /* Badge numéro - JUSTE AU-DESSUS du QR */
-    .badge-number {
-      position: absolute;
+      top: -10px;
+      left: 8px;
       width: 22px;
       height: 22px;
       background: #FF8C00;
-      color: white;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 11px;
-      font-weight: bold;
-      z-index: 11;
-      top: 54px;
-      left: 50%;
-      transform: translateX(-50%);
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    }
-
-    /* Container QR - CARRÉ, NO overlay */
-    .qr-container {
-      position: relative;
-      width: 100px;
-      height: 100px;
-      margin: 14px 0 8px 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: white;
-      overflow: hidden;
-    }
-
-    .qr-container img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
-    /* Footer texte */
-    .footer {
-      text-align: center;
-      margin-top: 6px;
-      font-size: 0;
-    }
-
-    .footer-main {
       font-size: 9px;
+      font-weight: 800;
+      color: #000;
+      z-index: 5;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+    }
+
+    /*
+     * QR code : modules orange sur fond blanc pour garantir la scannabilité.
+     * Le fond blanc crée un encart lumineux dans le bloc noir.
+     */
+    .qr-img {
+      width: 38mm;
+      height: 38mm;
+      display: block;
+      border-radius: 1.5mm;
+    }
+
+    .text-main {
+      font-size: 8px;
       font-weight: 700;
       color: #FF8C00;
       letter-spacing: 0.3px;
-      line-height: 1.1;
-    }
-
-    .footer-sub {
-      font-size: 7px;
-      color: #FF8C00;
-      margin-top: 1px;
-      letter-spacing: 0.2px;
-      opacity: 0.8;
-      line-height: 1;
-    }
-
-    /* Code QR discret */
-    .qr-code-text {
-      font-size: 6px;
-      color: #999;
-      margin-top: 3px;
-      font-family: 'Courier New', monospace;
-      letter-spacing: 0.3px;
       text-align: center;
-      font-weight: 600;
+    }
+
+    .text-sub {
+      font-size: 6.5px;
+      font-weight: 400;
+      color: #FF8C00;
+      opacity: 0.8;
+      text-align: center;
+    }
+
+    /* ── Code alphanumérique : hors du bloc noir, bas de la zone de découpe ── */
+    .code-text {
+      font-family: 'Courier New', monospace;
+      font-size: 6px;
+      color: #888;
+      letter-spacing: 1.2px;
+      margin-top: 2mm;
+      text-align: center;
     }
 
     @media print {
-      body {
-        background: white;
-        padding: 0;
-        margin: 0;
-      }
-      .page {
-        margin: 0;
-        box-shadow: none;
-        page-break-after: always;
-      }
+      body { background: white; }
+      .page { box-shadow: none; }
+      .scissors { background: white; }
     }
 
     @media screen {
       body {
-        padding: 20px;
-        background: #f5f5f5;
+        background: #d0d0d0;
+        padding: 24px;
       }
       .page {
-        margin: 0 auto 20px;
+        margin: 0 auto 24px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
       }
     }
   </style>
 </head>
-<body>`;
+<body>`
 
-  // Générer chaque page
   pages.forEach((pageItems, pageIndex) => {
-    html += `<div class="page">`;
+    html += `\n<div class="page">`
 
-    // Remplir avec 8 cartes (ou moins si c'est la dernière page)
     pageItems.forEach((item, itemIndex) => {
-      const absoluteIndex = pageIndex * 8 + itemIndex + 1;
-      const qrUrl = `${appUrl}/t/${item.code}`;
-      const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrUrl)}&color=FF8C00&bgcolor=ffffff&qzone=0`;
+      const n = pageIndex * ITEMS_PER_PAGE + itemIndex + 1
+      const qrUrl = `${appUrl}/t/${item.code}`
+      // orange sur blanc → scannabilité maximale, visuellement orange dans le bloc noir
+      const qrImgSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}&color=FF8C00&bgcolor=FFFFFF&qzone=1`
 
       html += `
-        <div class="qr-card">
-          <div class="header">TableQR</div>
-          
-          <div class="badge-number">${absoluteIndex}</div>
-          
-          <div class="qr-container">
-            <img src="${qrImageUrl}" alt="QR Code ${item.code}" />
-          </div>
-          
-          <div class="footer">
-            <div class="footer-main">Scanner pour le menu</div>
-            <div class="footer-sub">Scan for Menu</div>
-          </div>
-          
-          <div class="qr-code-text">${item.code}</div>
-        </div>
-      `;
-    });
+  <div class="label">
+    <span class="scissors">✂</span>
+    <div class="card">
+      <div class="badge">${n}</div>
+      <img class="qr-img" src="${qrImgSrc}" alt="QR ${item.code}" />
+      <div class="text-main">Scanner pour le menu</div>
+      <div class="text-sub">Scan for Menu</div>
+    </div>
+    <div class="code-text">${item.code}</div>
+  </div>`
+    })
 
-    html += `</div>`;
-  });
+    html += `\n</div>`
+  })
 
   html += `
-  <script>
-    window.addEventListener('load', () => {
-      setTimeout(() => window.print(), 500);
+<script>
+  // Déclenche l'impression une fois toutes les images QR chargées
+  window.addEventListener('load', () => {
+    const imgs = document.querySelectorAll('img');
+    let done = 0;
+    const fire = () => { if (++done >= imgs.length) setTimeout(() => window.print(), 400); };
+    if (!imgs.length) return setTimeout(() => window.print(), 400);
+    imgs.forEach(img => {
+      if (img.complete) fire();
+      else { img.addEventListener('load', fire); img.addEventListener('error', fire); }
     });
-  </script>
+  });
+</script>
 </body>
-</html>`;
+</html>`
 
-  return html;
+  return html
 }
 
-// Échapper les caractères HTML
 function escapeHtml(text: string): string {
   const map: { [key: string]: string } = {
     '&': '&amp;',
@@ -257,6 +220,6 @@ function escapeHtml(text: string): string {
     '>': '&gt;',
     '"': '&quot;',
     "'": '&#039;'
-  };
-  return text.replace(/[&<>"']/g, (m) => map[m]);
+  }
+  return text.replace(/[&<>"']/g, (m) => map[m])
 }

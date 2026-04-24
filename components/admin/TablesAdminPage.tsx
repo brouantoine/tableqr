@@ -6,8 +6,11 @@ import { supabase } from '@/lib/supabase/client'
 import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { RestaurantTable, Restaurant, QRCode } from '@/types'
 
+// IMPORTANT : on utilise window.location.origin (URL courante du navigateur).
+// PAS de NEXT_PUBLIC_APP_URL — figée au build, elle peut pointer vers un vieux
+// déploiement Vercel mort et casser tous les QR imprimés.
 function getAppUrl(): string {
-  return process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000')
+  return typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
 }
 
 export default function TablesAdminPage({ restaurant, initialTables }: {

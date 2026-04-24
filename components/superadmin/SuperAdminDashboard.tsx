@@ -18,7 +18,47 @@ const PLANS = [
   { key: 'enterprise', label: 'Enterprise', price: 75000, desc: 'Tout inclus + support dédié + domaine custom' },
 ]
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://tableqr.vercel.app'
+// IMPORTANT : on utilise window.location.origin au moment de l'impression,
+// PAS process.env.NEXT_PUBLIC_APP_URL (figée au build → peut pointer vers un
+// vieux déploiement Vercel mort, ce qui casse tous les QR imprimés).
+function getAppUrl(): string {
+  return typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
+}
+
+// Détecte une URL Vercel "preview" (déploiement éphémère par commit/branche).
+// Format : <project>-<random>-<scope>.vercel.app — seuls les déploiements
+// production sur le domaine principal (<project>.vercel.app ou domaine custom)
+// sont stables et garantis à long terme.
+function isEphemeralVercelUrl(url: string): boolean {
+  try {
+    const host = new URL(url).host
+    if (!host.endsWith('.vercel.app')) return false
+    const sub = host.replace('.vercel.app', '')
+    // Tout ce qui contient un tiret = déploiement préfixé éphémère
+    return sub.includes('-')
+  } catch { return false }
+}
+
+function PrintUrlCheck() {
+  const [origin, setOrigin] = useState('')
+  useEffect(() => { setOrigin(window.location.origin) }, [])
+  if (!origin) return null
+  const ephemeral = isEphemeralVercelUrl(origin)
+  return (
+    <div className={`rounded-2xl p-3 mb-4 border ${ephemeral ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
+      <p className={`text-xs font-black uppercase tracking-wide mb-1 ${ephemeral ? 'text-red-700' : 'text-emerald-700'}`}>
+        URL encodée dans les QR
+      </p>
+      <p className="font-mono text-xs break-all text-gray-800">{origin}/t/CODE</p>
+      {ephemeral && (
+        <p className="text-xs text-red-700 mt-2 font-semibold">
+          ⚠️ Tu es sur un déploiement Vercel temporaire. Ces QR cesseront de fonctionner au prochain déploiement.
+          Ouvre le superadmin sur ton domaine de production stable avant d&apos;imprimer.
+        </p>
+      )}
+    </div>
+  )
+}
 
 export default function SuperAdminDashboard({ restaurants: initialRestaurants, stats }: Props) {
   const [search, setSearch] = useState('')
@@ -591,7 +631,7 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
   }
 
   function printBatch() {
-    const appUrl = APP_URL
+    const appUrl = getAppUrl()
     const items = generated.map(qr => ({ code: qr.code }))
     const html = generateQRPrintHTML(items, appUrl, batchName)
 
@@ -654,6 +694,9 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
             </div>
           ) : (
             <div>
+              {/* Encart de vérification d'URL — CRUCIAL avant impression */}
+              <PrintUrlCheck />
+
               <div className="flex items-center justify-between mb-4">
                 <p className="font-black text-gray-900">{generated.length} codes générés</p>
                 <button onClick={printBatch}

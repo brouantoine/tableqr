@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { formatTimeAgo } from '@/lib/utils'
-import { Send, ChevronLeft, Search, MoreVertical } from 'lucide-react'
+import { Send, ChevronLeft, Search, MoreVertical, Moon } from 'lucide-react'
 import type { ClientSession, SocialMessage, Restaurant } from '@/types'
 
 type SocialMode = 'receptif' | 'discret' | 'invisible'
@@ -230,7 +230,9 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
         {/* Vide */}
         {clients.length === 0 && !hasConversations && (
           <div className="flex flex-col items-center justify-center py-24 text-center px-6">
-            <div className="w-20 h-20 rounded-3xl bg-white shadow-sm flex items-center justify-center text-4xl mb-4"><TwemojiIcon emoji="🌙" size={20} /></div>
+            <div className="w-20 h-20 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
+              <Moon size={40} className="text-gray-300" />
+            </div>
             <p className="font-black text-gray-900 text-lg mb-1">Espace calme</p>
             <p className="text-gray-400 text-sm">Personne d&apos;autre pour l&apos;instant. Soyez le premier !</p>
           </div>

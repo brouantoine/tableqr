@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { QrCode, UtensilsCrossed, LayoutDashboard, ChevronRight, ArrowRight } from 'lucide-react'
+import { QrCode, UtensilsCrossed, LayoutDashboard, ChevronRight, ArrowRight, Hand, Lightbulb } from 'lucide-react'
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -91,7 +91,10 @@ export default function OnboardingPage() {
         {/* Welcome */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           className="mb-8">
-          <p className="text-sm font-semibold mb-1" style={{ color: p }}>Bienvenue sur TableQR 👋</p>
+          <p className="text-sm font-semibold mb-1 flex items-center gap-1" style={{ color: p }}>
+            Bienvenue sur TableQR
+            <Hand size={14} className="inline" />
+          </p>
           <h1 className="text-2xl font-black text-gray-900 leading-tight">
             Configurons<br /><span style={{ color: p }}>{restaurantName}</span>
           </h1>
@@ -128,7 +131,7 @@ export default function OnboardingPage() {
               <div className="px-5 py-4">
                 <p className="text-sm text-gray-600 leading-relaxed mb-3">{card.desc}</p>
                 <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-gray-50">
-                  <span className="text-xs">💡</span>
+                  <Lightbulb size={14} className="text-yellow-500 flex-shrink-0" />
                   <p className="text-xs text-gray-500 font-medium">{card.tip}</p>
                 </div>
                 <motion.button whileTap={{ scale: 0.97 }}

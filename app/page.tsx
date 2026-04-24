@@ -2,7 +2,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useState } from 'react'
-import { Check, ChevronRight, Star, Zap, Shield, BarChart3, MessageCircle, Gamepad2, QrCode, Phone, Mail, ArrowRight } from 'lucide-react'
+import { Check, ChevronRight, Star, Zap, Shield, BarChart3, MessageCircle, Gamepad2, QrCode, Phone, Mail, ArrowRight, Menu, Bell, Hand } from 'lucide-react'
 
 const FEATURES = [
   { icon: QrCode, title: 'QR Code intelligent', desc: 'Chaque table a son QR unique. Le client scanne et commande en 30 secondes.', color: '#F26522' },
@@ -178,8 +178,13 @@ export default function LandingPage() {
                   </div>
                   {/* Bottom nav mockup */}
                   <div className="flex justify-around py-2 bg-white border-t border-gray-100">
-                    {['≡', '💬', '🎮', '🔔'].map((icon, i) => (
-                      <span key={i} className={`text-sm ${i === 0 ? 'text-orange-500' : 'text-gray-300'}`}>{icon}</span>
+                    {[
+                      { icon: Menu, color: '#F26522' },
+                      { icon: MessageCircle, color: '#D1D5DB' },
+                      { icon: Gamepad2, color: '#D1D5DB' },
+                      { icon: Bell, color: '#D1D5DB' },
+                    ].map(({ icon: Icon, color }, i) => (
+                      <Icon key={i} size={16} style={{ color }} />
                     ))}
                   </div>
                 </div>

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Search, Store, Users, TrendingUp, Settings, ChevronRight, X, Check, Globe, Phone, Mail, LogOut, QrCode, Eye, Rocket, AlertTriangle, UtensilsCrossed, DollarSign, FileText, Smartphone } from 'lucide-react'
+import { Plus, Search, Store, Users, TrendingUp, Settings, ChevronRight, X, Check, Globe, Phone, Mail, LogOut, QrCode, Eye, Rocket, AlertTriangle, UtensilsCrossed, DollarSign, FileText, Smartphone, MessageCircle, Gamepad2, Bike, Star, Cake, Pause, Play, Trash2, Printer, Key } from 'lucide-react'
 import { formatPrice, formatTimeAgo } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
 import { generateQRPrintHTML } from '@/lib/qr-print-template'
@@ -18,27 +18,17 @@ const PLANS = [
   { key: 'enterprise', label: 'Enterprise', price: 75000, desc: 'Tout inclus + support dédié + domaine custom' },
 ]
 
-// IMPORTANT : on utilise window.location.origin au moment de l'impression,
-// PAS process.env.NEXT_PUBLIC_APP_URL (figée au build → peut pointer vers un
-// vieux déploiement Vercel mort, ce qui casse tous les QR imprimés).
 function getAppUrl(): string {
   return typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
 }
 
-// Détecte une URL Vercel "preview" (déploiement éphémère par commit/branche).
-// Format preview : <project>-<hash>-<scope>.vercel.app (3+ segments séparés par "-")
-// Format stable  : <project>.vercel.app — où <project> peut contenir des tirets
-// (ex: "tableqr-three.vercel.app" est STABLE, pas un preview).
 function isEphemeralVercelUrl(url: string): boolean {
   try {
     const host = new URL(url).host
     if (!host.endsWith('.vercel.app')) return false
     const sub = host.replace('.vercel.app', '')
-    // Un preview a typiquement un hash long (ex: "abc123def") + un scope
-    // → au moins 3 segments séparés par "-" et un segment alphanumérique long
     const parts = sub.split('-')
     if (parts.length < 3) return false
-    // Heuristique : segment de 6+ chars alphanumériques mixtes = hash de commit
     return parts.some(p => p.length >= 6 && /[a-z]/.test(p) && /[0-9]/.test(p))
   } catch { return false }
 }
@@ -50,14 +40,14 @@ function PrintUrlCheck() {
   const ephemeral = isEphemeralVercelUrl(origin)
   return (
     <div className={`rounded-2xl p-3 mb-4 border ${ephemeral ? 'bg-red-50 border-red-200' : 'bg-emerald-50 border-emerald-200'}`}>
-      <p className={`text-xs font-black uppercase tracking-wide mb-1 ${ephemeral ? 'text-red-700' : 'text-emerald-700'}`}>
+      <p className={`text-xs font-black uppercase tracking-wide mb-1 flex items-center gap-1.5 ${ephemeral ? 'text-red-700' : 'text-emerald-700'}`}>
         URL encodée dans les QR
       </p>
       <p className="font-mono text-xs break-all text-gray-800">{origin}/t/CODE</p>
       {ephemeral && (
-        <p className="text-xs text-red-700 mt-2 font-semibold">
-          ⚠️ Tu es sur un déploiement Vercel temporaire. Ces QR cesseront de fonctionner au prochain déploiement.
-          Ouvre le superadmin sur ton domaine de production stable avant d&apos;imprimer.
+        <p className="text-xs text-red-700 mt-2 font-semibold flex items-start gap-1.5">
+          <AlertTriangle size={12} className="flex-shrink-0 mt-0.5" />
+          <span>Tu es sur un déploiement Vercel temporaire. Ces QR cesseront de fonctionner au prochain déploiement. Ouvre le superadmin sur ton domaine de production stable avant d&apos;imprimer.</span>
         </p>
       )}
     </div>
@@ -223,7 +213,6 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants, s
   )
 }
 
-// ── MODAL NOUVEAU RESTAURANT ──
 function NewRestaurantModal({ onClose }: { onClose: () => void }) {
   const [mode, setMode] = useState<null | 'normal' | 'preview'>(null)
   const [step, setStep] = useState<'info' | 'design' | 'plan'>('info')
@@ -311,7 +300,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
                 className="w-full p-5 rounded-3xl border-2 border-gray-100 bg-white text-left hover:border-orange-200 hover:bg-orange-50/30 transition-all">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-orange-100 flex items-center justify-center flex-shrink-0">
-                    <span className="text-xl">🏪</span>
+                    <Store size={22} className="text-orange-600" />
                   </div>
                   <div>
                     <p className="font-black text-gray-900 text-sm mb-1">Restaurant Normal</p>
@@ -331,8 +320,10 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
                     <p className="font-black text-gray-900 text-sm mb-1">Mode Preview / Prospection</p>
                     <p className="text-xs text-gray-400 leading-relaxed">Démo instantanée pour convaincre un prospect. Menu auto-généré, QR codes prêts à coller.</p>
                     <div className="flex flex-wrap gap-1.5 mt-2">
-                      {['✅ Menu démo généré', '✅ QR prêts', '✅ Juste le nom requis'].map(t => (
-                        <span key={t} className="text-xs text-yellow-700 font-semibold bg-yellow-100 px-2 py-0.5 rounded-full">{t}</span>
+                      {['Menu démo généré', 'QR prêts', 'Juste le nom requis'].map(t => (
+                        <span key={t} className="text-xs text-yellow-700 font-semibold bg-yellow-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                          <Check size={10} strokeWidth={3} /> {t}
+                        </span>
                       ))}
                     </div>
                   </div>
@@ -392,7 +383,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
               disabled={loading || !previewForm.name}
               className="w-full mt-6 py-3.5 rounded-2xl font-bold text-white disabled:opacity-40"
               style={{ backgroundColor: '#EAB308' }}>
-              {loading ? 'Création...' : '👁️ Créer le preview'}
+              {loading ? 'Création...' : <span className="flex items-center justify-center gap-2"><Eye size={16} /> Créer le preview</span>}
             </motion.button>
           </div>
         )}
@@ -402,7 +393,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
           <div className="flex-1 flex flex-col p-5 overflow-y-auto">
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', damping: 12 }}
               className="w-16 h-16 rounded-3xl bg-yellow-100 flex items-center justify-center mx-auto mb-4">
-              <span className="text-3xl">👁️</span>
+              <Eye size={28} className="text-yellow-600" />
             </motion.div>
             <p className="font-black text-xl text-gray-900 text-center mb-1">Preview créé !</p>
             <p className="text-gray-400 text-sm text-center mb-5">Menu démo généré · QR codes prêts à lier</p>
@@ -578,7 +569,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
             <p className="text-gray-400 text-sm text-center mb-5">Voici les identifiants du propriétaire</p>
             {credentials && (
               <div className="bg-gray-50 rounded-2xl p-4 border border-gray-200 space-y-3 mb-5">
-                <p className="text-xs font-black text-gray-500 uppercase tracking-wide">🔑 Identifiants de connexion</p>
+                <p className="text-xs font-black text-gray-500 uppercase tracking-wide flex items-center gap-1.5"><Key size={12} /> Identifiants de connexion</p>
                 <div className="bg-white rounded-xl p-3 space-y-2 border border-gray-100">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-400 font-medium">Email</span>
@@ -612,7 +603,6 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-// ── MODAL GÉNÉRATEUR QR ──
 function QRGeneratorModal({ onClose }: { onClose: () => void }) {
   const [batchName, setBatchName] = useState('')
   const [count, setCount] = useState(25)
@@ -693,7 +683,7 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
               <motion.button whileTap={{ scale: 0.97 }} onClick={generate} disabled={loading || !batchName.trim()}
                 className="w-full py-3.5 rounded-2xl font-bold text-white disabled:opacity-40"
                 style={{ backgroundColor: '#F26522' }}>
-                {loading ? 'Génération...' : `🖨️ Générer ${count} codes`}
+                {loading ? 'Génération...' : <span className="flex items-center justify-center gap-2"><Printer size={16} /> Générer {count} codes</span>}
               </motion.button>
             </div>
           ) : (
@@ -706,7 +696,8 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
                 <button onClick={printBatch}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold"
                   style={{ backgroundColor: '#F26522' }}>
-                  🖨️ Imprimer
+                  <Printer size={14} />
+                  Imprimer
                 </button>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-5">
@@ -733,7 +724,6 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-// ── MODAL DÉTAIL RESTAURANT ──
 function RestaurantDetailModal({ restaurant, onClose }: { restaurant: Restaurant; onClose: () => void }) {
   const p = restaurant.primary_color
   const [deleting, setDeleting] = useState(false)

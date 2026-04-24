@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, QrCode, Download, ToggleLeft, ToggleRight, Users, Link, X, Check, Trash2, Printer } from 'lucide-react'
+import { Plus, QrCode, Download, ToggleLeft, ToggleRight, Users, Link, X, Check, Trash2, Printer, Smartphone, Link2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { RestaurantTable, Restaurant, QRCode } from '@/types'
@@ -261,7 +261,9 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
         </div>
         {tables.length === 0 && qrCodes.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-16 h-16 rounded-3xl bg-gray-100 flex items-center justify-center text-3xl mb-4">📱</div>
+            <div className="w-16 h-16 rounded-3xl bg-gray-100 flex items-center justify-center mb-4">
+              <Smartphone size={28} className="text-gray-400" />
+            </div>
             <p className="font-black text-gray-900 text-lg">Aucune table</p>
             <p className="text-gray-400 text-sm mt-1 max-w-xs">Ajoutez une table manuellement ou liez un QR code physique en haut à droite</p>
           </div>
@@ -349,8 +351,9 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
                   Copier le lien
                 </button>
                 <motion.button whileTap={{ scale: 0.96 }} onClick={() => downloadQR(selectedTable)}
-                  className="flex-1 py-3.5 rounded-2xl text-white font-bold text-sm" style={{ backgroundColor: p }}>
-                  ⬇️ Télécharger
+                  className="flex-1 py-3.5 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2" style={{ backgroundColor: p }}>
+                  <Download size={16} />
+                  Télécharger
                 </motion.button>
               </div>
             </motion.div>
@@ -465,9 +468,21 @@ function LinkQRModal({ restaurantId, onClose, onLinked, primaryColor }: {
           whileTap={{ scale: 0.97 }}
           onClick={link}
           disabled={loading || !code.trim() || !tableName.trim() || success}
-          className="w-full mt-6 py-4 rounded-2xl font-black text-white text-sm disabled:opacity-40 transition-colors"
+          className="w-full mt-6 py-4 rounded-2xl font-black text-white text-sm disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
           style={{ backgroundColor: success ? '#10B981' : primaryColor }}>
-          {success ? '✅ QR lié avec succès !' : loading ? 'Liaison...' : `🔗 Lier ce QR à "${tableName || '...'}`}
+          {success ? (
+            <>
+              <Check size={16} />
+              QR lié avec succès !
+            </>
+          ) : loading ? (
+            'Liaison...'
+          ) : (
+            <>
+              <Link2 size={16} />
+              Lier ce QR à "{tableName || '...'}"
+            </>
+          )}
         </motion.button>
 
         <p className="text-xs text-center text-gray-400 mt-3">

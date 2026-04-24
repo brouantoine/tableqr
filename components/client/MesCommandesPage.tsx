@@ -100,10 +100,14 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
 
   async function loadOrders() {
     if (!session) return
+    // Garde-fou : ne charge que les commandes appartenant aussi à ce restaurant.
+    // Si la session vient d'un autre resto (cache pas encore wipé), on n'affiche rien.
+    if (session.restaurant_id !== restaurant.id) { setOrders([]); return }
     setLoading(true)
     const { data } = await supabase.from('orders')
       .select('*, items:order_items(*)')
       .eq('session_id', session.id)
+      .eq('restaurant_id', restaurant.id)
       .order('created_at', { ascending: false })
     setOrders((data as Order[]) || [])
     setLoading(false)

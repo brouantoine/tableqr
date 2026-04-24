@@ -26,16 +26,20 @@ function getAppUrl(): string {
 }
 
 // Détecte une URL Vercel "preview" (déploiement éphémère par commit/branche).
-// Format : <project>-<random>-<scope>.vercel.app — seuls les déploiements
-// production sur le domaine principal (<project>.vercel.app ou domaine custom)
-// sont stables et garantis à long terme.
+// Format preview : <project>-<hash>-<scope>.vercel.app (3+ segments séparés par "-")
+// Format stable  : <project>.vercel.app — où <project> peut contenir des tirets
+// (ex: "tableqr-three.vercel.app" est STABLE, pas un preview).
 function isEphemeralVercelUrl(url: string): boolean {
   try {
     const host = new URL(url).host
     if (!host.endsWith('.vercel.app')) return false
     const sub = host.replace('.vercel.app', '')
-    // Tout ce qui contient un tiret = déploiement préfixé éphémère
-    return sub.includes('-')
+    // Un preview a typiquement un hash long (ex: "abc123def") + un scope
+    // → au moins 3 segments séparés par "-" et un segment alphanumérique long
+    const parts = sub.split('-')
+    if (parts.length < 3) return false
+    // Heuristique : segment de 6+ chars alphanumériques mixtes = hash de commit
+    return parts.some(p => p.length >= 6 && /[a-z]/.test(p) && /[0-9]/.test(p))
   } catch { return false }
 }
 

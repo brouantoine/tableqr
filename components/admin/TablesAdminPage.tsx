@@ -1,10 +1,11 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, QrCode, Download, ToggleLeft, ToggleRight, Link, X, Check, Trash2, Printer, Layers, Link2, ChevronRight, Loader2 } from 'lucide-react'
+import { Plus, QrCode, Download, ToggleLeft, ToggleRight, Link, X, Check, Trash2, Printer, Layers, Link2, ChevronRight, Loader2, Camera, Keyboard } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { RestaurantTable, Restaurant, QRCode } from '@/types'
+import QRScannerModal from './QRScannerModal'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -332,6 +333,8 @@ function LinkQRModal({ restaurantId, zones, linkedTableIds, primaryColor, onClos
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
+  const [showScanner, setShowScanner] = useState(false)
+  const [justScanned, setJustScanned] = useState(false)
 
   const zoneNames = Object.keys(zones)
   const tablesInZone = selectedZone ? zones[selectedZone] : []
@@ -382,16 +385,43 @@ function LinkQRModal({ restaurantId, zones, linkedTableIds, primaryColor, onClos
 
         <div className="space-y-5">
           <div>
-            <label className="text-xs font-bold text-gray-500 block mb-1.5">Code QR *</label>
-            <input
-              type="text"
-              placeholder="Ex: A3F7K2M9"
-              value={code}
-              onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-              maxLength={8}
-              className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none border border-gray-100 focus:border-blue-300 font-mono tracking-widest text-center text-lg font-black uppercase"
-            />
-            <p className="text-xs text-gray-400 mt-1">8 caractères imprimés sous le QR physique</p>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-gray-500">Code QR *</label>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowScanner(true)}
+                type="button"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-white"
+                style={{ backgroundColor: primaryColor, boxShadow: `0 4px 12px ${primaryColor}40` }}>
+                <Camera size={13} />
+                Scanner
+              </motion.button>
+            </div>
+
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Ex: A3F7K2M9"
+                value={code}
+                onChange={e => { setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')); setJustScanned(false) }}
+                maxLength={8}
+                className={`w-full px-4 py-3 rounded-2xl text-sm outline-none border-2 transition-all font-mono tracking-widest text-center text-lg font-black uppercase ${
+                  justScanned ? 'bg-green-50 border-green-300 text-green-700' : 'bg-gray-50 border-gray-100 focus:border-blue-300'
+                }`}
+              />
+              {justScanned && (
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-green-500 flex items-center justify-center">
+                  <Check size={14} strokeWidth={3} className="text-white" />
+                </motion.div>
+              )}
+            </div>
+
+            <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
+              <Keyboard size={11} />
+              Saisie manuelle ou scan caméra · 8 caractères
+            </p>
           </div>
 
           <div>
@@ -471,6 +501,23 @@ function LinkQRModal({ restaurantId, zones, linkedTableIds, primaryColor, onClos
           Tu peux enchaîner plusieurs liaisons sans fermer cette fenêtre
         </p>
       </motion.div>
+
+      {/* Scanner caméra plein écran */}
+      <AnimatePresence>
+        {showScanner && (
+          <QRScannerModal
+            primaryColor={primaryColor}
+            onClose={() => setShowScanner(false)}
+            onScanned={(scanned) => {
+              setShowScanner(false)
+              setCode(scanned.slice(0, 8))
+              setJustScanned(true)
+              setError('')
+              if ('vibrate' in navigator) navigator.vibrate(40)
+            }}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }

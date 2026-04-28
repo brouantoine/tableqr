@@ -793,92 +793,71 @@ function RestaurantDetailModal({ restaurant, onClose, onDeleted }: {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-end">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-        className="relative bg-white w-full max-w-md mx-auto rounded-t-[2rem] max-h-[85vh] overflow-y-auto"
+        className="relative bg-gray-50 w-full max-w-md mx-auto rounded-t-[2rem] max-h-[90vh] overflow-y-auto"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}>
 
-        {/* Banner preview ou couleur */}
-        {restaurant.is_preview ? (
-          <div className="h-16 rounded-t-[2rem] flex items-center px-5 gap-3" style={{ backgroundColor: '#FEF9C3' }}>
-            <Eye size={24} className="text-yellow-600 flex-shrink-0" />
-            <div>
-              <p className="font-black text-yellow-800 text-sm">Mode Preview / Prospection</p>
-              <p className="text-xs text-yellow-600">Ce restaurant n&apos;a pas encore de compte admin</p>
-            </div>
+        <div className="h-20 rounded-t-[2rem] relative flex items-center px-5 gap-4"
+          style={{ backgroundColor: restaurant.is_preview ? '#FEF9C3' : p + '18' }}>
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg flex-shrink-0 shadow-sm"
+            style={{ backgroundColor: restaurant.is_preview ? '#EAB308' : p, color: '#fff' }}>
+            {restaurant.logo_url
+              ? <img src={restaurant.logo_url} alt="" className="w-full h-full object-cover rounded-2xl" />
+              : restaurant.name.charAt(0).toUpperCase()}
           </div>
-        ) : (
-          <div className="h-24 rounded-t-[2rem] flex items-end px-5 pb-0 relative"
-            style={{ background: `linear-gradient(135deg, ${p} 0%, ${p}AA 100%)` }}>
-            <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-              <X size={14} className="text-white" />
-            </button>
-            <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center font-black text-2xl translate-y-8 shadow-lg" style={{ color: p }}>
-              {restaurant.logo_url
-                ? <img src={restaurant.logo_url} alt="" className="w-full h-full object-cover rounded-2xl" />
-                : restaurant.name.charAt(0)}
-            </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-gray-900 truncate">{restaurant.name}</p>
+            <p className="text-xs text-gray-500 mt-0.5">/{restaurant.slug} · {restaurant.city || '—'}</p>
           </div>
-        )}
-
-        {restaurant.is_preview && (
-          <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-xl bg-yellow-100 flex items-center justify-center">
-            <X size={14} className="text-yellow-700" />
+          <button onClick={onClose}
+            className="w-8 h-8 rounded-2xl bg-white/70 flex items-center justify-center flex-shrink-0">
+            <X size={14} className="text-gray-600" />
           </button>
-        )}
+        </div>
 
-        <div className={`px-5 ${restaurant.is_preview ? 'pt-5' : 'pt-12'} pb-6`}>
-          {!restaurant.is_preview && (
-            <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center font-black text-2xl -mt-8 mb-3 shadow-lg" style={{ color: p, border: `2px solid ${p}20` }}>
-              {restaurant.name.charAt(0)}
-            </div>
-          )}
-          <div className="flex items-start justify-between mb-1">
-            <div>
-              <h2 className="font-black text-xl text-gray-900">{restaurant.name}</h2>
-              <p className="text-sm text-gray-400">/{restaurant.slug} · {restaurant.city || '—'}</p>
-            </div>
-            <div className="flex flex-col gap-1 items-end">
-              {restaurant.is_preview ? (
-                <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-yellow-100 text-yellow-700">PREVIEW</span>
-              ) : (
-                <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${restaurant.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
-                  {restaurant.is_active ? 'Actif' : 'Inactif'}
-                </span>
-              )}
-            </div>
-          </div>
+        <div className="px-4 pt-4 pb-6 space-y-3">
 
-          <div className="flex gap-2 mt-3 mb-5">
+          <div className="flex gap-2">
+            {restaurant.is_preview ? (
+              <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1">
+                <Eye size={10} /> Preview
+              </span>
+            ) : (
+              <span className={`text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1 ${restaurant.is_active ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${restaurant.is_active ? 'bg-green-500' : 'bg-red-400'}`} />
+                {restaurant.is_active ? 'Actif' : 'Inactif'}
+              </span>
+            )}
             <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
               restaurant.plan === 'enterprise' ? 'bg-purple-100 text-purple-600' :
               restaurant.plan === 'pro' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
             }`}>{restaurant.plan?.toUpperCase()}</span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">{restaurant.currency}</span>
+            <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 font-medium">{restaurant.currency}</span>
           </div>
 
-          {/* Actions rapides */}
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Actions rapides</p>
-          <div className="space-y-2">
-            {actions.map(a => (
+          <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
+            {actions.map((a, i) => (
               <a key={a.label} href={a.href}
-                className="flex items-center gap-3 p-3.5 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors">
-                <a.Icon size={18} className="text-gray-500 flex-shrink-0" />
+                className={`flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors ${i > 0 ? 'border-t border-gray-50' : ''}`}>
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: p + '15' }}>
+                  <a.Icon size={15} style={{ color: p }} />
+                </div>
                 <span className="font-semibold text-sm text-gray-800 flex-1">{a.label}</span>
-                <ChevronRight size={15} className="text-gray-400" />
+                <ChevronRight size={14} className="text-gray-300" />
               </a>
             ))}
           </div>
 
-          {/* Activation preview */}
           {restaurant.is_preview && (
-            <div className="mt-5 border-t border-yellow-100 pt-5">
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
               {!showActivate && !activateSuccess && (
                 <motion.button whileTap={{ scale: 0.97 }} onClick={() => setShowActivate(true)}
-                  className="w-full py-4 rounded-2xl font-black text-white text-sm"
-                  style={{ backgroundColor: '#EAB308', boxShadow: '0 4px 15px #EAB30850' }}>
-                  🚀 Activer ce restaurant
+                  className="w-full py-3.5 rounded-xl font-black text-white text-sm flex items-center justify-center gap-2"
+                  style={{ backgroundColor: '#EAB308' }}>
+                  <Rocket size={15} />
+                  Activer ce restaurant
                 </motion.button>
               )}
 
@@ -889,32 +868,38 @@ function RestaurantDetailModal({ restaurant, onClose, onDeleted }: {
                     <label className="text-xs font-bold text-gray-500 block mb-1.5">Email du gérant *</label>
                     <input type="email" placeholder="gerant@restaurant.com" value={activateForm.email}
                       onChange={e => setActivateForm(p => ({ ...p, email: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none border border-gray-100 focus:border-yellow-300" />
+                      className="w-full px-4 py-3 rounded-xl bg-gray-50 text-sm outline-none border border-gray-100 focus:border-yellow-300" />
                   </div>
                   <div>
                     <label className="text-xs font-bold text-gray-500 block mb-1.5">Mot de passe *</label>
                     <input type="text" placeholder="Min. 6 caractères" value={activateForm.password}
                       onChange={e => setActivateForm(p => ({ ...p, password: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none border border-gray-100 focus:border-yellow-300" />
+                      className="w-full px-4 py-3 rounded-xl bg-gray-50 text-sm outline-none border border-gray-100 focus:border-yellow-300" />
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setShowActivate(false)} className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-600 font-bold text-sm">
+                    <button onClick={() => setShowActivate(false)}
+                      className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm">
                       Annuler
                     </button>
                     <motion.button whileTap={{ scale: 0.97 }} onClick={activateRestaurant}
                       disabled={activating || !activateForm.email || !activateForm.password}
-                      className="flex-1 py-3 rounded-2xl text-white font-bold text-sm disabled:opacity-40"
+                      className="flex-1 py-3 rounded-xl text-white font-bold text-sm disabled:opacity-40 flex items-center justify-center gap-1.5"
                       style={{ backgroundColor: '#EAB308' }}>
-                      {activating ? 'Activation...' : 'Activer →'}
+                      {activating ? 'Activation...' : <><Check size={14} /> Activer</>}
                     </motion.button>
                   </div>
                 </div>
               )}
 
               {activateSuccess && (
-                <div className="bg-green-50 rounded-2xl p-4 border border-green-100 space-y-2">
-                  <p className="font-black text-green-700 text-sm flex items-center gap-1.5"><Check size={14} /> Restaurant activé !</p>
-                  <div className="bg-white rounded-xl p-3 space-y-2 border border-green-100">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-green-100 flex items-center justify-center">
+                      <Check size={13} className="text-green-600" />
+                    </div>
+                    <p className="font-black text-green-700 text-sm">Restaurant activé !</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3 space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-400">Email</span>
                       <span className="text-sm font-bold text-gray-900">{activateSuccess.email}</span>
@@ -927,9 +912,11 @@ function RestaurantDetailModal({ restaurant, onClose, onDeleted }: {
                       </span>
                     </div>
                   </div>
-                  <p className="text-xs text-red-500 font-medium flex items-center gap-1"><AlertTriangle size={12} /> Notez ces identifiants maintenant</p>
+                  <p className="text-xs text-red-400 font-medium flex items-center gap-1.5">
+                    <AlertTriangle size={11} /> Notez ces identifiants maintenant
+                  </p>
                   <button onClick={() => { onClose(); window.location.reload() }}
-                    className="w-full py-2.5 rounded-xl bg-green-600 text-white font-bold text-sm">
+                    className="w-full py-2.5 rounded-xl bg-green-500 text-white font-bold text-sm">
                     Fermer
                   </button>
                 </div>
@@ -937,43 +924,51 @@ function RestaurantDetailModal({ restaurant, onClose, onDeleted }: {
             </div>
           )}
 
-          {/* Modules actifs */}
           {!restaurant.is_preview && (
-            <>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mt-5 mb-3">Modules actifs</p>
-              <div className="flex flex-wrap gap-2 mb-6">
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">Modules</p>
+              <div className="grid grid-cols-2 gap-2">
                 {[
-                  { key: 'module_social', label: '💬 Social' },
-                  { key: 'module_games', label: '🎮 Jeux' },
-                  { key: 'module_delivery', label: '🛵 Livraison' },
-                  { key: 'module_loyalty', label: '⭐ Fidélité' },
-                  { key: 'module_birthday', label: '🎂 Anniversaire' },
-                ].map(m => (
-                  <span key={m.key} className={`text-xs px-3 py-1.5 rounded-full font-semibold ${
-                    (restaurant as any)[m.key] ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-400 line-through'
-                  }`}>{m.label}</span>
-                ))}
+                  { key: 'module_social', label: 'Social', Icon: MessageCircle },
+                  { key: 'module_games', label: 'Jeux', Icon: Gamepad2 },
+                  { key: 'module_delivery', label: 'Livraison', Icon: Bike },
+                  { key: 'module_loyalty', label: 'Fidélité', Icon: Star },
+                  { key: 'module_birthday', label: 'Anniversaire', Icon: Cake },
+                ].map(m => {
+                  const active = (restaurant as any)[m.key]
+                  return (
+                    <div key={m.key} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold ${active ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-300'}`}>
+                      <m.Icon size={13} />
+                      {m.label}
+                    </div>
+                  )
+                })}
               </div>
-            </>
+            </div>
           )}
 
-          {/* Danger */}
-          <div className="border-t border-gray-100 pt-5 space-y-2">
+          <div className="bg-white rounded-2xl p-4 shadow-sm space-y-2">
             {!restaurant.is_preview && (
               <button onClick={toggleActive}
-                className="w-full py-3 rounded-2xl text-sm font-bold border-2 transition-all"
+                className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all"
                 style={restaurant.is_active
-                  ? { borderColor: '#FEE2E2', color: '#DC2626', backgroundColor: '#FFF5F5' }
-                  : { borderColor: '#DCFCE7', color: '#16A34A', backgroundColor: '#F0FDF4' }}>
-                {restaurant.is_active ? '⏸ Désactiver le restaurant' : '▶️ Réactiver le restaurant'}
+                  ? { backgroundColor: '#FFF5F5', color: '#DC2626' }
+                  : { backgroundColor: '#F0FDF4', color: '#16A34A' }}>
+                {restaurant.is_active
+                  ? <><Pause size={14} /> Désactiver le restaurant</>
+                  : <><Play size={14} /> Réactiver le restaurant</>}
               </button>
             )}
             <button onClick={deleteRestaurant} disabled={deleting}
-              className="w-full py-3 rounded-2xl text-sm font-bold transition-all disabled:opacity-50"
+              className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
               style={confirming
                 ? { backgroundColor: '#DC2626', color: '#fff' }
-                : { backgroundColor: '#FEE2E2', color: '#DC2626' }}>
-              {deleting ? 'Suppression...' : confirming ? '⚠️ Confirmer la suppression définitive' : '🗑 Supprimer le restaurant'}
+                : { backgroundColor: '#FEF2F2', color: '#DC2626' }}>
+              {deleting
+                ? 'Suppression...'
+                : confirming
+                  ? <><AlertTriangle size={14} /> Confirmer la suppression</>
+                  : <><Trash2 size={14} /> Supprimer le restaurant</>}
             </button>
             {confirming && (
               <button onClick={() => setConfirming(false)} className="w-full py-2 text-xs text-gray-400 font-medium">

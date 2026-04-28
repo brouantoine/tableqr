@@ -37,6 +37,16 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
     return map
   }, [tables])
 
+  const linkedMap = useMemo(() => {
+    const map: Record<string, QRCode> = {}
+    qrCodes.forEach(q => {
+      if (q.table_name && UUID_REGEX.test(q.table_name)) map[q.table_name] = q
+    })
+    return map
+  }, [qrCodes])
+
+  const linkedTableIds = useMemo(() => new Set(Object.keys(linkedMap)), [linkedMap])
+
   useEffect(() => {
     if (initialTables.length === 0) createTerrace(1)
 
@@ -247,32 +257,39 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
             </div>
 
             <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-10 gap-2">
-              {zoneTables.map(table => (
-                <motion.div key={table.id}
-                  initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                  className={`bg-white rounded-2xl overflow-hidden shadow-sm border transition-all ${!table.is_active ? 'opacity-40' : 'border-gray-100'}`}>
-                  <button onClick={() => setSelectedTable(table)} className="w-full p-2 block">
-                    <div className="aspect-square rounded-xl overflow-hidden mb-2 mx-auto" style={{ backgroundColor: '#F9FAFB' }}>
-                      <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(getTableQRUrl(table))}&color=111111&bgcolor=FAFAFA&qzone=1`}
-                        alt={`Table ${table.table_number}`} className="w-full h-full" />
+              {zoneTables.map(table => {
+                const physicalQR = linkedMap[table.id]
+                return (
+                  <motion.div key={table.id}
+                    initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                    className={`bg-white rounded-2xl overflow-hidden shadow-sm border transition-all ${!table.is_active ? 'opacity-40' : 'border-gray-100'}`}>
+                    <button onClick={() => setSelectedTable(table)} className="w-full p-2 block">
+                      <div className="aspect-square rounded-xl overflow-hidden mb-2 mx-auto flex items-center justify-center" style={{ backgroundColor: '#F9FAFB' }}>
+                        {physicalQR ? (
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(getPhysicalQRUrl(physicalQR.code))}&color=111111&bgcolor=FAFAFA&qzone=1`}
+                            alt={`Table ${table.table_number}`} className="w-full h-full" />
+                        ) : (
+                          <QrCode size={22} className="text-gray-200" />
+                        )}
+                      </div>
+                      <p className="font-black text-gray-900 text-center text-xs">{table.table_number}</p>
+                    </button>
+                    <div className="flex border-t border-gray-50">
+                      <button onClick={() => downloadQR(table)}
+                        className="flex-1 py-1.5 flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors">
+                        <Download size={11} />
+                      </button>
+                      <div className="w-px bg-gray-50" />
+                      <button onClick={() => toggleTable(table)}
+                        className="flex-1 py-1.5 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                        style={{ color: table.is_active ? '#10B981' : '#9CA3AF' }}>
+                        {table.is_active ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
+                      </button>
                     </div>
-                    <p className="font-black text-gray-900 text-center text-xs">{table.table_number}</p>
-                  </button>
-                  <div className="flex border-t border-gray-50">
-                    <button onClick={() => downloadQR(table)}
-                      className="flex-1 py-1.5 flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors">
-                      <Download size={11} />
-                    </button>
-                    <div className="w-px bg-gray-50" />
-                    <button onClick={() => toggleTable(table)}
-                      className="flex-1 py-1.5 flex items-center justify-center hover:bg-gray-50 transition-colors"
-                      style={{ color: table.is_active ? '#10B981' : '#9CA3AF' }}>
-                      {table.is_active ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                )
+              })}
             </div>
           </div>
         ))}
@@ -313,10 +330,6 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
                       {qr.scan_count > 0 && (
                         <p className="text-xs text-blue-500 text-center mt-1 font-semibold">{qr.scan_count} scan{qr.scan_count > 1 ? 's' : ''}</p>
                       )}
-                      <a href={getPhysicalQRUrl(qr.code)} target="_blank" rel="noopener noreferrer"
-                        className="block text-center text-xs text-blue-500 underline mt-1.5 font-semibold">
-                        Tester →
-                      </a>
                     </div>
                     <div className="flex border-t border-blue-50">
                       <button onClick={() => downloadPhysicalQR(qr.code, displayName)}
@@ -378,6 +391,7 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
           <LinkQRModal
             restaurantId={restaurant.id}
             zones={zones}
+            linkedTableIds={linkedTableIds}
             primaryColor={p}
             onClose={() => setShowLinkModal(false)}
             onLinked={(qr) => setQrCodes(prev => [qr, ...prev.filter(q => q.code !== qr.code)])}
@@ -388,9 +402,10 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
   )
 }
 
-function LinkQRModal({ restaurantId, zones, primaryColor, onClose, onLinked }: {
+function LinkQRModal({ restaurantId, zones, linkedTableIds, primaryColor, onClose, onLinked }: {
   restaurantId: string
   zones: Record<string, RestaurantTable[]>
+  linkedTableIds: Set<string>
   primaryColor: string
   onClose: () => void
   onLinked: (qr: QRCode) => void
@@ -486,17 +501,23 @@ function LinkQRModal({ restaurantId, zones, primaryColor, onClose, onLinked }: {
                 Table dans {selectedZone}
               </label>
               <div className="grid grid-cols-5 gap-2">
-                {tablesInZone.map(t => (
-                  <button key={t.id}
-                    onClick={() => setSelectedTable(t)}
-                    disabled={!t.is_active}
-                    className="py-2.5 rounded-xl text-sm font-black transition-all border-2 disabled:opacity-30"
-                    style={selectedTable?.id === t.id
-                      ? { backgroundColor: primaryColor, color: '#fff', borderColor: primaryColor }
-                      : { backgroundColor: '#F9FAFB', color: '#374151', borderColor: '#E5E7EB' }}>
-                    {t.table_number}
-                  </button>
-                ))}
+                {tablesInZone.map(t => {
+                  const isLinked = linkedTableIds.has(t.id)
+                  return (
+                    <button key={t.id}
+                      onClick={() => setSelectedTable(t)}
+                      disabled={!t.is_active || isLinked}
+                      className="py-2 rounded-xl text-xs font-black transition-all border-2 flex flex-col items-center justify-center gap-0.5 disabled:cursor-not-allowed"
+                      style={selectedTable?.id === t.id
+                        ? { backgroundColor: primaryColor, color: '#fff', borderColor: primaryColor }
+                        : isLinked
+                        ? { backgroundColor: '#F3F4F6', color: '#D1D5DB', borderColor: '#E5E7EB' }
+                        : { backgroundColor: '#F9FAFB', color: '#374151', borderColor: '#E5E7EB' }}>
+                      <span>{t.table_number}</span>
+                      {isLinked && <span style={{ fontSize: '8px', color: '#9CA3AF' }}>liée</span>}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           )}

@@ -81,8 +81,20 @@ export async function POST(req: NextRequest) {
 
     // Code déjà lié à CE restaurant (peu importe la table) → erreur explicite
     if (existing?.restaurant_id === restaurant_id) {
+      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+      let displayName = existing?.table_name || '?'
+      if (displayName && UUID_REGEX.test(displayName)) {
+        const { data: tableRow } = await admin
+          .from('restaurant_tables')
+          .select('table_number, zone')
+          .eq('id', displayName)
+          .maybeSingle()
+        if (tableRow) {
+          displayName = `${tableRow.zone ? tableRow.zone + ' · ' : ''}Table ${tableRow.table_number}`
+        }
+      }
       return NextResponse.json({
-        error: `Ce QR est déjà lié à la table "${existing?.table_name || '?'}" — déliez-le d'abord`
+        error: `Ce QR est déjà lié à "${displayName}" — déliez-le d'abord`
       }, { status: 409 })
     }
 

@@ -29,6 +29,9 @@ export interface Restaurant {
   plan_expires_at?: string
   is_active: boolean
   is_preview?: boolean
+  subscription_status?: 'trial' | 'subscribed'
+  subscription_started_at?: string
+  trial_ends_at?: string
   created_at: string
   updated_at: string
 }

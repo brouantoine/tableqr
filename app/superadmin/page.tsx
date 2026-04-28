@@ -12,9 +12,5 @@ export default async function SuperAdminPage() {
     .select('*')
     .order('created_at', { ascending: false })
 
-  const { data: stats } = await admin
-    .from('orders')
-    .select('restaurant_id, total, status')
-
-  return <SuperAdminDashboard restaurants={restaurants || []} stats={stats || []} />
+  return <SuperAdminDashboard restaurants={restaurants || []} />
 }

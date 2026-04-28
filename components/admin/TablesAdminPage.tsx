@@ -23,6 +23,7 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
   const [selectedTable, setSelectedTable] = useState<RestaurantTable | null>(null)
   const [showLinkModal, setShowLinkModal] = useState(false)
   const [creatingTerrace, setCreatingTerrace] = useState(false)
+  const [migrating, setMigrating] = useState(false)
   const p = restaurant.primary_color
 
   const zones = useMemo(() => {
@@ -71,6 +72,19 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
     const { data } = await supabase.from('restaurant_tables').insert(rows).select()
     if (data) setTables(prev => [...prev, ...data as RestaurantTable[]])
     setCreatingTerrace(false)
+  }
+
+  async function migrateUnzoned() {
+    const unzoned = tables.filter(t => !t.zone)
+    if (!unzoned.length) return
+    setMigrating(true)
+    const ids = unzoned.map(t => t.id)
+    await supabase
+      .from('restaurant_tables')
+      .update({ zone: 'Terrasse 1' })
+      .in('id', ids)
+    setTables(prev => prev.map(t => !t.zone ? { ...t, zone: 'Terrasse 1' } : t))
+    setMigrating(false)
   }
 
   function handleAddTerrace() {
@@ -190,6 +204,25 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
           <div className="text-center">
             <Loader2 size={32} className="animate-spin mx-auto mb-3" style={{ color: p }} />
             <p className="font-bold text-gray-600">Création de Terrasse 1...</p>
+          </div>
+        </div>
+      )}
+
+      {zones['Sans section'] && (
+        <div className="px-4 sm:px-6 pt-4 max-w-7xl mx-auto">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-4">
+            <div>
+              <p className="font-bold text-amber-800 text-sm">Tables sans section détectées</p>
+              <p className="text-xs text-amber-600 mt-0.5">
+                {zones['Sans section'].length} table{zones['Sans section'].length > 1 ? 's' : ''} créée{zones['Sans section'].length > 1 ? 's' : ''} avec l&apos;ancienne méthode — assigne-les à Terrasse 1 pour les intégrer au nouveau système.
+              </p>
+            </div>
+            <motion.button whileTap={{ scale: 0.95 }} onClick={migrateUnzoned} disabled={migrating}
+              className="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-white text-xs font-black disabled:opacity-60"
+              style={{ backgroundColor: '#F59E0B' }}>
+              {migrating ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+              Migrer vers Terrasse 1
+            </motion.button>
           </div>
         </div>
       )}

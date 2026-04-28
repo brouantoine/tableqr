@@ -20,7 +20,6 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
 }) {
   const [tables, setTables] = useState(initialTables)
   const [qrCodes, setQrCodes] = useState<QRCode[]>([])
-  const [selectedTable, setSelectedTable] = useState<RestaurantTable | null>(null)
   const [showLinkModal, setShowLinkModal] = useState(false)
   const [creatingTerrace, setCreatingTerrace] = useState(false)
   const [migrating, setMigrating] = useState(false)
@@ -115,10 +114,6 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
     setQrCodes(prev => prev.filter(q => q.code !== code))
   }
 
-  function getTableQRUrl(table: RestaurantTable) {
-    return `${getAppUrl()}/${restaurant.slug}/table/${table.id}`
-  }
-
   function getPhysicalQRUrl(code: string) {
     return `${getAppUrl()}/t/${code}`
   }
@@ -131,15 +126,6 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
     return qr.table_name || qr.code
   }
 
-  function downloadQR(table: RestaurantTable) {
-    const url = getTableQRUrl(table)
-    const link = document.createElement('a')
-    link.href = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(url)}&color=000000&bgcolor=ffffff&qzone=2`
-    link.download = `QR-${table.zone || ''}-Table${table.table_number}-${restaurant.name}.png`
-    link.target = '_blank'
-    document.body.appendChild(link); link.click(); document.body.removeChild(link)
-  }
-
   function downloadPhysicalQR(code: string, displayName: string) {
     const link = document.createElement('a')
     link.href = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&data=${encodeURIComponent(getPhysicalQRUrl(code))}&color=000000&bgcolor=ffffff&qzone=2`
@@ -148,32 +134,10 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
     document.body.appendChild(link); link.click(); document.body.removeChild(link)
   }
 
-  function printZone(zoneName: string, zoneTables: RestaurantTable[]) {
-    const active = zoneTables.filter(t => t.is_active)
-    if (!active.length) return
-    const appUrl = getAppUrl()
-    const rows = active.map(table => {
-      const url = `${appUrl}/${restaurant.slug}/table/${table.id}`
-      const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}&color=000000&bgcolor=FFFFFF&qzone=1`
-      return `<div class="label"><div class="card"><div class="badge">${zoneName} · ${table.table_number}</div><img class="qr-img" src="${qrSrc}" alt="${table.table_number}" /><div class="text-main">Scanner pour le menu</div></div><div class="code-text">${restaurant.name}</div></div>`
-    }).join('')
-    openPrintWindow(rows, `${zoneName} — ${restaurant.name}`)
-  }
-
   function printPhysicalQRCodes() {
     if (!qrCodes.length) return
     const items = qrCodes.map(qr => ({ code: qr.code, label: getQRDisplayName(qr) }))
     const html = generateQRPrintHTML(items, getAppUrl(), `QR Codes physiques — ${restaurant.name}`)
-    const win = window.open('', '_blank')
-    win?.document.write(html); win?.document.close()
-  }
-
-  function openPrintWindow(rows: string, title: string) {
-    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>${title}</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}@page{size:A4 portrait;margin:0}body{font-family:'Segoe UI',sans-serif;background:#d0d0d0;padding:24px}.page{width:210mm;min-height:297mm;padding:8mm;display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(4,1fr);gap:4mm;background:#fff;margin:0 auto 24px;box-shadow:0 4px 20px rgba(0,0,0,.2)}.label{position:relative;border:1.2px dashed #bbb;border-radius:2px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:6mm 3.5mm 2.5mm}.card{width:100%;flex:1;background:#000;border-radius:3mm;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5mm 3mm 4mm;position:relative;gap:2mm}.badge{position:absolute;top:-10px;left:8px;min-width:22px;height:22px;padding:0 5px;background:#FF8C00;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#000;z-index:5;box-shadow:0 1px 5px rgba(0,0,0,.4)}.qr-img{width:38mm;height:38mm;display:block;border-radius:1.5mm}.text-main{font-size:8px;font-weight:700;color:#FF8C00;text-align:center}.code-text{font-family:'Courier New',monospace;font-size:6px;color:#888;letter-spacing:1.2px;margin-top:2mm;text-align:center}@media print{body{background:white;padding:0}.page{box-shadow:none}}</style></head><body>
-<div class="page">${rows}</div>
-<script>window.addEventListener('load',()=>{const imgs=document.querySelectorAll('img');let done=0;const fire=()=>{if(++done>=imgs.length)setTimeout(()=>window.print(),400)};if(!imgs.length)return setTimeout(()=>window.print(),400);imgs.forEach(img=>{if(img.complete)fire();else{img.addEventListener('load',fire);img.addEventListener('error',fire)}})});</script>
-</body></html>`
     const win = window.open('', '_blank')
     win?.document.write(html); win?.document.close()
   }
@@ -241,19 +205,12 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
 
         {Object.entries(zones).map(([zoneName, zoneTables]) => (
           <div key={zoneName}>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Layers size={16} style={{ color: p }} />
-                <p className="font-black text-gray-900">{zoneName}</p>
-                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                  {zoneTables.filter(t => t.is_active).length} actives
-                </span>
-              </div>
-              <button onClick={() => printZone(zoneName, zoneTables)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-500 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
-                <Printer size={13} />
-                Imprimer
-              </button>
+            <div className="flex items-center gap-2 mb-3">
+              <Layers size={16} style={{ color: p }} />
+              <p className="font-black text-gray-900">{zoneName}</p>
+              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                {zoneTables.filter(t => t.is_active).length} actives
+              </span>
             </div>
 
             <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-10 gap-2">
@@ -263,7 +220,7 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
                   <motion.div key={table.id}
                     initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                     className={`bg-white rounded-2xl overflow-hidden shadow-sm border transition-all ${!table.is_active ? 'opacity-40' : 'border-gray-100'}`}>
-                    <button onClick={() => setSelectedTable(table)} className="w-full p-2 block">
+                    <div className="w-full p-2">
                       <div className="aspect-square rounded-xl overflow-hidden mb-2 mx-auto flex items-center justify-center" style={{ backgroundColor: '#F9FAFB' }}>
                         {physicalQR ? (
                           <img
@@ -274,15 +231,10 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
                         )}
                       </div>
                       <p className="font-black text-gray-900 text-center text-xs">{table.table_number}</p>
-                    </button>
-                    <div className="flex border-t border-gray-50">
-                      <button onClick={() => downloadQR(table)}
-                        className="flex-1 py-1.5 flex items-center justify-center text-gray-400 hover:bg-gray-50 transition-colors">
-                        <Download size={11} />
-                      </button>
-                      <div className="w-px bg-gray-50" />
+                    </div>
+                    <div className="border-t border-gray-50">
                       <button onClick={() => toggleTable(table)}
-                        className="flex-1 py-1.5 flex items-center justify-center hover:bg-gray-50 transition-colors"
+                        className="w-full py-1.5 flex items-center justify-center hover:bg-gray-50 transition-colors"
                         style={{ color: table.is_active ? '#10B981' : '#9CA3AF' }}>
                         {table.is_active ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
                       </button>
@@ -349,42 +301,6 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
           </div>
         )}
       </div>
-
-      <AnimatePresence>
-        {selectedTable && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center p-0 sm:p-4">
-            <motion.div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSelectedTable(null)} />
-            <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 28 }}
-              className="relative bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-[2rem] p-6 text-center"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-              <p className="text-xs text-gray-400 mb-1">{selectedTable.zone}</p>
-              <h3 className="font-black text-xl text-gray-900 mb-1">Table {selectedTable.table_number}</h3>
-              <p className="text-xs text-gray-400 mb-5">{restaurant.name}</p>
-              <div className="flex justify-center mb-5">
-                <div className="p-4 bg-gray-50 rounded-3xl shadow-inner">
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(getTableQRUrl(selectedTable))}&color=111111&bgcolor=F9FAFB&qzone=2`}
-                    alt="QR Code" className="w-48 h-48 rounded-xl" />
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => navigator.clipboard.writeText(getTableQRUrl(selectedTable))}
-                  className="flex-1 py-3.5 rounded-2xl bg-gray-100 text-gray-700 font-bold text-sm">
-                  Copier le lien
-                </button>
-                <motion.button whileTap={{ scale: 0.96 }} onClick={() => downloadQR(selectedTable)}
-                  className="flex-1 py-3.5 rounded-2xl text-white font-bold text-sm flex items-center justify-center gap-2"
-                  style={{ backgroundColor: p }}>
-                  <Download size={16} />
-                  Télécharger
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <AnimatePresence>
         {showLinkModal && (

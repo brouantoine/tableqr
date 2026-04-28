@@ -206,6 +206,10 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants, s
           <RestaurantDetailModal
             restaurant={selectedResto}
             onClose={() => setSelectedResto(null)}
+            onDeleted={(id) => {
+              setLocalRestaurants(prev => prev.filter(r => r.id !== id))
+              setSelectedResto(null)
+            }}
           />
         )}
       </AnimatePresence>
@@ -724,10 +728,15 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-function RestaurantDetailModal({ restaurant, onClose }: { restaurant: Restaurant; onClose: () => void }) {
+function RestaurantDetailModal({ restaurant, onClose, onDeleted }: {
+  restaurant: Restaurant
+  onClose: () => void
+  onDeleted: (id: string) => void
+}) {
   const p = restaurant.primary_color
   const [deleting, setDeleting] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const [showActivate, setShowActivate] = useState(false)
   const [activateForm, setActivateForm] = useState({ email: '', password: '' })
   const [activating, setActivating] = useState(false)
@@ -741,15 +750,22 @@ function RestaurantDetailModal({ restaurant, onClose }: { restaurant: Restaurant
   async function deleteRestaurant() {
     if (!confirming) { setConfirming(true); return }
     setDeleting(true)
-    await supabase.from('order_items').delete().eq('restaurant_id', restaurant.id)
-    await supabase.from('orders').delete().eq('restaurant_id', restaurant.id)
-    await supabase.from('menu_items').delete().eq('restaurant_id', restaurant.id)
-    await supabase.from('menu_categories').delete().eq('restaurant_id', restaurant.id)
-    await supabase.from('restaurant_tables').delete().eq('restaurant_id', restaurant.id)
-    await supabase.from('client_sessions').delete().eq('restaurant_id', restaurant.id)
-    await supabase.from('qr_codes').update({ restaurant_id: null, table_name: null }).eq('restaurant_id', restaurant.id)
-    await supabase.from('restaurants').delete().eq('id', restaurant.id)
-    onClose(); window.location.reload()
+    setDeleteError('')
+    try {
+      const res = await fetch(`/api/restaurants/${restaurant.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        onDeleted(restaurant.id)
+      } else {
+        const result = await res.json()
+        setDeleteError(result.error || 'Erreur lors de la suppression')
+        setDeleting(false)
+        setConfirming(false)
+      }
+    } catch {
+      setDeleteError('Erreur réseau')
+      setDeleting(false)
+      setConfirming(false)
+    }
   }
 
   async function activateRestaurant() {
@@ -963,6 +979,9 @@ function RestaurantDetailModal({ restaurant, onClose }: { restaurant: Restaurant
               <button onClick={() => setConfirming(false)} className="w-full py-2 text-xs text-gray-400 font-medium">
                 Annuler
               </button>
+            )}
+            {deleteError && (
+              <p className="text-xs text-red-500 font-semibold text-center">{deleteError}</p>
             )}
           </div>
         </div>

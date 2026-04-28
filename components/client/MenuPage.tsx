@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import TwemojiAvatar from './TwemojiAvatar'
+import { TwemojiIcon } from '@/components/Twemoji'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Heart, UtensilsCrossed, MessageCircle, Gamepad2, Bell, Package } from 'lucide-react'
 import { useSessionStore } from '@/lib/store'
@@ -10,6 +12,7 @@ import type { MenuCategory, MenuItem, Restaurant } from '@/types'
 import OnboardingPage from './OnboardingPage'
 
 export default function MenuPage({ restaurant, categories }: { restaurant: Restaurant; categories: MenuCategory[] }) {
+  const router = useRouter()
   const { cart, addToCart, updateQuantity, session, clearCart } = useSessionStore()
 
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id)
@@ -25,6 +28,8 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
 
   // ── Onboarding uniquement déclenché au "Confirmer la commande" ──
   const [showOnboarding, setShowOnboarding] = useState(false)
+  // Phase de transition vers l'onboarding (le panier se ferme en douceur)
+  const [transitioning, setTransitioning] = useState(false)
 
   // Snapshot du panier + notes figé au moment du clic "Confirmer"
   // La commande sera envoyée automatiquement après l'identification
@@ -83,11 +88,14 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
       if (res.ok) {
         const data = await res.json()
         const orderId = data?.data?.id
-        setOrderPlaced(true)   // → affiche la popup jeux/loisirs
-        setShowCart(false)
+        // Petit délai pour que l'animation de "envoi" se fasse sentir avant le succès
+        await new Promise(r => setTimeout(r, 250))
         setNotes({})
         clearCart()
         pendingOrderRef.current = null
+        setShowCart(false)
+        // Laisse la cart-modal se fermer en douceur avant d'afficher la popup succès
+        setTimeout(() => setOrderPlaced(true), 250)
         if (orderId) {
           setTimeout(async () => {
             await fetch('/api/orders/auto-confirm', {
@@ -110,10 +118,17 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     if (cart.items.length === 0 || ordering) return
 
     if (!sessionValid) {
-      // Pas encore identifié → snapshot + onboarding
+      // Pas encore identifié → snapshot + onboarding (transition douce)
       pendingOrderRef.current = { items: [...cart.items], notes: { ...notes } }
+      setTransitioning(true)
+      // Court délai pour laisser le tap-feedback se voir
+      await new Promise(r => setTimeout(r, 180))
       setShowCart(false)
+      // Petite pause pour laisser le panier se fermer en douceur
+      await new Promise(r => setTimeout(r, 240))
       setShowOnboarding(true)
+      // L'overlay onboarding est en place, on peut libérer la transition
+      setTransitioning(false)
       return
     }
 
@@ -124,21 +139,19 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   // ── Appelé par OnboardingPage une fois l'identification terminée ──
   // La session est maintenant dans le store Zustand
   function handleOnboardingDone() {
-    setShowOnboarding(false)
     const pending = pendingOrderRef.current
     if (pending) {
-      // Commande en attente → on l'envoie maintenant, automatiquement
+      // On garde l'overlay onboarding affiché pendant l'envoi pour éviter le flash menu
       const freshSession = useSessionStore.getState().session
       sendOrder(freshSession, pending.items, pending.notes)
-    } else if (pendingHref) {
-      window.location.href = pendingHref
-      setPendingHref(null)
+        .finally(() => setShowOnboarding(false))
+    } else {
+      setShowOnboarding(false)
+      if (pendingHref) {
+        window.location.href = pendingHref
+        setPendingHref(null)
+      }
     }
-  }
-
-  // ── Onboarding : remplace la page entière (pas de modal superposée) ──
-  if (showOnboarding) {
-    return <OnboardingPage restaurant={restaurant} table={tableObj} onDone={handleOnboardingDone} />
   }
 
   return (
@@ -450,23 +463,29 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                     { Icon: Package, title: 'Commandes', desc: 'Suivre ma commande', href: `/${restaurant.slug}/commandes`, color: '#10B981' },
                     { Icon: Bell, title: 'Alertes', desc: 'Mes notifications', href: `/${restaurant.slug}/notifications`, color: '#8B5CF6' },
                   ].map(f => (
-                    <button key={f.title}
-                      onClick={() => { window.location.href = f.href }}
-                      className="flex flex-col p-4 rounded-3xl bg-white text-left"
+                    <motion.button key={f.title}
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => {
+                        // Ferme d'abord la popup avec son anim, puis navigue en douceur
+                        setOrderPlaced(false)
+                        setTimeout(() => router.push(f.href), 220)
+                      }}
+                      className="flex flex-col p-4 rounded-3xl bg-white text-left active:bg-gray-50 transition-colors"
                       style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: `1.5px solid ${f.color}20` }}>
                       <f.Icon size={24} className="mb-2" style={{ color: f.color }} />
                       <p className="font-black text-gray-900 text-sm mb-0.5">{f.title}</p>
                       <p className="text-xs text-gray-400">{f.desc}</p>
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
 
                 {/* Retour au menu → ferme simplement la popup */}
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => setOrderPlaced(false)}
                   className="w-full py-3 rounded-2xl text-center font-bold text-gray-500 bg-gray-100 text-sm">
                   Retourner au menu
-                </button>
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>
@@ -495,16 +514,23 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                   </button>
                 </div>
                 <motion.button
-                  whileTap={{ scale: ordering ? 1 : 0.96 }}
+                  whileTap={{ scale: (ordering || transitioning) ? 1 : 0.96 }}
                   onClick={placeOrder}
-                  disabled={ordering}
-                  className="w-full py-4 rounded-2xl text-white font-black text-base flex items-center justify-between px-5 disabled:opacity-80 transition-all"
+                  disabled={ordering || transitioning}
+                  className="w-full py-4 rounded-2xl text-white font-black text-base flex items-center justify-between px-5 disabled:opacity-90 transition-all"
                   style={{ backgroundColor: ordering ? '#10B981' : p, boxShadow: `0 4px 20px ${p}50` }}>
                   {ordering ? (
                     <>
                       <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
                         className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white" />
                       <span>Envoi en cours...</span>
+                      <span className="opacity-0">·</span>
+                    </>
+                  ) : transitioning ? (
+                    <>
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                        className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white" />
+                      <span>Préparation...</span>
                       <span className="opacity-0">·</span>
                     </>
                   ) : (
@@ -555,6 +581,50 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                     </div>
                   </div>
                 ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── ONBOARDING OVERLAY (transitions douces, pas de hard-switch) ── */}
+      <AnimatePresence>
+        {showOnboarding && (
+          <motion.div
+            key="onboarding-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-[60] overflow-y-auto"
+            style={{ backgroundColor: '#0D0D0D' }}>
+            <OnboardingPage restaurant={restaurant} table={tableObj} onDone={handleOnboardingDone} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── OVERLAY ENVOI DE COMMANDE (post-onboarding, fluide, sans flash) ── */}
+      <AnimatePresence>
+        {ordering && !showCart && !showOnboarding && (
+          <motion.div
+            key="sending-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-[70] flex items-center justify-center"
+            style={{ backgroundColor: 'rgba(13,13,13,0.55)', backdropFilter: 'blur(6px)' }}>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              className="bg-white rounded-3xl px-6 py-5 flex items-center gap-3 shadow-2xl">
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.9, repeat: Infinity, ease: 'linear' }}
+                className="w-6 h-6 rounded-full border-[3px] border-gray-200"
+                style={{ borderTopColor: p }} />
+              <div>
+                <p className="font-black text-gray-900 text-sm">Envoi en cours...</p>
+                <p className="text-xs text-gray-400 mt-0.5">Le chef reçoit votre commande</p>
               </div>
             </motion.div>
           </motion.div>

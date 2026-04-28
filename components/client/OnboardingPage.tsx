@@ -9,20 +9,20 @@ import { generateDeviceFingerprint } from '@/lib/utils'
 import { getAvatarLabel } from './TwemojiAvatar'
 import type { Gender, ProfileType, Restaurant, RestaurantTable } from '@/types'
 
-// Avatars pros — emojis haute qualité
+// Avatars pros — emojis Twemoji haute qualité
 const AVATARS = [
-  { id: 'ninja', emoji: '🥷', label: 'Ninja', bg: '#1F2937', color: '#F9FAFB' },
-  { id: 'king', emoji: '🤴', label: 'Roi', bg: '#7C3AED', color: '#EDE9FE' },
-  { id: 'queen', emoji: '👸', label: 'Reine', bg: '#DB2777', color: '#FCE7F3' },
-  { id: 'astronaut', emoji: '👨‍🚀', label: 'Astro', bg: '#0EA5E9', color: '#E0F2FE' },
-  { id: 'chef', emoji: '👨‍🍳', label: 'Chef', bg: '#F26522', color: '#FFF7F0' },
-  { id: 'artist', emoji: '🧑‍🎨', label: 'Artiste', bg: '#10B981', color: '#ECFDF5' },
-  { id: 'vampire', emoji: '🧛', label: 'Vampire', bg: '#DC2626', color: '#FEF2F2' },
-  { id: 'mage', emoji: '🧙', label: 'Mage', bg: '#6D28D9', color: '#EDE9FE' },
-  { id: 'robot', emoji: '🤖', label: 'Robot', bg: '#374151', color: '#F3F4F6' },
-  { id: 'alien', emoji: '👽', label: 'Alien', bg: '#059669', color: '#ECFDF5' },
-  { id: 'ghost', emoji: '👻', label: 'Ghost', bg: '#6B7280', color: '#F9FAFB' },
-  { id: 'fire', emoji: '🔥', label: 'Fire', bg: '#DC2626', color: '#FFF' },
+  { id: 'ninja', emoji: '🥷', label: 'Ninja', bg: '#1F2937' },
+  { id: 'king', emoji: '🤴', label: 'Roi', bg: '#7C3AED' },
+  { id: 'queen', emoji: '👸', label: 'Reine', bg: '#DB2777' },
+  { id: 'astronaut', emoji: '🧑‍🚀', label: 'Astro', bg: '#0EA5E9' },
+  { id: 'chef', emoji: '🧑‍🍳', label: 'Chef', bg: '#F26522' },
+  { id: 'artist', emoji: '🧑‍🎨', label: 'Artiste', bg: '#10B981' },
+  { id: 'vampire', emoji: '🧛', label: 'Vampire', bg: '#DC2626' },
+  { id: 'mage', emoji: '🧙', label: 'Mage', bg: '#6D28D9' },
+  { id: 'robot', emoji: '🤖', label: 'Robot', bg: '#374151' },
+  { id: 'alien', emoji: '👽', label: 'Alien', bg: '#059669' },
+  { id: 'ghost', emoji: '👻', label: 'Ghost', bg: '#6B7280' },
+  { id: 'fire', emoji: '🔥', label: 'Fire', bg: '#DC2626' },
 ]
 
 const PROFILES = [
@@ -44,13 +44,11 @@ export default function OnboardingPage({ restaurant, table, onDone }: {
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0])
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  // pseudo = nom de l'avatar choisi
   const p = restaurant.primary_color
 
   useEffect(() => {
     async function check() {
       const fingerprint = generateDeviceFingerprint()
-      // Strict — doit matcher CE restaurant ET être présent
       if (session && session.restaurant_id === restaurant.id && session.is_present) {
         onDone ? onDone() : router.push(`/${restaurant.slug}/menu?table=${table.id}`)
         return
@@ -89,6 +87,8 @@ export default function OnboardingPage({ restaurant, table, onDone }: {
     const { data } = await supabase.from('client_sessions').insert(sessionData).select().single()
     if (data) {
       setSession(data)
+      // Petit délai pour laisser l'animation de "validation" se voir
+      await new Promise(r => setTimeout(r, 350))
       onDone ? onDone() : router.push(`/${restaurant.slug}/menu?table=${table.id}`)
     }
     setLoading(false)
@@ -157,9 +157,9 @@ export default function OnboardingPage({ restaurant, table, onDone }: {
               {/* Pseudo */}
               <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-2xl"
                 style={{ backgroundColor: '#1A1A1A' }}>
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0"
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: selectedAvatar.bg }}>
-                  {selectedAvatar.emoji}
+                  <TwemojiIcon emoji={selectedAvatar.emoji} size={28} />
                 </div>
                 <div>
                   <p className="text-white font-black">{selectedAvatar.label}</p>
@@ -178,7 +178,7 @@ export default function OnboardingPage({ restaurant, table, onDone }: {
                     style={selectedAvatar.id === av.id
                       ? { backgroundColor: av.bg + '30', border: `2px solid ${p}` }
                       : { backgroundColor: '#1A1A1A', border: '2px solid transparent' }}>
-                    <span className="text-3xl">{av.emoji}</span>
+                    <TwemojiIcon emoji={av.emoji} size={36} />
                     <span className="text-xs font-bold" style={{ color: selectedAvatar.id === av.id ? p : '#6B7280' }}>
                       {av.label}
                     </span>
@@ -201,7 +201,7 @@ export default function OnboardingPage({ restaurant, table, onDone }: {
                   style={selectedProfile === pr.value
                     ? { backgroundColor: p + '15', border: `2px solid ${p}` }
                     : { backgroundColor: '#1A1A1A', border: '2px solid transparent' }}>
-                  <span className="text-4xl">{pr.emoji}</span>
+                  <TwemojiIcon emoji={pr.emoji} size={42} />
                   <div className="flex-1">
                     <p className="font-black text-white text-base">{pr.label}</p>
                     <p className="text-gray-500 text-sm mt-0.5">{pr.desc}</p>
@@ -233,15 +233,23 @@ export default function OnboardingPage({ restaurant, table, onDone }: {
             Continuer →
           </motion.button>
         ) : (
-          <motion.button whileTap={{ scale: 0.97 }}
+          <motion.button whileTap={{ scale: loading ? 1 : 0.97 }}
             onClick={finish}
             disabled={!selectedProfile || loading}
             className="w-full py-4 rounded-2xl text-white font-black text-base disabled:opacity-40 flex items-center justify-center gap-2"
             style={{ backgroundColor: p, boxShadow: `0 8px 30px ${p}40` }}>
             {loading ? (
-              <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-                className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white" />
-            ) : '🍽️ Voir le menu'}
+              <>
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                  className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white" />
+                <span>Validation...</span>
+              </>
+            ) : (
+              <>
+                <TwemojiIcon emoji="🍽️" size={18} />
+                <span>Voir le menu</span>
+              </>
+            )}
           </motion.button>
         )}
         {step === 'profile' && (

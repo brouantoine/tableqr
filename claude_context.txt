@@ -1,0 +1,359 @@
+================================================================================
+TABLEQR — CONTEXTE COMPLET DU PROJET
+Généré le : 2026-04-27
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. DESCRIPTION GÉNÉRALE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TableQR est une application SaaS multi-tenant de restaurant digital ciblant
+l'Afrique de l'Ouest (Côte d'Ivoire, Sénégal, Cameroun, Togo, Ghana, Nigeria).
+
+Concept : le client scanne un QR code sur sa table → il accède à un menu digital,
+commande, paie via Wave/Orange Money/espèces, et interagit socialement avec
+d'autres clients dans la salle.
+
+Tarif : 15 000 FCFA / mois, tout inclus, sans engagement.
+
+Contact commercial :
+- Téléphone : +225 07 88 33 98 82
+- Email : lemenunumerique@gmail.com
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. STACK TECHNIQUE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+- Framework : Next.js 16.2.2 (⚠ version avec breaking changes — lire node_modules/next/dist/docs/)
+- React : 19.2.4
+- TypeScript : ^5
+- Styling : Tailwind CSS v4 + tailwind-merge + clsx + class-variance-authority
+- Backend/BDD : Supabase (PostgreSQL + Auth + Realtime + Storage)
+- State : Zustand v5 (persist middleware)
+- Animations : Framer Motion v12
+- Formulaires : React Hook Form v7 + Zod v4 + @hookform/resolvers
+- QR Codes : qrcode.react v4
+- Data fetching : @tanstack/react-query v5
+- Emojis : @twemoji/api v17
+- Emails : Resend v6 + Nodemailer v8
+- Icons : lucide-react v1.7
+- HTTP client : axios v1.14
+- Dates : date-fns v4
+
+Commandes :
+  npm run dev     → démarrer en dev
+  npm run build   → build production
+  npm run start   → démarrer en prod
+  npm run lint    → ESLint
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. STRUCTURE DES FICHIERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+tableqr_final/
+├── app/
+│   ├── page.tsx                        → Landing page publique (marketing)
+│   ├── layout.tsx                      → Root layout (Geist font, metadata)
+│   ├── globals.css
+│   ├── (client)/
+│   │   └── [slug]/                     → App client par restaurant (menu, commandes, social, jeux)
+│   │       ├── menu/
+│   │       ├── commandes/
+│   │       ├── social/
+│   │       ├── games/
+│   │       ├── notifications/
+│   │       ├── cart/
+│   │       └── table/
+│   ├── (auth)/
+│   │   └── login/
+│   ├── admin/                          → Espace restaurateur (auth Supabase)
+│   │   ├── login/
+│   │   ├── onboarding/
+│   │   ├── dashboard/
+│   │   ├── menu/
+│   │   ├── tables/
+│   │   ├── caisse/
+│   │   ├── stats/
+│   │   ├── activites/
+│   │   ├── settings/
+│   │   ├── forgot-password/
+│   │   └── reset-password/
+│   ├── superadmin/                     → Dashboard global (tous les restaurants)
+│   │   ├── page.tsx
+│   │   ├── login/
+│   │   └── restaurants/
+│   ├── t/
+│   │   └── [code]/page.tsx             → Redirect QR physique → /[slug]/menu?table=...
+│   ├── api/
+│   │   ├── auth/
+│   │   ├── bot/
+│   │   ├── contact/
+│   │   ├── menu/
+│   │   ├── orders/
+│   │   │   └── [orderId]/auto-confirm/
+│   │   ├── qr-codes/
+│   │   ├── qr-debug/
+│   │   ├── restaurants/
+│   │   ├── send-welcome-email/
+│   │   ├── sessions/
+│   │   └── social/
+│   ├── legal/
+│   │   ├── cgu/
+│   │   └── privacy/
+│   └── (admin)/                        → Route group admin (caisse, dashboard, menu-admin, settings, stats, tables)
+├── components/
+│   ├── admin/
+│   │   ├── AdminNav.tsx                → Navigation sidebar admin
+│   │   ├── AdminShell.tsx              → Shell layout admin
+│   │   ├── ActivitesPage.tsx
+│   │   ├── CaissePage.tsx              → Gestion commandes + caisse (live, historique, ventes manuelles)
+│   │   ├── ImagePickerModal.tsx
+│   │   ├── MenuAdminPage.tsx           → CRUD menu (catégories + plats)
+│   │   ├── SettingsPage.tsx
+│   │   ├── StaffSelector.tsx
+│   │   ├── StatsPage.tsx
+│   │   └── TablesAdminPage.tsx         → Gestion tables + QR codes
+│   ├── client/
+│   │   ├── ClientLayout.tsx            → Layout principal côté client
+│   │   ├── BottomNav.tsx               → Barre de navigation bas (menu, social, jeux, notifs)
+│   │   ├── MenuPage.tsx                → Page menu + ajout panier
+│   │   ├── MesCommandesPage.tsx        → Suivi commandes client
+│   │   ├── SocialPage.tsx              → Messagerie anonyme inter-tables
+│   │   ├── GamesPage.tsx               → Mini-jeux
+│   │   ├── MatchPage.tsx               → Système de match
+│   │   ├── NotificationsPage.tsx
+│   │   ├── NotificationBell.tsx
+│   │   ├── OnboardingPage.tsx          → Choix pseudo/avatar/genre/profil
+│   │   ├── SplashScreen.tsx
+│   │   ├── AvatarDisplay.tsx
+│   │   └── TwemojiAvatar.tsx
+│   ├── superadmin/
+│   │   └── SuperAdminDashboard.tsx
+│   ├── shared/
+│   ├── AvatarDisplay.tsx
+│   ├── Twemoji.tsx
+│   └── ui/                             → Composants UI génériques
+├── lib/
+│   ├── supabase/
+│   │   └── client.ts                   → supabase (public) + getSupabaseAdmin() (serveur)
+│   ├── store/
+│   │   └── index.ts                    → useSessionStore (client) + useAdminStore
+│   ├── hooks/
+│   ├── utils/
+│   │   ├── index.ts                    → cn, formatPrice, formatTimeAgo, generatePseudo, generateDeviceFingerprint
+│   │   └── avatars.ts
+│   ├── getAdminRestaurant.ts
+│   └── qr-print-template.ts
+├── hooks/
+│   ├── useNotificationSound.ts
+│   └── useRealtimeRefresh.ts           → Refresh sur visibilitychange + focus + online + interval
+├── types/
+│   └── index.ts                        → Tous les types TypeScript
+├── database.sql                        → Schéma SQL complet (à coller dans Supabase)
+├── migration_qr_preview.sql            → Migration : qr_codes table + is_preview + admin_email
+├── next.config.ts
+├── .env.local                          → Variables env (non committé)
+└── INSTALL.md                          → Guide d'installation complet
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. BASE DE DONNÉES SUPABASE — TABLES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+restaurants          → Tenants. Chaque restaurant = 1 slug unique. Contient
+                       couleurs (primary_color #F26522, secondary_color, accent_color),
+                       modules (social, games, delivery, loyalty, birthday),
+                       plan (starter/pro/enterprise), bot_name, currency (XOF par défaut),
+                       admin_email, is_active, is_preview.
+
+admin_users          → Comptes staff (owner/manager/cashier) liés à un restaurant.
+
+restaurant_tables    → Tables physiques avec qr_code unique, zone, capacity.
+
+menu_categories      → Catégories (name, name_en, icon, position).
+
+menu_items           → Plats (price, allergens, is_vegetarian/vegan/halal/spicy,
+                       stock, order_count, image_url).
+
+client_sessions      → Sessions client anonymes. Contient pseudo, avatar_icon,
+                       gender, profile_type (solo/couple/famille/groupe),
+                       social_mode (receptif/discret/invisible), is_birthday,
+                       device_fingerprint, is_present, is_remote, push_token.
+
+orders               → Commandes. status: pending→confirmed→preparing→ready→served/cancelled.
+                       payment_status: unpaid/pending/paid/refunded.
+                       payment_method: cash/wave/orange_money/mtn/moov/card.
+                       order_type: dine_in/delivery/takeaway.
+
+order_items          → Lignes de commande.
+
+social_messages      → Messages anonymes entre sessions. trigger_type: plat_partage/libre/jeu.
+
+matches              → Système de match entre 2 sessions (vote mutuel).
+
+game_sessions        → Parties de jeux (quiz/trivia/couple_quiz/mots_croises).
+
+game_players         → Joueurs dans une partie.
+
+notifications        → Push/in-app (plat_partage/message/jeu_invite/anniversaire/promo/match/order_ready).
+
+loyalty_records      → Fidélité par device_fingerprint.
+
+daily_analytics      → Agrégats journaliers par restaurant.
+
+qr_codes             → QR codes physiques indépendants (table migration_qr_preview.sql).
+                       code (unique uppercase), restaurant_id (nullable = non lié),
+                       table_name, scan_count.
+                       Route /t/[code] → redirect vers /[slug]/menu?table=...
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. TYPES TYPESCRIPT PRINCIPAUX (types/index.ts)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Restaurant, QRCode, AdminUser, RestaurantTable, MenuCategory, MenuItem,
+ClientSession, Order, OrderItem, SocialMessage, Match, GameSession, GamePlayer,
+Notification, CartItem, Cart, DashboardStats
+
+Types union importants :
+  OrderStatus    = 'pending'|'confirmed'|'preparing'|'ready'|'served'|'cancelled'
+  PaymentStatus  = 'unpaid'|'pending'|'paid'|'refunded'
+  PaymentMethod  = 'cash'|'wave'|'orange_money'|'mtn'|'moov'|'card'
+  OrderType      = 'dine_in'|'delivery'|'takeaway'
+  Gender         = 'homme'|'femme'|'jeune_homme'|'fille'|'maman'
+  ProfileType    = 'solo'|'couple'|'famille'|'groupe'
+  SocialMode     = 'receptif'|'discret'|'invisible'
+  GameType       = 'quiz'|'trivia'|'couple_quiz'|'mots_croises'
+  NotificationType = 'plat_partage'|'message'|'jeu_invite'|'anniversaire'|'promo'|'match'|'order_ready'
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+6. STATE MANAGEMENT (lib/store/index.ts)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+useSessionStore (persisted → 'tableqr-session')
+  - session, restaurant, cart, notifications, unread_count
+  - setSession, setRestaurant (wipe si changement de resto), clearSession
+  - addToCart, removeFromCart, updateQuantity, clearCart
+  - addNotification, markAllRead
+
+useAdminStore (persisted → 'tableqr-admin')
+  - restaurant, setRestaurant
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+7. SUPABASE CLIENT (lib/supabase/client.ts)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+supabase            → Client public (côté navigateur, clé anon, realtime activé)
+getSupabaseAdmin()  → Client admin (côté serveur uniquement, service_role key)
+                      Ne JAMAIS exposer côté client.
+
+Variables d'env requises (.env.local) :
+  NEXT_PUBLIC_SUPABASE_URL
+  NEXT_PUBLIC_SUPABASE_ANON_KEY
+  SUPABASE_SERVICE_ROLE_KEY
+  NEXT_PUBLIC_APP_URL
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+8. HOOKS UTILITAIRES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+useRealtimeRefresh(onRefresh, intervalMs=30000)
+  → Déclenche onRefresh sur : visibilitychange(visible), window.focus, online, et interval.
+  → Utilisé dans CaissePage (15000ms) pour rafraîchir ventes manuelles.
+
+useNotificationSound()
+  → Joue un son quand une nouvelle commande arrive en caisse.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+9. UTILS (lib/utils/index.ts)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+cn(...)                    → clsx + twMerge
+generatePseudo()           → "Tigre Bleu", "Lion Doré"... (liste FR)
+PROFILE_ICONS              → ['🦁','🐯','🦊','🐺','🦅','🦋','🐉','🦄','🌟','⚡','🔥','🌊','🌙','☀️','💎','🎭']
+GENDER_OPTIONS             → homme/femme/jeune_homme/fille/maman avec emoji
+PROFILE_OPTIONS            → solo/couple/famille/groupe avec emoji + desc
+formatPrice(amount, currency='XOF') → Intl.NumberFormat fr-FR
+formatTimeAgo(date)        → "À l'instant" / "Il y a Xmin" / "Il y a Xh" / date formatée
+generateDeviceFingerprint() → hash basé sur userAgent+language+screen+timezone
+ORDER_STATUS_CONFIG        → labels + classes Tailwind par status
+PAYMENT_METHOD_CONFIG      → labels + emoji par moyen de paiement
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+10. FLUX DE NAVIGATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CLIENT :
+  Scan QR code physique → /t/[CODE]
+    → lookup table qr_codes → incrémente scan_count
+    → redirect vers /[slug]/menu?table=[table_name]
+  /[slug]/menu → MenuPage (ClientLayout, BottomNav)
+  /[slug]/commandes, /social, /games, /notifications, /cart
+
+ADMIN :
+  /admin/login → auth Supabase (email+password)
+    → vérifie restaurants.admin_email = email connecté
+    → si première connexion (pas localStorage 'onboarding_done') → /admin/onboarding
+    → sinon → /admin/dashboard
+  /admin/dashboard, /caisse, /menu, /tables, /stats, /activites, /settings
+
+SUPER ADMIN :
+  /superadmin/login → /superadmin (vue tous les restaurants + stats globales)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+11. CAISSE (components/admin/CaissePage.tsx)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Onglets : live | caisse | ventes | recap | historique
+Flux status : pending/confirmed → preparing → served (STATUS_FLOW)
+Moyens de paiement : orange_money, wave, card, cash
+Ventes manuelles : formulaire label+quantité+prix+mode paiement (stocké localement)
+Realtime : supabase.channel orders + useRealtimeRefresh(15000)
+Son : useNotificationSound() sur INSERT order
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+12. COULEURS & BRANDING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Couleur principale : #F26522 (orange TableQR)
+Couleur secondaire par défaut : #D4A017
+Accent par défaut : #C0392B
+Chaque restaurant peut avoir ses propres couleurs (primary_color, secondary_color, accent_color).
+Restaurant démo : slug="chez-kofi", name="Chez Kofi", city="Abidjan", bot_name="Tantie"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+13. CONFIGURATION NEXT.JS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+next.config.ts :
+  allowedDevOrigins: ['172.20.10.2']   → accès réseau local (mobile dev)
+
+⚠ IMPORTANT : Next.js 16.2.2 a des breaking changes par rapport aux versions
+antérieures. Toujours lire node_modules/next/dist/docs/ avant d'écrire du code
+(conventions routes, APIs, Server Components, etc.).
+params dans les Server Components est une Promise → doit être await-é.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+14. MODULES ACTIVABLES PAR RESTAURANT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+module_social    → messagerie anonyme inter-tables + matching
+module_games     → mini-jeux (quiz, trivia, couple_quiz, mots_croises)
+module_delivery  → commandes livraison
+module_loyalty   → fidélité par device_fingerprint
+module_birthday  → détection/cadeau anniversaire
+
+Plans : starter | pro | enterprise (avec plan_expires_at)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+15. MIGRATIONS SQL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+database.sql              → Schéma initial complet
+migration_qr_preview.sql  → Ajoute :
+                            - restaurants.is_preview BOOLEAN
+                            - restaurants.admin_email TEXT
+                            - table qr_codes (code, batch_name, restaurant_id,
+                              table_name, linked_at, scan_count)
+
+================================================================================
+FIN DU CONTEXTE
+================================================================================

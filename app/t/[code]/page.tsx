@@ -1,12 +1,13 @@
 import { redirect } from 'next/navigation'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export default async function QRRedirectPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
   const upperCode = code.toUpperCase()
   const admin = getSupabaseAdmin()
 
-  // Deux requêtes séparées — plus fiable que le join PostgREST
   const { data: qr, error: qrError } = await admin
     .from('qr_codes')
     .select('restaurant_id, table_name, scan_count')
@@ -17,7 +18,6 @@ export default async function QRRedirectPage({ params }: { params: Promise<{ cod
     return <NotLinkedPage code={upperCode} color="#F26522" restoName={null} migrationMissing={qrError?.code === '42P01'} />
   }
 
-  // Incrémenter le scan count (await pour garantir l'exécution)
   await admin
     .from('qr_codes')
     .update({ scan_count: (qr.scan_count || 0) + 1 })
@@ -37,7 +37,33 @@ export default async function QRRedirectPage({ params }: { params: Promise<{ cod
     return <NotLinkedPage code={upperCode} color={resto?.primary_color || '#F26522'} restoName={resto?.name || null} />
   }
 
-  const tableParam = qr.table_name ? `?table=${encodeURIComponent(qr.table_name)}` : ''
+  let tableParam = ''
+  if (qr.table_name) {
+    if (UUID_REGEX.test(qr.table_name)) {
+      const { data: t } = await admin
+        .from('restaurant_tables')
+        .select('table_number, zone')
+        .eq('id', qr.table_name)
+        .maybeSingle()
+
+      const displayName = t
+        ? `${t.zone ? t.zone + ' · ' : ''}Table ${t.table_number}`
+        : qr.table_name
+      tableParam = `?table=${qr.table_name}&tableName=${encodeURIComponent(displayName)}`
+    } else {
+      const { data: t } = await admin
+        .from('restaurant_tables')
+        .select('id')
+        .eq('restaurant_id', qr.restaurant_id)
+        .eq('table_number', qr.table_name)
+        .maybeSingle()
+
+      tableParam = t
+        ? `?table=${t.id}&tableName=${encodeURIComponent(qr.table_name)}`
+        : `?table=${encodeURIComponent(qr.table_name)}`
+    }
+  }
+
   redirect(`/${resto.slug}/menu${tableParam}`)
 }
 
@@ -47,10 +73,8 @@ function NotLinkedPage({ code, color, restoName, migrationMissing }: {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
       <div className="text-center max-w-xs w-full">
-        <div
-          className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg"
-          style={{ backgroundColor: color }}
-        >
+        <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg"
+          style={{ backgroundColor: color }}>
           <span className="text-white text-3xl font-black">T</span>
         </div>
         <h1 className="text-2xl font-black text-gray-900 mb-1">

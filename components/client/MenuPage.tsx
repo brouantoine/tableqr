@@ -33,9 +33,11 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   const p = restaurant.primary_color
 
   const [tableId, setTableId] = useState('')
+  const [tableDisplayName, setTableDisplayName] = useState('')
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     setTableId(params.get('table') || '')
+    setTableDisplayName(params.get('tableName') || '')
   }, [])
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
 
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tableId)
   const sessionValid = session && session.restaurant_id === restaurant.id && session.is_present
-  const tableObj = { id: isUuid ? tableId : null, table_number: tableId, restaurant_id: restaurant.id } as any
+  const tableObj = { id: isUuid ? tableId : null, table_number: tableDisplayName || tableId, restaurant_id: restaurant.id } as any
 
   const allItems = categories.flatMap(c => c.items || [])
   const featured = allItems.filter(i => i.is_available).slice(0, 5)

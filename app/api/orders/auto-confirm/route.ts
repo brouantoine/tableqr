@@ -21,10 +21,10 @@ export async function POST(req: NextRequest) {
     await admin.from('notifications').insert({
       restaurant_id: order.restaurant_id,
       session_id: order.session_id,
-      type: 'order_ready',
-      title: '👨‍🍳 En préparation !',
-      body: `${order.order_number} est en cours de préparation`,
-      data: { order_id },
+      type: 'order_status',
+      title: 'Le chef cuisine !',
+      body: `Votre commande ${order.order_number} est en préparation`,
+      data: { order_id, status: 'preparing', order_number: order.order_number },
     })
   }
 

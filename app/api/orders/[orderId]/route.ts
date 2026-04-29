@@ -1,6 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 
+const STATUS_NOTIF: Record<string, { title: string; body: (orderNumber: string) => string }> = {
+  confirmed: {
+    title: 'Commande reçue',
+    body: (n) => `Le restaurant a bien reçu votre commande ${n}`,
+  },
+  preparing: {
+    title: 'Le chef cuisine !',
+    body: (n) => `Votre commande ${n} est en préparation`,
+  },
+  ready: {
+    title: 'Votre commande est prête !',
+    body: (n) => `${n} sort de la cuisine`,
+  },
+  served: {
+    title: 'Bon appétit !',
+    body: (n) => `Votre commande ${n} vient d'être servie`,
+  },
+  cancelled: {
+    title: 'Commande annulée',
+    body: (n) => `Votre commande ${n} a été annulée`,
+  },
+}
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ orderId: string }> }) {
   const admin = getSupabaseAdmin()
   const { orderId } = await params
@@ -15,11 +38,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ or
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  if (body.status === 'ready' && data.session_id) {
+  // Notification client à chaque transition de statut significative
+  if (body.status && data.session_id && STATUS_NOTIF[body.status]) {
+    const cfg = STATUS_NOTIF[body.status]
     await admin.from('notifications').insert({
-      restaurant_id: data.restaurant_id, session_id: data.session_id,
-      type: 'order_ready', title: '🔔 Votre commande est prête !',
-      body: `${data.order_number} est prête`, data: { order_id: data.id },
+      restaurant_id: data.restaurant_id,
+      session_id: data.session_id,
+      type: body.status === 'ready' ? 'order_ready' : 'order_status',
+      title: cfg.title,
+      body: cfg.body(data.order_number),
+      data: { order_id: data.id, status: body.status, order_number: data.order_number },
     })
   }
   return NextResponse.json({ data })

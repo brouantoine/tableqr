@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { useSessionStore } from '@/lib/store'
 import BottomNav from './BottomNav'
 import SplashScreen from './SplashScreen'
+import GlobalClientNotifier from './GlobalClientNotifier'
 import type { Restaurant } from '@/types'
 
 export default function ClientLayout({ children, restaurant }: { children: React.ReactNode; restaurant: Restaurant }) {
@@ -34,6 +35,7 @@ export default function ClientLayout({ children, restaurant }: { children: React
           duration={2800}
         />
       )}
+      <GlobalClientNotifier primaryColor={restaurant.primary_color} />
       {children}
       {showNav && (
         <BottomNav

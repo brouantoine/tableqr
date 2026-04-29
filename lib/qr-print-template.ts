@@ -12,7 +12,7 @@ export function generateQRPrintHTML(
   appUrl: string,
   batchName?: string
 ): string {
-  const ITEMS_PER_PAGE = 6
+  const ITEMS_PER_PAGE = 9
   const pages: QRItem[][] = []
   for (let i = 0; i < items.length; i += ITEMS_PER_PAGE) {
     pages.push(items.slice(i, i + ITEMS_PER_PAGE))
@@ -40,8 +40,8 @@ export function generateQRPrintHTML(
 
     /*
      * Page A4 : 210mm × 297mm
-     * Padding 8mm + grille 3 col × 2 lignes, gap 5mm
-     * → cellule : (210 - 16 - 10) / 3 = 61.3mm × (297 - 16 - 5) / 2 = 138mm
+     * Padding 8mm + grille 3 col × 3 lignes, gap 5mm
+     * → cellule : (210 - 16 - 10) / 3 = 61.3mm × (297 - 16 - 10) / 3 = 90.3mm
      */
     .page {
       width: 210mm;
@@ -49,7 +49,7 @@ export function generateQRPrintHTML(
       padding: 8mm;
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      grid-template-rows: repeat(2, 1fr);
+      grid-template-rows: repeat(3, 1fr);
       gap: 5mm;
       background: #fff;
       overflow: hidden;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
+import { sendPushToRestaurantAdmins } from '@/lib/push'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -40,6 +41,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Erreur création' }, { status: 500 })
     }
     await admin.from('order_items').insert(lines.map((l: any) => ({ ...l, order_id: order.id })))
+
+    // Push notification aux admins du restaurant (non bloquant)
+    try {
+      let tableLabel = ''
+      if (safeTableId) {
+        const { data: t } = await admin.from('restaurant_tables').select('table_number').eq('id', safeTableId).maybeSingle()
+        if (t?.table_number) tableLabel = ` · Table ${t.table_number}`
+      }
+      const totalFmt = new Intl.NumberFormat('fr-FR').format(subtotal) + ' FCFA'
+      await sendPushToRestaurantAdmins(restaurant_id, {
+        title: `🔔 Nouvelle commande ${order_number}`,
+        body: `${totalFmt}${tableLabel}`,
+        url: '/admin/dashboard',
+        tag: `order-${order.id}`,
+        data: { orderId: order.id, restaurantId: restaurant_id },
+      })
+    } catch (e) {
+      console.warn('Push notif failed', e)
+    }
 
     return NextResponse.json({ data: order })
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }) }

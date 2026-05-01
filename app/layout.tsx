@@ -15,9 +15,21 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "TableQR — Restaurant Digital",
   description: "Menu digital, commandes QR, caisse intégrée",
+  manifest: '/manifest.webmanifest',
+  applicationName: 'TableQR',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'TableQR',
+  },
   icons: {
-    icon: '/logo.png',
-    apple: '/logo.png',
+    icon: [
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+    shortcut: '/favicon-32.png',
   },
 }
 
@@ -26,7 +38,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#F8F8F8',
+  themeColor: '#F26522',
   colorScheme: 'light',
   viewportFit: 'cover',
 }

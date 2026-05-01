@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import PushToggle from './PushToggle'
 
 const NAV = [
   { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Caisse' },
@@ -52,6 +53,7 @@ export default function AdminShell({ children, restaurantName, primaryColor }: {
               ← Tous les restos
             </Link>
           )}
+          <PushToggle />
           <button onClick={handleLogout}
             className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-red-50 transition-colors">
             <LogOut size={14} className="text-gray-500" />

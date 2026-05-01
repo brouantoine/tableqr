@@ -214,7 +214,11 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
       <div className="px-5 pt-5 pb-3 bg-white border-b border-gray-100">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            {session ? (
+            {restaurant.logo_url ? (
+              <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <img src={restaurant.logo_url} alt="" className="w-full h-full object-contain p-1" />
+              </div>
+            ) : session ? (
               <TwemojiAvatar avatarId={session.avatar_icon || ''} size={40} className="ring-2 ring-gray-100" />
             ) : (
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white flex-shrink-0"

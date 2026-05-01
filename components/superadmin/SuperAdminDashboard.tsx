@@ -1,10 +1,10 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus, Search, Store, Users, TrendingUp, X, Check, LogOut, QrCode, Eye,
   AlertTriangle, Printer, Key, Globe, Phone, Mail, Settings, Rocket,
-  CreditCard, Clock, ChevronRight,
+  CreditCard, Clock, ChevronRight, ImageIcon, Upload, Trash2,
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
@@ -33,8 +33,7 @@ function isEphemeralVercelUrl(url: string): boolean {
 }
 
 function PrintUrlCheck() {
-  const [origin, setOrigin] = useState('')
-  useEffect(() => { setOrigin(window.location.origin) }, [])
+  const [origin] = useState(() => typeof window !== 'undefined' ? window.location.origin : '')
   if (!origin) return null
   const ephemeral = isEphemeralVercelUrl(origin)
   return (
@@ -250,10 +249,12 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
   const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null)
   const [previewDone, setPreviewDone] = useState(false)
   const [subscriptionStatus, setSubscriptionStatus] = useState<'subscribed' | 'trial'>('subscribed')
+  const [logoUploading, setLogoUploading] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
   const [form, setForm] = useState({
     name: '', slug: '', city: '', country: 'CI', phone: '', email: '', password: '',
     description: '', primary_color: '#F26522', secondary_color: '#D4A017',
-    accent_color: '#C0392B', bot_name: 'Tantie', currency: 'XOF',
+    accent_color: '#C0392B', bot_name: 'Tantie', currency: 'XOF', logo_url: '',
   })
   const [previewForm, setPreviewForm] = useState({ name: '', city: '', phone: '', currency: 'XOF' })
 
@@ -285,6 +286,29 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
       else alert(result.error || 'Erreur')
     } catch { alert('Erreur réseau') }
     finally { setLoading(false) }
+  }
+
+  async function uploadLogo(file: File) {
+    if (!file.type.startsWith('image/')) { alert('Choisis une image valide'); return }
+    if (file.size > 3 * 1024 * 1024) { alert('Logo trop lourd : maximum 3 Mo'); return }
+
+    setLogoUploading(true)
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'png'
+      const safeSlug = form.slug || form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'restaurant'
+      const fileName = `restaurant-logos/${safeSlug}-${Date.now()}.${ext}`
+      const { error } = await supabase.storage
+        .from('restaurant-images')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false, contentType: file.type })
+
+      if (error) { alert(error.message); return }
+
+      const { data } = supabase.storage.from('restaurant-images').getPublicUrl(fileName)
+      set('logo_url', data.publicUrl)
+    } finally {
+      setLogoUploading(false)
+      if (logoInputRef.current) logoInputRef.current.value = ''
+    }
   }
 
   async function createPreview() {
@@ -425,20 +449,20 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
 
               {step === 'info' && (
                 <div className="space-y-3">
-                  {[
+                  {([
                     { label: 'Nom *', key: 'name', placeholder: 'Chez Kofi', Icon: Store },
                     { label: 'Slug URL *', key: 'slug', placeholder: 'chez-kofi', Icon: Globe },
                     { label: 'Ville', key: 'city', placeholder: 'Abidjan', Icon: Globe },
                     { label: 'Téléphone', key: 'phone', placeholder: '+225 07 00 00 00', Icon: Phone },
                     { label: 'Email *', key: 'email', placeholder: 'contact@restaurant.com', Icon: Mail },
                     { label: 'Mot de passe *', key: 'password', placeholder: 'Min. 8 caractères', Icon: Settings },
-                  ].map(f => (
+                  ] as const).map(f => (
                     <div key={f.key}>
                       <label className="text-xs font-bold text-gray-500 block mb-1">{f.label}</label>
                       <div className="relative">
                         <f.Icon size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input type={f.key === 'password' ? 'password' : 'text'} placeholder={f.placeholder}
-                          value={(form as any)[f.key]} onChange={e => set(f.key, e.target.value)}
+                          value={form[f.key]} onChange={e => set(f.key, e.target.value)}
                           className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white text-sm outline-none border border-gray-200 focus:border-orange-300" />
                       </div>
                     </div>
@@ -458,31 +482,75 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
               {step === 'design' && (
                 <div className="space-y-4">
                   <div>
+                    <label className="text-xs font-bold text-gray-500 block mb-1.5">Logo du restaurant</label>
+                    <div className="rounded-2xl bg-white border border-gray-200 p-3 flex items-center gap-3">
+                      <div className="w-14 h-14 rounded-2xl border border-gray-100 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        {form.logo_url
+                          ? <img src={form.logo_url} alt="" className="w-full h-full object-contain p-1" />
+                          : <ImageIcon size={22} className="text-gray-300" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-black text-sm text-gray-900 truncate">
+                          {form.logo_url ? 'Logo ajouté' : 'Ajouter un logo'}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-0.5">PNG, JPG ou WebP · max 3 Mo</p>
+                        <div className="flex gap-2 mt-2">
+                          <button type="button" onClick={() => logoInputRef.current?.click()}
+                            disabled={logoUploading}
+                            className="px-3 py-2 rounded-xl bg-gray-900 text-white text-xs font-black flex items-center gap-1.5 disabled:opacity-60">
+                            <Upload size={12} />
+                            {logoUploading ? 'Upload...' : form.logo_url ? 'Remplacer' : 'Uploader'}
+                          </button>
+                          {form.logo_url && (
+                            <button type="button" onClick={() => set('logo_url', '')}
+                              className="px-3 py-2 rounded-xl bg-gray-100 text-gray-600 text-xs font-black flex items-center gap-1.5">
+                              <Trash2 size={12} />
+                              Retirer
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0]
+                          if (file) uploadLogo(file)
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
                     <label className="text-xs font-bold text-gray-500 block mb-1">Nom du bot assistant</label>
                     <input type="text" placeholder="Tantie, Chef, Alex..." value={form.bot_name}
                       onChange={e => set('bot_name', e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl bg-white text-sm outline-none border border-gray-200" />
                   </div>
-                  {[
+                  {([
                     { label: 'Couleur principale', key: 'primary_color' },
                     { label: 'Couleur secondaire', key: 'secondary_color' },
-                  ].map(c => (
+                  ] as const).map(c => (
                     <div key={c.key}>
                       <label className="text-xs font-bold text-gray-500 block mb-1.5">{c.label}</label>
                       <div className="flex items-center gap-2">
-                        <input type="color" value={(form as any)[c.key]} onChange={e => set(c.key, e.target.value)}
+                        <input type="color" value={form[c.key]} onChange={e => set(c.key, e.target.value)}
                           className="w-11 h-11 rounded-xl border-0 cursor-pointer p-1 bg-white border border-gray-200" />
-                        <input type="text" value={(form as any)[c.key]} onChange={e => set(c.key, e.target.value)}
+                        <input type="text" value={form[c.key]} onChange={e => set(c.key, e.target.value)}
                           className="flex-1 px-4 py-2.5 rounded-xl bg-white text-sm outline-none border border-gray-200 font-mono" />
-                        <div className="w-11 h-11 rounded-xl flex-shrink-0 border border-gray-100" style={{ backgroundColor: (form as any)[c.key] }} />
+                        <div className="w-11 h-11 rounded-xl flex-shrink-0 border border-gray-100" style={{ backgroundColor: form[c.key] }} />
                       </div>
                     </div>
                   ))}
                   <div className="rounded-2xl p-4" style={{ backgroundColor: form.primary_color + '12' }}>
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
-                        style={{ backgroundColor: form.primary_color }}>
-                        <Store size={18} strokeWidth={2.2} />
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white overflow-hidden border border-white/60"
+                        style={{ backgroundColor: form.logo_url ? '#fff' : form.primary_color }}>
+                        {form.logo_url
+                          ? <img src={form.logo_url} alt="" className="w-full h-full object-contain p-1" />
+                          : <Store size={18} strokeWidth={2.2} />}
                       </div>
                       <div>
                         <p className="font-black text-sm" style={{ color: form.primary_color }}>{form.name || 'Mon Restaurant'}</p>

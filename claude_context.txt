@@ -1020,3 +1020,1027 @@
     2. Upgrade your plan
 
   Enter to confirm · Esc to cancel
+
+
+
+    ⎿  Added 1 line                                                                                                                 
+       5  import BottomNav from './BottomNav'                                                                                       
+       6  import SplashScreen from './SplashScreen'
+       7  import GlobalClientNotifier from './GlobalClientNotifier'                                                                 
+       8 +import WaveListener from './WaveListener'                                                                          
+       9  import { useClientPresence } from '@/hooks/useClientPresence'                                                             
+      10  import type { Restaurant } from '@/types'                                                                         
+      11                                                                                                                            
+                                                                                                                             
+● Update(components/client/ClientLayout.tsx)                                                                                        
+  ⎿  Added 1 line                                                                                                                   
+      44          />                                                                                                                
+      45        )}                                                                                                                  
+      46        <GlobalClientNotifier primaryColor={restaurant.primary_color} />                                                    
+      47 +      <WaveListener slug={restaurant.slug} primaryColor={restaurant.primary_color} />                                     
+      48        {children}                                                                                                          
+      49        {showNav && (                                                                                                       
+      50          <BottomNav                                                                                                      
+                                                                                                                                  
+● Maintenant je modifie SocialPage pour ajouter l'envoi du coucou + lecture du paramètre ?chat= à l'ouverture.                      
+                                                                                                                            
+● Update(components/client/SocialPage.tsx)                                                                                      
+  ⎿  Added 4 lines                                                                                                           
+       1  'use client'                                                                                                              
+       2  import { useState, useEffect, useRef, useCallback } from 'react'                                                          
+       3 +import { useSearchParams } from 'next/navigation'                                                                         
+       4  import TwemojiAvatar from './TwemojiAvatar'                                                                               
+       5  import { motion, AnimatePresence } from 'framer-motion'                                                                   
+       6  import { supabase } from '@/lib/supabase/client'                                                                  
+       7  import { useSessionStore } from '@/lib/store'                                                                             
+       8 +import { useNotificationSound } from '@/hooks/useNotificationSound'                                                
+       9  import { getPresenceCutoffIso, getPresenceStamp, isLiveSocialClient } from '@/lib/social/presence'                        
+      10  import { formatTimeAgo } from '@/lib/utils'                                                                               
+      11  import { Send, ChevronLeft, Search, Moon, UserRound, Plus } from 'lucide-react'                                         
+      12  import type { ClientSession, SocialMessage, Restaurant } from '@/types'                                                   
+      13                                                                                                                            
+      14 +const WAVE_DISPLAY_MS = 60_000                                                                                            
+      15 +                                                                                                                          
+      16  type SocialMode = 'receptif' | 'discret' | 'invisible'                                                                  
+      17  
+      18  function appendMessage(prev: Record<string, SocialMessage[]>, clientId: string, msg: SocialMessage) {
+
+● Update(components/client/SocialPage.tsx)           
+  ⎿  Added 6 lines                      
+      28                                                                                                                            
+      29  export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
+      30    const { session, setSession } = useSessionStore()
+      31 +  const { playSound } = useNotificationSound()                                                                     
+      32 +  const searchParams = useSearchParams()                                                                           
+      33 +  const chatParam = searchParams.get('chat')                                                                       
+      34    const [view, setView] = useState<'list' | 'chat'>('list')                                                               
+      35    const [clients, setClients] = useState<ClientSession[]>([])                                                     
+      36    const [conversations, setConversations] = useState<Record<string, SocialMessage[]>>({})                                 
+     ...                                                                                                                     
+      39    const [newMsg, setNewMsg] = useState('')                                                                            
+      40    const [sending, setSending] = useState(false)                                                                           
+      41    const [search, setSearch] = useState('')                                                                                
+      42 +  const [outgoingWaves, setOutgoingWaves] = useState<Record<string, number>>({})                                          
+      43 +  const [waveBusy, setWaveBusy] = useState<Record<string, boolean>>({})                                                   
+      44 +  const [waveFlash, setWaveFlash] = useState<{ pseudo: string; mutual: boolean } | null>(null)                          
+      45    const messagesEndRef = useRef<HTMLDivElement>(null)
+      46    const activeChatRef = useRef<{ view: 'list' | 'chat'; selectedClientId?: string }>({ view: 'list' })
+      47    const p = restaurant.primary_color
+
+● Update(components/client/SocialPage.tsx)           
+  ⎿  Added 82 lines                     
+      185      return () => { window.__activeSocialChatId = null }                                                                  
+      186    }, [view, selectedClientId])        
+      187                                                
+      188 +  // Ouverture automatique du chat depuis ?chat=<id> (deeplink coucou réciproque)                                 
+      189 +  useEffect(() => {                                                                                               
+      190 +    if (!chatParam || !sessionId) return                                                                          
+      191 +    const local = clients.find(c => c.id === chatParam)                                                                  
+      192 +    if (local) {                                                                                                  
+      193 +      setSelectedClient(local)                                                                                           
+      194 +      setView('chat')                                                                                             
+      195 +      const url = new URL(window.location.href)                                                                      
+      196 +      url.searchParams.delete('chat')                                                                                    
+      197 +      window.history.replaceState({}, '', url.pathname + (url.search ? `?${url.searchParams}` : ''))                     
+      198 +      return                                                                                                             
+      199 +    }                                                                                                                    
+      200 +    let cancelled = false                                                                                              
+      201 +    void (async () => {                                                                                           
+      202 +      const { data } = await supabase.from('client_sessions')                                                     
+      203 +        .select('*')                                                                                              
+      204 +        .eq('id', chatParam)                                                                                      
+      205 +        .eq('restaurant_id', restaurant.id)                                                                       
+      206 +        .maybeSingle()                                                                                            
+      207 +      if (cancelled || !data) return                                                                              
+      208 +      setSelectedClient(data as ClientSession)                                                                    
+      209 +      setView('chat')                                                                                             
+      210 +      const url = new URL(window.location.href)                                                                   
+      211 +      url.searchParams.delete('chat')                                                                             
+      212 +      window.history.replaceState({}, '', url.pathname + (url.search ? `?${url.searchParams}` : ''))              
+      213 +    })()                                                                                                          
+      214 +    return () => { cancelled = true }                                                                             
+      215 +  }, [chatParam, sessionId, clients, restaurant.id])                                                              
+      216 +                                                                                                                  
+      217 +  // Nettoyage automatique des coucous expirés (visuel "Coucou ✓")                                                
+      218 +  useEffect(() => {                                                                                               
+      219 +    if (Object.keys(outgoingWaves).length === 0) return                                                           
+      220 +    const timer = window.setInterval(() => {                                                                      
+      221 +      const now = Date.now()                                                                                      
+      222 +      setOutgoingWaves(prev => {                                                                                  
+      223 +        const next: Record<string, number> = {}                                                                   
+      224 +        let changed = false                                                                                       
+      225 +        for (const [id, ts] of Object.entries(prev)) {                                                            
+      226 +          if (now - ts < WAVE_DISPLAY_MS) next[id] = ts                                                           
+      227 +          else changed = true                                                                                     
+      228 +        }                                                                                                         
+      229 +        return changed ? next : prev                                                                              
+      230 +      })                                                                                                          
+      231 +    }, 5000)                                                                                                      
+      232 +    return () => window.clearInterval(timer)                                                                      
+      233 +  }, [outgoingWaves])                                                                                             
+      234 +                                                                                                                  
+      235 +  async function sendWave(client: ClientSession) {                                                                
+      236 +    if (!sessionId || waveBusy[client.id]) return                                                                 
+      237 +    if (outgoingWaves[client.id] && Date.now() - outgoingWaves[client.id] < 8000) return                          
+      238 +    setWaveBusy(prev => ({ ...prev, [client.id]: true }))                                                         
+      239 +    try {                                                                                                         
+      240 +      const res = await fetch('/api/social/waves', {                                                              
+      241 +        method: 'POST',                                                                                           
+      242 +        headers: { 'Content-Type': 'application/json' },                                                          
+      243 +        body: JSON.stringify({                                                                                    
+      244 +          restaurant_id: restaurant.id,                                                                           
+      245 +          sender_session_id: sessionId,                                                                           
+      246 +          receiver_session_id: client.id,                                                                         
+      247 +        }),                                                                                                       
+      248 +      })                                                                                                          
+      249 +      const json = await res.json() as { mutual?: boolean; error?: string }                                       
+      250 +      if (!res.ok) return                                                                                         
+      251 +                                                                                                                  
+      252 +      setOutgoingWaves(prev => ({ ...prev, [client.id]: Date.now() }))                                            
+      253 +                                                                                                                  
+      254 +      if (json.mutual) {                                                                                          
+      255 +        playSound('match')                                                                                        
+      256 +        setWaveFlash({ pseudo: client.pseudo, mutual: true })                                                     
+      257 +        setSelectedClient(client)                                                                                 
+      258 +        setView('chat')                                                                                           
+      259 +        window.setTimeout(() => setWaveFlash(null), 2400)                                                         
+      260 +      } else {                                                                                                    
+      261 +        playSound('wave')                                                                                         
+      262 +        setWaveFlash({ pseudo: client.pseudo, mutual: false })                                                    
+      263 +        window.setTimeout(() => setWaveFlash(null), 1800)                                                         
+      264 +      }                                                                                                           
+      265 +    } finally {                                                                                                   
+      266 +      setWaveBusy(prev => ({ ...prev, [client.id]: false }))                                                      
+      267 +    }                                                                                                             
+      268 +  }                                                                                                               
+      269 +                                                                                                                  
+      270    async function updateMode(mode: SocialMode) {
+      271      if (!sessionId) return
+      272      setSocialMode(mode)
+
+● Maintenant je remplace les bulles "En salle" par des cartes avec bouton "Coucou", et j'ajoute le flash overlay.
+                                        
+● Update(components/client/SocialPage.tsx)           
+  ⎿  Added 35 lines, removed 16 lines            
+      464                                                                                                                           
+      465          {hasDiscovery && (            
+      466            <div className="px-4 pt-4">         
+      467 -            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">En salle</p>            
+      468 -            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">                                             
+      469 -              {discoveryClients.map((client, i) => (                                                              
+      470 -                <motion.button key={client.id}                                                                           
+      471 -                  initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}                         
+      472 -                  transition={{ delay: i * 0.04 }} whileTap={{ scale: 0.92 }}                                            
+      473 -                  onClick={() => { setSelectedClient(client); setView('chat') }}                                         
+      474 -                  className="flex flex-col items-center gap-1.5 flex-shrink-0">                                        
+      475 -                  <div className="relative">                                                                             
+      476 -                    <TwemojiAvatar avatarId={client.avatar_icon || ''} size={54} />                                      
+      477 -                    <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white       
+          -"                                                                                                                        
+      478 -                      style={{ backgroundColor: client.social_mode === 'receptif' ? '#10B981' : '#F59E0B' }} />        
+      479 -                  </div>                                                                                          
+      480 -                  <p className="text-xs font-bold text-gray-700 max-w-[58px] truncate">{client.pseudo}</p>        
+      481 -                </motion.button>                                                                                  
+      482 -              ))}                                                                                                 
+      467 +            <div className="flex items-center justify-between mb-3">                                              
+      468 +              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">En salle</p>               
+      469 +              <p className="text-[10px] font-bold text-gray-300">Tap pour ouvrir · Coucou pour briser la glace</p>
+      470              </div>
+      471 +            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">                                      
+      472 +              {discoveryClients.map((client, i) => {                                                              
+      473 +                const waved = !!outgoingWaves[client.id]                                                          
+      474 +                const busy = !!waveBusy[client.id]                                                                
+      475 +                return (                                                                                          
+      476 +                  <motion.div key={client.id}                                                                     
+      477 +                    initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}                      
+      478 +                    transition={{ delay: i * 0.04 }}                                                              
+      479 +                    className="flex flex-col items-center gap-2 flex-shrink-0 w-[78px]">                          
+      480 +                    <button                                                                                       
+      481 +                      onClick={() => { setSelectedClient(client); setView('chat') }}                              
+      482 +                      className="flex flex-col items-center gap-1">                                               
+      483 +                      <div className="relative">                                                                  
+      484 +                        <TwemojiAvatar avatarId={client.avatar_icon || ''} size={54} />                           
+      485 +                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-w
+          +hite"                                                                                                             
+      486 +                          style={{ backgroundColor: client.social_mode === 'receptif' ? '#10B981' : '#F59E0B' }} /
+          +>                                                                                                                 
+      487 +                      </div>                                                                                      
+      488 +                      <p className="text-xs font-bold text-gray-700 max-w-[70px] truncate">{client.pseudo}</p>    
+      489 +                    </button>                                                                                     
+      490 +                    <motion.button whileTap={{ scale: 0.9 }}                                                      
+      491 +                      onClick={() => sendWave(client)}                                                            
+      492 +                      disabled={busy || waved}                                                                    
+      493 +                      className="w-full px-2 py-1 rounded-full text-[10px] font-black transition-all"             
+      494 +                      style={waved                                                                                
+      495 +                        ? { backgroundColor: '#ECFDF5', color: '#059669' }                                        
+      496 +                        : { backgroundColor: `${p}15`, color: p }}>                                               
+      497 +                      {waved ? '✓ Coucou' : busy ? '...' : '👋 Coucou'}                                           
+      498 +                    </motion.button>                                                                              
+      499 +                  </motion.div>                                                                                   
+      500 +                )                                                                                                 
+      501 +              })}                                                                                                 
+      502 +            </div>                                                                                                
+      503            </div>
+      504          )}
+      505  
+
+● J'ajoute le flash overlay (toast léger envoyé/réciproque) au-dessus de la liste.
+                                        
+● Update(components/client/SocialPage.tsx)           
+  ⎿  Added 21 lines                              
+      372      </div>                                                                                                               
+      373    )                                   
+      374                                                
+      375 +  const flashOverlay = waveFlash && (                                                                             
+      376 +    <div className="pointer-events-none fixed inset-x-0 z-[80] flex justify-center px-4"                                 
+      377 +      style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}>                                                   
+      378 +      <motion.div                                                                                                        
+      379 +        initial={{ y: -24, opacity: 0, scale: 0.9 }}                                                              
+      380 +        animate={{ y: 0, opacity: 1, scale: 1 }}                                                                         
+      381 +        exit={{ y: -24, opacity: 0 }}                                                                                    
+      382 +        className="px-4 py-2.5 rounded-full bg-white flex items-center gap-2"                                          
+      383 +        style={{ boxShadow: '0 12px 32px rgba(0,0,0,0.18)' }}>                                                           
+      384 +        <motion.span                                                                                                     
+      385 +          animate={{ rotate: [0, 18, -12, 8, 0] }}                                                                       
+      386 +          transition={{ duration: 0.9 }}                                                                                 
+      387 +          className="text-lg">{waveFlash.mutual ? '✨' : '👋'}</motion.span>                                           
+      388 +        <p className="text-xs font-black text-gray-900">                                                          
+      389 +          {waveFlash.mutual ? `Coucou réciproque avec ${waveFlash.pseudo} !` : `Coucou envoyé à ${waveFlash.pseudo
+          +}`}                                                                                                               
+      390 +        </p>                                                                                                      
+      391 +      </motion.div>                                                                                               
+      392 +    </div>                                                                                                        
+      393 +  )                                                                                                               
+      394 +                                                                                                                  
+      395    // ── VUE LISTE ──
+      396    if (view === 'list') return (
+      397      <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 56px)', backgroundColor: '#F8F8F8' }}>
+      398 +      <AnimatePresence>{flashOverlay}</AnimatePresence>                                                           
+      399  
+      400        <div className="bg-white px-4 pt-5 pb-4" style={{ boxShadow: '0 1px 0 #F0F0F0' }}>
+      401          <div className="flex items-center gap-3 mb-4 px-1">
+
+● Et j'ajoute aussi le flash dans la vue chat (au cas où l'utilisateur reçoit un autre coucou pendant qu'il chatte avec quelqu'un).
+                                        
+● Update(components/client/SocialPage.tsx)           
+  ⎿  Added 1 line                                
+      541    // ── VUE CHAT ──                                                                                                      
+      542    return (                            
+      543      <div className="fixed inset-0 z-50 mx-auto flex max-w-md flex-col bg-white" style={{ height: '100dvh' }}>
+      544 +      <AnimatePresence>{flashOverlay}</AnimatePresence>                                                           
+      545                                                                                                                           
+      546        {/* Header chat style Messenger */}                                                                        
+      547        <div className="flex items-center gap-3 px-4 py-3 bg-white flex-shrink-0"                                          
+                                                                                                                             
+● Je lance type-check + lint sur les fichiers touchés.                                                                              
+                                                                                                                                    
+● Bash(npx tsc --noEmit 2>&1 | head -60)                                                                                          
+  ⎿  (No output)                                                                                                                    
+                                                                                                                                    
+● Bash(npx eslint components/client/SocialPage.tsx components/client/WaveListener.tsx components/client/GlobalClientNotifier.tsx    
+      components/client/ClientLayout.tsx app…)                                                                                      
+  ⎿  /home/zen/Bureau/TableQR_Projet/tableqr_final/components/client/GlobalClientNotifier.tsx                                       
+       24:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any                                   
+     … +5 lines (ctrl+o to expand)                                                                                                  
+                                                                                                                                    
+  Reading 1 file… (ctrl+o to expand)                                                                                         
+  ⎿  components/client/GlobalClientNotifier.tsx                                                                                 
+                                                                                                                                    
+● Update(components/client/GlobalClientNotifier.tsx)                                                                                
+  ⎿  Added 1 line, removed 1 line                                                                                                   
+      1  'use client'                                                                                                               
+      2  import { useEffect, useRef, useState } from 'react'                                                                        
+      3  import { motion, AnimatePresence } from 'framer-motion'                                                                    
+      4 -import { Bell, ChefHat, CheckCircle, Utensils, MessageCircle, X, Heart, Gift, Tag } from 'lucide-react'                    
+      4 +import { Bell, ChefHat, CheckCircle, Utensils, MessageCircle, X, Heart, Gift, Tag, type LucideIcon } from 'lucide-re       
+        +act'                                                                                                                       
+      3  import { motion, AnimatePresence } from 'framer-motion'
+      4 -import { Bell, ChefHat, CheckCircle, Utensils, MessageCircle, X, Heart, Gift, Tag } from 'lucide-react'             
+      4 +import { Bell, ChefHat, CheckCircle, Utensils, MessageCircle, X, Heart, Gift, Tag, type LucideIcon } from 'lucide-re
+        +act'                                                                                                                
+      5  import { supabase } from '@/lib/supabase/client'
+      6  import { useSessionStore } from '@/lib/store'
+      7  import { useNotificationSound } from '@/hooks/useNotificationSound'
+
+● Update(components/client/GlobalClientNotifier.tsx)
+  ⎿  Added 1 line, removed 1 line
+      21    }                                                                                                                       
+      22  }                             
+      23                                                                                                                            
+      24 -const TOAST_CONFIG: Record<string, { icon: any; color: string; bg: string }> = {                                   
+      24 +const TOAST_CONFIG: Record<string, { icon: LucideIcon; color: string; bg: string }> = {                            
+      22  }
+      23  
+      24 -const TOAST_CONFIG: Record<string, { icon: any; color: string; bg: string }> = {                                   
+      24 +const TOAST_CONFIG: Record<string, { icon: LucideIcon; color: string; bg: string }> = {                            
+      25    // statuts de commande
+      26    confirmed:    { icon: CheckCircle,  color: '#3B82F6', bg: '#EFF6FF' },
+      27    preparing:    { icon: ChefHat,      color: '#F59E0B', bg: '#FFFBEB' },
+
+● Update(hooks/useNotificationSound.ts)
+  ⎿  Added 2 lines, removed 2 lines
+       9      function unlock() {                                                                                                   
+      10        if (unlockedRef.current) return
+      11        try {                            
+      12 -        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()                              
+      12 +        const ctx = new (window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).w
+         +ebkitAudioContext!)()                                                                                              
+      13          // Jouer un son silencieux pour débloquer iOS
+      14          const buf = ctx.createBuffer(1, 1, 22050)
+      15          const src = ctx.createBufferSource()                                                                              
+     ...                                                                                                                    
+      38        // Réutiliser le contexte débloqué ou en créer un nouveau                                                       
+      39        const ctx = audioCtxRef.current && audioCtxRef.current.state !== 'closed'                                    
+      40          ? audioCtxRef.current                               
+      41 -        : new (window.AudioContext || (window as any).webkitAudioContext)()                                               
+      41 +        : new (window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudio     
+         +Context!)()                                                                                                             
+      42  
+      43        audioCtxRef.current = ctx
+      44  
+
+● Bash(npx tsc --noEmit 2>&1 | head -40 && echo "---ESLINT---" && npx eslint components/client/SocialPage.tsx
+      components/client/WaveListener.tsx components/client/Glob…)
+  ⎿  ---ESLINT---                                
+                                                         
+● Type-check et ESLint passent. Lancement du build complet.                                                                         
+                                                   
+● Bash(npm run build 2>&1 | tail -50)              
+  ⎿    Generating static pages using 7 workers (23/31)                                                   
+     ✓ Generating static pages using 7 workers (31/31) in 433ms                                                                     
+       Finalizing page optimization ...                                                                                             
+     … +46 lines (ctrl+o to expand)                                                                                             
+  ⎿  (timeout 5m)                                                                                                            
+                                                                                                                                    
+● Tout est en place et passe build + tsc + eslint. Récap :                                                                          
+                                                                                                                                    
+  Coucou anonyme (👋 Coucou sur chaque profil "En salle")                                                                           
+  - app/api/social/waves/route.ts:1 — endpoint qui valide la présence, rate-limit 8s, détecte le mutual sur 60s                     
+  - migration_social_waves.sql:1 — table + index + publication realtime (à exécuter dans Supabase SQL Editor)                       
+  - components/client/WaveListener.tsx:1 — écoute globale, joue un son cristallin, affiche un toast bas avec "Coucou retour"        
+  - Si mutual : célébration plein écran (avatars dansants + ✨) + redirection automatique vers le chat des deux côtés               
+  - components/client/SocialPage.tsx:289 — bouton coucou sur chaque carte "En salle", flash haut "Coucou envoyé / réciproque"       
+                                                                                                                                    
+  Realtime + son messages                                                                                                           
+  - components/client/GlobalClientNotifier.tsx:67 — écoute INSERT social_messages côté receiver, joue le son message, affiche le    
+  toast partout dans l'app, sauf si déjà sur la conversation (via window.__activeSocialChatId)                                      
+                                                                                                                                    
+  Retrait des messages de la page Notifs                                                                                            
+  - app/api/social/messages/route.ts:64 — plus aucun insert dans la table notifications lors d'un envoi de message. Le badge Social 
+  reste alimenté en lisant directement social_messages non lus.                                                                     
+                                                                                                                                    
+  Sons ajoutés (hooks/useNotificationSound.ts:48)                                                                                 
+  - wave (Mi-Si court) pour coucou reçu                                                                                             
+  - match (4 notes ascendantes) pour le coucou réciproque                                                                           
+                                                                                                                                    
+  Avant déploiement : exécuter migration_social_waves.sql dans Supabase. Si le realtime sur social_messages ne fonctionnait pas, la
+  migration corrige aussi la publication pour cette table.                                                                          
+                                                                                                                                    
+✻ Crunched for 11m 42s                                                                                                            
+                                                                                                                             
+❯ et aussi, quand un utilisateur arrive sur la page onboading, les icones deja choisis par les gens qui sont encore dands le        
+  restaurant restent grisé du genre, pris, pour eviter beaucoup d'astronote, ou pilote, et aussi, quand iol selectionne ses etat je 
+   suis disponible, je suis pas disponible et autre, on doit lui expliqué ce que c'est cett etat, si c'est sur le grios par exemple 
+   on ecrit, mode non receptif, oiu un truc poli de ce genre,                                                                       
+                                                                      
+● Je regarde la page d'onboarding pour comprendre l'état actuel.                                                                    
+                                                                                                                                  
+  Read 1 file (ctrl+o to expand)                                                                                                    
+                                         
+● J'ajoute les tâches puis j'attaque.                                                                                               
+                                                                                                                                  
+● Update(components/client/OnboardingPage.tsx)                                                                                      
+  ⎿  Added 1 line                                                                                                                   
+       7  import { useSessionStore } from '@/lib/store'                                                                             
+       8  import { generateDeviceFingerprint } from '@/lib/utils'                                                                   
+       9  import { getAvatarLabel } from './TwemojiAvatar'                                                                          
+      10 +import { getPresenceCutoffIso } from '@/lib/social/presence'                                                              
+      11  import type { ClientSession, Gender, ProfileType, Restaurant, RestaurantTable } from '@/types'                            
+      12                                                                                                                          
+      13  // Avatars pros — emojis Twemoji haute qualité                                                                            
+                                                                                                                                  
+● Update(components/client/OnboardingPage.tsx)                                                                                    
+  ⎿  Added 2 lines                                                                                                                  
+      47    const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0])                                                        
+      48    const [selectedProfile, setSelectedProfile] = useState<string | null>(null)                                             
+      49    const [loading, setLoading] = useState(false)                                                                           
+      50 +  const [takenAvatars, setTakenAvatars] = useState<Set<string>>(new Set())                                         
+      51    const p = restaurant.primary_color                                                                                      
+      52 +  const ownAvatarId = isGuestUpgrade ? session?.avatar_icon : undefined                                                 
+      53                                                                                                                            
+      54    useEffect(() => {                                                                                                     
+      55      async function check() {                                                                                            
+                                                                                                                                    
+● Update(components/client/OnboardingPage.tsx)                                                                                      
+  ⎿  Added 36 lines                                                                                                                 
+       80      check()                                                                                                              
+       81    }, [])                      
+       82                                                                                                                           
+       83 +  // Avatars pris par les autres clients encore présents                                                          
+       84 +  useEffect(() => {                                                                                                      
+       85 +    let cancelled = false                                                                                              
+       86 +    async function loadTaken() {                                                                                         
+       87 +      const { data } = await supabase.from('client_sessions')                                                          
+       88 +        .select('id, avatar_icon')                                                                                     
+       89 +        .eq('restaurant_id', restaurant.id)                                                                              
+       90 +        .eq('is_present', true)                                                                                          
+       91 +        .gte('last_seen_at', getPresenceCutoffIso())                                                                     
+       92 +      if (cancelled) return                                                                                       
+       93 +      const taken = new Set<string>()                                                                             
+       94 +      for (const row of data || []) {                                                                             
+       95 +        if (!row.avatar_icon) continue                                                                            
+       96 +        if (ownAvatarId && row.id === session?.id) continue                                                       
+       97 +        taken.add(row.avatar_icon)                                                                                
+       98 +      }                                                                                                           
+       99 +      setTakenAvatars(taken)                                                                                      
+      100 +    }                                                                                                             
+      101 +    void loadTaken()                                                                                              
+      102 +    const channel = supabase.channel(`onboarding-taken-${restaurant.id}`)                                         
+      103 +      .on('postgres_changes', {                                                                                   
+      104 +        event: '*', schema: 'public', table: 'client_sessions',                                                   
+      105 +        filter: `restaurant_id=eq.${restaurant.id}`,                                                              
+      106 +      }, () => { void loadTaken() })                                                                              
+      107 +      .subscribe()                                                                                                
+      108 +    return () => { cancelled = true; supabase.removeChannel(channel) }                                            
+      109 +  }, [restaurant.id, ownAvatarId, session?.id])                                                                   
+      110 +                                                                                                                  
+      111 +  // Si l'avatar actuellement sélectionné devient pris par quelqu'un d'autre, basculer sur le premier libre       
+      112 +  useEffect(() => {                                                                                               
+      113 +    if (!takenAvatars.has(selectedAvatar.id)) return                                                              
+      114 +    if (selectedAvatar.id === ownAvatarId) return                                                                 
+      115 +    const free = AVATARS.find(a => !takenAvatars.has(a.id) || a.id === ownAvatarId)                               
+      116 +    if (free) setSelectedAvatar(free)                                                                             
+      117 +  }, [takenAvatars, selectedAvatar.id, ownAvatarId])                                                              
+      118 +                                                                                                                  
+      119    async function finish() {
+      120      if (!selectedProfile || loading) return
+      121      setLoading(true)
+
+● Maintenant le rendu de la grille d'avatars : grisé + label "Pris" + désactivation des avatars pris.
+                                         
+● Update(components/client/OnboardingPage.tsx)         
+  ⎿  Added 33 lines, removed 15 lines    
+      230                                                                                                                           
+      231                {/* Grid avatars */}
+      232                <div className="grid grid-cols-4 gap-3">                                                                   
+      233 -                {AVATARS.map((av, i) => (                                                                              
+      234 -                  <motion.button key={av.id}                                                                             
+      235 -                    initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}                            
+      236 -                    transition={{ delay: i * 0.04 }} whileTap={{ scale: 0.9 }}                                           
+      237 -                    onClick={() => setSelectedAvatar(av)}                                                              
+      238 -                    className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all"                        
+      239 -                    style={selectedAvatar.id === av.id                                                                   
+      240 -                      ? { backgroundColor: av.bg + '30', border: `2px solid ${p}` }                                      
+      241 -                      : { backgroundColor: '#1A1A1A', border: '2px solid transparent' }}>                                
+      242 -                    <TwemojiIcon emoji={av.emoji} size={36} />                                                    
+      243 -                    <span className="text-xs font-bold" style={{ color: selectedAvatar.id === av.id ? p : '#6B7280
+          -' }}>                                                                                                             
+      244 -                      {av.label}                                                                                  
+      245 -                    </span>                                                                                       
+      246 -                  </motion.button>                                                                                
+      247 -                ))}                                                                                               
+      233 +                {AVATARS.map((av, i) => {                                                                         
+      234 +                  const isMine = av.id === ownAvatarId                                                            
+      235 +                  const isTaken = takenAvatars.has(av.id) && !isMine                                              
+      236 +                  const isSelected = selectedAvatar.id === av.id                                                  
+      237 +                  return (                                                                                        
+      238 +                    <motion.button key={av.id}                                                                    
+      239 +                      initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}                     
+      240 +                      transition={{ delay: i * 0.04 }}                                                            
+      241 +                      whileTap={isTaken ? undefined : { scale: 0.9 }}                                             
+      242 +                      onClick={() => { if (!isTaken) setSelectedAvatar(av) }}                                     
+      243 +                      disabled={isTaken}                                                                          
+      244 +                      aria-disabled={isTaken}                                                                     
+      245 +                      className="relative flex flex-col items-center gap-2 p-3 rounded-2xl transition-all disabled
+          +:cursor-not-allowed"                                                                                              
+      246 +                      style={isSelected                                                                           
+      247 +                        ? { backgroundColor: av.bg + '30', border: `2px solid ${p}` }                             
+      248 +                        : { backgroundColor: '#1A1A1A', border: '2px solid transparent', opacity: isTaken ? 0.35 :
+          + 1 }}>                                                                                                            
+      249 +                      <div style={isTaken ? { filter: 'grayscale(1)' } : undefined}>                              
+      250 +                        <TwemojiIcon emoji={av.emoji} size={36} />                                                
+      251 +                      </div>                                                                                      
+      252 +                      <span className="text-xs font-bold" style={{                                                
+      253 +                        color: isSelected ? p : isTaken ? '#4B5563' : '#6B7280'                                   
+      254 +                      }}>                                                                                         
+      255 +                        {av.label}                                                                                
+      256 +                      </span>                                                                                     
+      257 +                      {isTaken && (                                                                               
+      258 +                        <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-black
+          + uppercase tracking-wider"                                                                                        
+      259 +                          style={{ backgroundColor: '#000', color: '#9CA3AF', border: '1px solid #2D2D2D' }}>     
+      260 +                          Pris                                                                                    
+      261 +                        </span>                                                                                   
+      262 +                      )}                                                                                          
+      263 +                    </motion.button>                                                                              
+      264 +                  )                                                                                               
+      265 +                })}                                                                                               
+      266                </div>
+      267              </motion.div>
+      268            )}
+
+  Read 1 file (ctrl+o to expand)                       
+                                         
+● J'ajoute la constante MODE_INFO et je modifie le header pour expliquer le mode courant + un flash explicatif au changement.
+                                                                            
+● Update(components/client/SocialPage.tsx)                                                                                          
+  ⎿  Added 21 lines                      
+      13                                                                                                                            
+      14  const WAVE_DISPLAY_MS = 60_000                                                                                            
+      15                                                                                                                            
+      16 +const MODE_INFO: Record<SocialMode, { label: string; short: string; long: string; color: string }> = {                    
+      17 +  receptif:  {                                                                                                            
+      18 +    label: 'Disponible',                                                                                                
+      19 +    short: 'visible · coucous & messages activés',                                                                        
+      20 +    long: 'Vous êtes visible des autres clients. Ils peuvent vous faire coucou et vous écrire.',                        
+      21 +    color: '#10B981',                                                                                                   
+      22 +  },                                                                                                                      
+      23 +  discret:   {                                                                                                            
+      24 +    label: 'Discret',                                                                                                     
+      25 +    short: 'visible mais préfère la tranquillité',                                                                 
+      26 +    long: 'Vous restez visible mais vous indiquez que vous préférez ne pas être trop sollicité.',                  
+      27 +    color: '#F59E0B',                                                                                              
+      28 +  },                                                                                                               
+      29 +  invisible: {                                                                                                     
+      30 +    label: 'Non réceptif',                                                                                         
+      31 +    short: 'caché · personne ne peut vous voir',                                                                   
+      32 +    long: 'Vous disparaissez de la liste. Personne ne peut ni vous écrire ni vous faire coucou.',                  
+      33 +    color: '#9CA3AF',                                                                                              
+      34 +  },                                                                                                               
+      35 +}                                                                                                                  
+      36 +                                                                                                                   
+      37  type SocialMode = 'receptif' | 'discret' | 'invisible'
+      38  
+      39  function appendMessage(prev: Record<string, SocialMessage[]>, clientId: string, msg: SocialMessage) {
+
+● Update(components/client/SocialPage.tsx)           
+  ⎿  Added 1 line                        
+      63    const [outgoingWaves, setOutgoingWaves] = useState<Record<string, number>>({})                                          
+      64    const [waveBusy, setWaveBusy] = useState<Record<string, boolean>>({})
+      65    const [waveFlash, setWaveFlash] = useState<{ pseudo: string; mutual: boolean } | null>(null)                            
+      66 +  const [modeHint, setModeHint] = useState<SocialMode | null>(null)                                                
+      67    const messagesEndRef = useRef<HTMLDivElement>(null)                                                                     
+      68    const activeChatRef = useRef<{ view: 'list' | 'chat'; selectedClientId?: string }>({ view: 'list' })                  
+      69    const p = restaurant.primary_color                                                                                      
+                                                                                                                                  
+● Update(components/client/SocialPage.tsx)                                                                                        
+  ⎿  Added 2 lines                                                                                                                  
+      292    async function updateMode(mode: SocialMode) {                                                                          
+      293      if (!sessionId) return                                                                                               
+      294      setSocialMode(mode)                                                                                                  
+      295 +    setModeHint(mode)                                                                                             
+      296 +    window.setTimeout(() => setModeHint(prev => (prev === mode ? null : prev)), 3500)                                    
+      297      const now = getPresenceStamp()                                                                                     
+      298      const { data } = await supabase.from('client_sessions')                                                              
+      299        .update({ social_mode: mode, is_present: true, last_seen_at: now, left_at: null })                               
+                                                                                                                                  
+● Maintenant le header (titre/sous-titre + dots avec aria-label complet) et la bannière d'explication au changement.                
+                                                                                                                                    
+● Update(components/client/SocialPage.tsx)                                                                                          
+  ⎿  Added 39 lines, removed 20 lines    
+      422        <AnimatePresence>{flashOverlay}</AnimatePresence>                                                                  
+      423                                
+      424        <div className="bg-white px-4 pt-5 pb-4" style={{ boxShadow: '0 1px 0 #F0F0F0' }}>                                 
+      425 -        <div className="flex items-center gap-3 mb-4 px-1">                                                            
+      425 +        <div className="flex items-center gap-3 mb-3 px-1">                                                              
+      426            <div className="relative">                                                                                   
+      427              <TwemojiAvatar avatarId={session?.avatar_icon || ''} size={42} />                                            
+      428              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"            
+      429 -              style={{ backgroundColor: socialMode === 'receptif' ? '#10B981' : socialMode === 'discret' ? '#F59E0     
+          -B' : '#9CA3AF' }} />                                                                                                     
+      429 +              style={{ backgroundColor: MODE_INFO[socialMode].color }} />                                                
+      430            </div>                                                                                                         
+      431            <div className="flex-1 min-w-0">
+      432 -            <p className="font-black text-gray-900 text-lg leading-tight truncate">Social</p>                     
+      433 -            <p className="text-xs font-medium truncate" style={{ color: socialMode === 'receptif' ? '#10B981' : so
+          -cialMode === 'discret' ? '#F59E0B' : '#9CA3AF' }}>                                                                
+      434 -              {session?.pseudo || 'Moi'}                                                                          
+      432 +            <p className="font-black text-gray-900 text-base leading-tight truncate">{session?.pseudo || 'Moi'}</p
+          +>                                                                                                                 
+      433 +            <p className="text-[11px] mt-0.5 truncate">                                                           
+      434 +              <span className="font-black" style={{ color: MODE_INFO[socialMode].color }}>{MODE_INFO[socialMode].l
+          +abel}</span>                                                                                                      
+      435 +              <span className="text-gray-400 font-medium"> · {MODE_INFO[socialMode].short}</span>                 
+      436              </p>
+      437            </div>
+      438            <div className="flex gap-1.5">
+      438 -            {[                                                                                                    
+      439 -              { key: 'receptif', color: '#10B981', label: 'Disponible' },                                         
+      440 -              { key: 'discret', color: '#F59E0B', label: 'Discret' },                                             
+      441 -              { key: 'invisible', color: '#9CA3AF', label: 'Invisible' },                                         
+      442 -            ].map(m => (                                                                                          
+      443 -              <button key={m.key} onClick={() => updateMode(m.key as SocialMode)}                                 
+      444 -                aria-label={m.label}                                                                              
+      445 -                title={m.label}                                                                                   
+      446 -                className="w-7 h-7 rounded-full flex items-center justify-center transition-all"                  
+      447 -                style={socialMode === m.key                                                                       
+      448 -                  ? { backgroundColor: m.color + '20', border: `2px solid ${m.color}` }                           
+      449 -                  : { backgroundColor: '#F5F5F5', border: '2px solid transparent' }}>                             
+      450 -                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: m.color }} />                    
+      451 -              </button>                                                                                           
+      452 -            ))}                                                                                                   
+      439 +            {(Object.keys(MODE_INFO) as SocialMode[]).map(key => {                                                
+      440 +              const info = MODE_INFO[key]                                                                         
+      441 +              return (                                                                                            
+      442 +                <button key={key} onClick={() => updateMode(key)}                                                 
+      443 +                  aria-label={`${info.label} — ${info.long}`}                                                     
+      444 +                  title={`${info.label} — ${info.long}`}                                                          
+      445 +                  className="w-7 h-7 rounded-full flex items-center justify-center transition-all"                
+      446 +                  style={socialMode === key                                                                       
+      447 +                    ? { backgroundColor: info.color + '20', border: `2px solid ${info.color}` }                   
+      448 +                    : { backgroundColor: '#F5F5F5', border: '2px solid transparent' }}>                           
+      449 +                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: info.color }} />               
+      450 +                </button>                                                                                         
+      451 +              )                                                                                                   
+      452 +            })}                                                                                                   
+      453            </div>
+      454          </div>
+      455  
+      456 +        <AnimatePresence>                                                                                         
+      457 +          {modeHint && (                                                                                          
+      458 +            <motion.div                                                                                           
+      459 +              key={modeHint}                                                                                      
+      460 +              initial={{ opacity: 0, y: -6, scaleY: 0.9 }}                                                        
+      461 +              animate={{ opacity: 1, y: 0, scaleY: 1 }}                                                           
+      462 +              exit={{ opacity: 0, y: -6, scaleY: 0.9 }}                                                           
+      463 +              transition={{ duration: 0.18 }}                                                                     
+      464 +              className="rounded-xl px-3 py-2 mb-3 flex items-start gap-2"                                        
+      465 +              style={{ backgroundColor: MODE_INFO[modeHint].color + '15', border: `1px solid ${MODE_INFO[modeHint]
+          +.color}30` }}>                                                                                                    
+      466 +              <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: MODE_INFO[mode
+          +Hint].color }} />                                                                                                 
+      467 +              <p className="text-[11px] leading-snug">                                                            
+      468 +                <span className="font-black" style={{ color: MODE_INFO[modeHint].color }}>Mode {MODE_INFO[modeHint
+          +].label}.</span>                                                                                                  
+      469 +                <span className="text-gray-600"> {MODE_INFO[modeHint].long}</span>                                
+      470 +              </p>                                                                                                
+      471 +            </motion.div>                                                                                         
+      472 +          )}                                                                                                      
+      473 +        </AnimatePresence>                                                                                        
+      474 +                                                                                                                  
+      475          <div className="relative">
+      476            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+      477            <input type="text" placeholder="Rechercher..." value={search}
+
+● Bash(npx tsc --noEmit 2>&1 | head -40 && echo "---ESLINT---" && npx eslint components/client/SocialPage.tsx
+      components/client/OnboardingPage.tsx 2>&1 | head -40)
+  ⎿  ---ESLINT---                  
+                                  
+     /home/zen/Bureau/TableQR_Projet/tableqr_final/components/client/OnboardingPage.tsx                                             
+     … +19 lines (ctrl+o to expand)                  
+                                                                                                                                    
+● Je consolide la logique d'auto-bascule dans loadTaken pour éviter le pattern d'effet dérivé.                                    
+                                                                                                                                    
+● Update(components/client/OnboardingPage.tsx)                                                                                      
+  ⎿  Added 5 lines, removed 9 lines                                                                                                 
+      80      check()                                                                                                               
+      81    }, [])                                                                                                                  
+      82                                                                                                                            
+      83 -  // Avatars pris par les autres clients encore présents                                                                  
+      83 +  // Avatars pris par les autres clients encore présents (avec auto-bascule)                                              
+      84    useEffect(() => {                                                                                                       
+      85      let cancelled = false                                                                                                 
+      86      async function loadTaken() {                                                                                        
+     ...                                                                                                                          
+       97          taken.add(row.avatar_icon)                                                                                       
+       98        }                                                                                                                  
+       99        setTakenAvatars(taken)                                                                                             
+      100 +      setSelectedAvatar(prev => {                                                                                 
+      101 +        if (!taken.has(prev.id) || prev.id === ownAvatarId) return prev                                           
+      102 +        return AVATARS.find(a => !taken.has(a.id) || a.id === ownAvatarId) || prev                                
+      103 +      })                                                                                                          
+      104      }
+      105      void loadTaken()
+      106      const channel = supabase.channel(`onboarding-taken-${restaurant.id}`)
+     ...
+      112      return () => { cancelled = true; supabase.removeChannel(channel) }
+      113    }, [restaurant.id, ownAvatarId, session?.id])
+      114  
+      111 -  // Si l'avatar actuellement sélectionné devient pris par quelqu'un d'autre, basculer sur le premier libre       
+      112 -  useEffect(() => {                                                                                               
+      113 -    if (!takenAvatars.has(selectedAvatar.id)) return                                                              
+      114 -    if (selectedAvatar.id === ownAvatarId) return                                                                 
+      115 -    const free = AVATARS.find(a => !takenAvatars.has(a.id) || a.id === ownAvatarId)                               
+      116 -    if (free) setSelectedAvatar(free)                                                                             
+      117 -  }, [takenAvatars, selectedAvatar.id, ownAvatarId])                                                              
+      118 -                                                                                                                  
+      115    async function finish() {
+      116      if (!selectedProfile || loading) return
+      117      setLoading(true)
+
+● Bash(npx tsc --noEmit 2>&1 | head -40 && echo "---ESLINT---" && npx eslint components/client/SocialPage.tsx
+      components/client/OnboardingPage.tsx 2>&1 | head -40)
+  ⎿  ---ESLINT---                  
+                                  
+     /home/zen/Bureau/TableQR_Projet/tableqr_final/components/client/OnboardingPage.tsx                                             
+     … +6 lines (ctrl+o to expand)                   
+                                                                                                                                    
+● Plus d'erreur. Build complet.                                                                                                   
+                                                                                                                                    
+● Bash(npm run build 2>&1 | tail -15)                                                                                               
+  ⎿  ├ ƒ /api/restaurants/[id]/activate                                                                                             
+     ├ ƒ /api/send-welcome-email                                                                                                    
+     ├ ƒ /api/social/messages                                                                                                       
+     … +11 lines (ctrl+o to expand)                                                                                                 
+  ⎿  (timeout 5m)                                                                                                                   
+                                                                                                                                    
+● Build OK. Récap des deux ajouts :                                                                                                 
+                                                                                                                                    
+  Onboarding — avatars pris grisés (components/client/OnboardingPage.tsx:81)                                                        
+  - Au chargement, requête sur client_sessions (présents + pas expirés via getPresenceCutoffIso()) pour récupérer les avatar_icon en
+   cours d'utilisation.                                                                                                             
+  - Realtime sur la table : la liste se met à jour si quelqu'un arrive/part.                                                        
+  - Avatars pris : opacité 0.35, grayscale, badge Pris en haut à droite, clic désactivé.                                            
+  - Auto-bascule : si l'avatar sélectionné devient pris (cas concurrence), on glisse automatiquement vers le premier libre.         
+  - En mode isGuestUpgrade, l'avatar de la session courante reste disponible (on ne se bloque pas soi-même).                        
+                                                                                                                                    
+  SocialPage — explication des modes (components/client/SocialPage.tsx:14)                                                          
+  - Constante MODE_INFO avec label, description courte et longue pour chaque mode.                                                  
+  - Header redessiné : pseudo en titre, sous-titre = [Label coloré] · [description courte]. Toujours visible, donc l'utilisateur    
+  sait à tout moment dans quel mode il est.                                                                                         
+  - Au tap sur un dot : bannière colorée qui apparaît sous le header pendant 3,5 s avec la description longue (ex. "Mode Non        
+  réceptif. Vous disparaissez de la liste. Personne ne peut ni vous écrire ni vous faire coucou.").                               
+  - aria-label et title enrichis sur les boutons mode pour l'accessibilité/desktop tooltip.                                         
+                                                                                                                                  
+✻ Brewed for 4m 51s                                                                                                                 
+                                                                                                                                  
+※ recap: Building a restaurant social chat: just shipped the anonymous "Coucou" feature (waves with mutual auto-chat), realtime     
+  message sound/toast, removed messages from the notif page, greyed out taken avatars on onboarding, and added mode explanations.   
+  Next: run `migration_social_waves.sql` in Supabase before deploying. (disable recaps in /config)                                  
+                                                                                                                                    
+❯ zen@zen:~/Bureau/TableQR_Projet/tableqr_final$ le CC comment le tester? d'ailleur donne moi une requette a suprimer toutes les    
+  sexion de scan, pour que je scan a nouveua et tester tout ce qu'on a fait y compris les onboading                                 
+  La commande « le » n'a pas été trouvée, mais peut être installée avec :                                                           
+  sudo apt install le                                                                                                               
+  zen@zen:~/Bureau/TableQR_Projet/tableqr_final$                                                                                    
+
+● Voici le plan complet pour tester. 
+
+  1) Requête SQL — reset complet du restaurant                                                                                      
+   
+  À exécuter dans Supabase → SQL Editor. Remplace TON-SLUG par le slug du restaurant (visible dans l'URL).                          
+                       
+  DO $$                                                                                                                             
+  DECLARE rid UUID;
+  BEGIN                                                                                                                             
+    SELECT id INTO rid FROM restaurants WHERE slug = 'TON-SLUG' LIMIT 1;
+    DELETE FROM social_waves     WHERE restaurant_id = rid;                                                                         
+    DELETE FROM social_messages  WHERE restaurant_id = rid;                                                                         
+    DELETE FROM matches          WHERE restaurant_id = rid;
+    DELETE FROM notifications    WHERE restaurant_id = rid;                                                                         
+    DELETE FROM game_players     WHERE session_id IN (SELECT id FROM client_sessions WHERE restaurant_id = rid);
+    DELETE FROM client_sessions  WHERE restaurant_id = rid;                                                                         
+  END $$;         
+                                                                                                                                    
+  Si tu es en dev et que tu veux tout flusher (tous restos confondus) :                                                             
+                                                                                                                                    
+  DELETE FROM social_waves;                                                                                                         
+  DELETE FROM social_messages;
+  DELETE FROM matches;
+  DELETE FROM notifications;
+  DELETE FROM game_players;
+  DELETE FROM client_sessions;
+
+  Côté navigateur : la session est aussi persistée en localStorage. Avant de re-scanner :                                           
+  - Ouvre en fenêtre privée, OU
+  - DevTools → Application → Storage → Clear site data                                                                              
+                                                      
+  2) Migrations à exécuter (une fois)                                                                                               
+                                                                                                                                    
+  -- migration_social_presence.sql  (déjà fait normalement)
+  -- migration_social_waves.sql     (à faire si pas encore)                                                                         
+                                                                                                                                    
+  La migration social_waves ré-active aussi la publication realtime sur social_messages au passage.                                 
+                                                                                                                                    
+  3) Scénarios de test                                                                                                              
+                  
+  A. Onboarding — avatars pris                                                                                                      
+  1. Reset DB + cache
+  2. Scan depuis téléphone 1 → choisis "Astronaute" → onboard                                                                       
+  3. Scan depuis téléphone 2 (ou fenêtre privée) → l'icône Astronaute doit apparaître grisée + badge "Pris", non cliquable
+  4. Sur le téléphone 1, va dans Social → mets-toi en "Non réceptif" → sur téléphone 2 rafraîchis l'onboarding : Astronaute         
+  redevient libre                                                                                                                   
+                                                                                                                                    
+  B. Modes Social                                                                                                                   
+  1. Sur Social, tape sur les 3 dots (vert/orange/gris)                                                                             
+  2. À chaque tap : bannière colorée explicative pendant 3,5 s                                                                      
+  3. La ligne sous ton pseudo affiche en permanence le mode courant + courte description                                            
+                                                                                                                                    
+  C. Realtime + son messages                                                                                                        
+  1. Téléphone 1 sur page Menu (pas Social)                                                                                         
+  2. Téléphone 2 ouvre Social → conversation avec téléphone 1 → envoie un message                                                   
+  3. Téléphone 1 doit : entendre le son message, voir le toast en haut, badge sur l'icône Social du BottomNav
+  4. Vérifie que la page Notifications ne contient PAS le message (juste les commandes/anniv/etc.)           
+                                                                                                                                    
+  D. Coucou anonyme                                                                                                                 
+  1. Téléphone 1 va sur Social → section "En salle" → tape 👋 sur téléphone 2                                                       
+  2. Téléphone 2 (n'importe quelle page) : son cristallin + carte qui glisse en bas avec "[pseudo] vous fait coucou" + bouton Coucou
+   retour                                                                                                                           
+  3. Tape Coucou retour → célébration plein écran (avatars qui dansent + ✨) → ouverture auto du chat des deux côtés                
+  4. Variante : si téléphone 1 et 2 envoient un coucou réciproque dans les 60s, les deux voient la célébration en même temps
+                                                                                                                                    
+  E. Anti-spam                                                                                                                      
+  - Tape coucou 2 fois sur la même personne → le 2ème est bloqué (rate-limit 8s, le bouton reste sur "✓ Coucou" 60s)                
+                                                                                                                                    
+  4) Astuce dev   
+                                                                                                                                    
+  Au lieu de scanner à chaque fois, l'URL directe marche aussi : http://localhost:3003/TON-SLUG/table/<TABLE_ID> (où TABLE_ID est   
+  l'UUID de la table).
+                                                                                                                                    
+✻ Churned for 1m 7s              
+                                                                                          
+❯ deux choses a corriger, pourquoi quand je suis le seul connecté, on affiche dans la liste des personnes presente moi encore, et   
+  meme possibilité de m'envoyer un cc, retire ca vite vite fait, aussi, dans la poage du menu, le bouton, envoyer la commande quand 
+   on ajoute des plats, ce bouton est caché pas le bas la baniere dus bas donc souleve ce bouton de 1,5 cm                          
+                                                                                                                                    
+● Je regarde le code pour les deux corrections.                                                                                     
+
+  Searched for 2 patterns, read 1 file (ctrl+o to expand)                                                                           
+                                   
+● Pour le 1) tu as probablement plusieurs client_sessions actives avec ton même fingerprint (vieilles sessions de test). Je rends le
+   filtre plus robuste : exclusion par device_fingerprint en plus de l'id. Pour le 2), je remonte le bouton flottant au-dessus de la
+   BottomNav.                                                                                                                       
+                                                                                                                                    
+● Update(components/client/SocialPage.tsx)                                                                                          
+  ⎿  Added 7 lines, removed 4 lines                                                                                                 
+      70                                                                                                                            
+      71    const sessionId = session?.id                                                                                           
+      72    const sessionRestaurantId = session?.restaurant_id
+      73 +  const sessionFingerprint = session?.device_fingerprint                                                                  
+      74    const selectedClientId = selectedClient?.id
+      75    const hasValidSession = Boolean(sessionId && sessionRestaurantId === restaurant.id)                                     
+      76                                                                                                                          
+     ...                                                                                                                          
+       92        return                                                                                                             
+       93      }                                                                                                                    
+       94                                                                                                                           
+       94 -    setClients((data || []).filter(client =>                                                                             
+       95 -      isLiveSocialClient(client as ClientSession, restaurant.id, sessionId)                                       
+       96 -    ) as ClientSession[])                                                                                         
+       97 -  }, [restaurant.id, sessionId, sessionRestaurantId])                                                             
+       95 +    setClients((data || []).filter(client => {                                                                    
+       96 +      if (!isLiveSocialClient(client as ClientSession, restaurant.id, sessionId)) return false                    
+       97 +      if (sessionFingerprint && client.device_fingerprint === sessionFingerprint) return false                    
+       98 +      return true                                                                                                 
+       99 +    }) as ClientSession[])                                                                                        
+      100 +  }, [restaurant.id, sessionId, sessionRestaurantId, sessionFingerprint])                                         
+      101  
+      102    const loadAllMessages = useCallback(async () => {
+      103      if (!sessionId || sessionRestaurantId !== restaurant.id) return
+
+● Maintenant je remonte le bouton "Voir le panier".
+                                                                                          
+● Update(components/client/MenuPage.tsx)
+  ⎿  Added 2 lines, removed 1 line                                                                                                  
+      482        <AnimatePresence>                                                                                                  
+      483          {cart.item_count > 0 && !showCart && (                                                                           
+      484            <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }     
+           }                                                                                                                        
+      485 -            className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-40">                                           
+      485 +            className="fixed left-4 right-4 max-w-md mx-auto z-40"                                                       
+      486 +            style={{ bottom: 'calc(76px + env(safe-area-inset-bottom))' }}>                                            
+      487              <motion.button whileTap={{ scale: 0.97 }} onClick={() => setShowCart(true)}                                
+      488                className="w-full min-h-16 rounded-3xl text-white font-black flex items-center justify-between gap-3       
+            px-4 shadow-2xl"                                                                                                        
+      489                style={{ backgroundColor: p, boxShadow: `0 12px 36px ${p}45` }}>                                           
+                                                                                                                                    
+● Bash(npx tsc --noEmit 2>&1 | head -10 && echo "---ESLINT---" && npx eslint components/client/SocialPage.tsx
+      components/client/MenuPage.tsx 2>&1 | tail -10)                                     
+  ⎿  ---ESLINT--- 
+                                                                                                                                    
+     /home/zen/Bureau/TableQR_Projet/tableqr_final/components/client/MenuPage.tsx                                                   
+     … +15 lines (ctrl+o to expand)                                                                                                 
+                                                                                                                                  
+● Les deux corrections sont en place, type-check OK, pas de nouvelle erreur ESLint.                                                 
+                                                                                                                                    
+  1) Filtre robuste sur Social (SocialPage.tsx:75) — exclusion par device_fingerprint en plus de l'id. Si tu as des vieilles        
+  sessions de test avec ton fingerprint qui traînent encore dans la base, elles seront masquées même si leur id est différent du    
+  tien actuel.                                                                                                                      
+                                                                                                                                    
+  Pour nettoyer ces zombies une bonne fois, exécute :                                                                               
+  UPDATE client_sessions
+  SET is_present = false, left_at = NOW()                                                                                           
+  WHERE is_present = true                                                                                                           
+    AND last_seen_at < NOW() - INTERVAL '5 minutes';
+                                                    
+  2) Bouton panier remonté (MenuPage.tsx:485) — passé de bottom-4 (16 px) à calc(76px + env(safe-area-inset-bottom)), soit ~76 px du
+   bas + safe-area iPhone. Le bouton flotte maintenant au-dessus de la BottomNav avec un petit gap, et reste correctement positionné
+   sur iOS.                                                                                                                         
+                                                                                                                                    
+✻ Cogitated for 1m 35s                                                                                                            
+                                                                                          
+※ recap: Building the Social/Coucou feature: just shipped two fixes — exclude self via device_fingerprint on Social discovery, and  
+  lift Menu's "Voir le panier" button above the BottomNav. Next: reset DB and re-test the flow end-to-end. (disable recaps in       
+  /config)                                                                                                                          
+                                                                                                                                    
+❯ maintenant je t'ai posé une question, pourquoi quand je suis connécté dans la salle, et que je vais dans la partie message on met 
+   dans la partie personne presenbte moi envcore mon icon, c'est a dire je peux litteralemenbt m'ednvoyer un ùessage retire cette   
+  logique de merde                                                                                                                  
+                                                                                                                                    
+● OK je rends le filtre vraiment paranoïaque cette fois — on exclut par id, fingerprint, avatar et pseudo. Comme ça, même s'il y a  
+  une session zombie dans la base avec le même avatar/pseudo que toi, elle est virée.                                             
+                                                                                                                                    
+● Update(components/client/SocialPage.tsx)                                                                                          
+  ⎿  Added 15 lines, removed 4 lines                                                                                                
+      71    const sessionId = session?.id                                                                                           
+      72    const sessionRestaurantId = session?.restaurant_id                                                                      
+      73    const sessionFingerprint = session?.device_fingerprint
+      74 +  const sessionAvatar = session?.avatar_icon                                                                              
+      75 +  const sessionPseudo = session?.pseudo                                                                            
+      76    const selectedClientId = selectedClient?.id                                                                             
+      77    const hasValidSession = Boolean(sessionId && sessionRestaurantId === restaurant.id)                                   
+      78                                                                                                                          
+      79    const loadClients = useCallback(async () => {                                                                           
+      80      if (!sessionId || sessionRestaurantId !== restaurant.id) return                                                       
+      79 -    const { data, error } = await supabase.from('client_sessions')                                                        
+      81 +    let query = supabase.from('client_sessions')                                                                          
+      82        .select('*')
+      83        .eq('restaurant_id', restaurant.id)
+      84        .eq('is_present', true)
+     ...
+       87        .neq('id', sessionId)
+       88        .gte('last_seen_at', getPresenceCutoffIso())
+       89        .order('last_seen_at', { ascending: false })
+       90 +    if (sessionFingerprint) query = query.neq('device_fingerprint', sessionFingerprint)                           
+       91  
+       92 +    const { data, error } = await query                                                                           
+       93      if (error) {
+       94        console.error('Load social clients error:', error)
+       95        setClients([])
+       96        return
+       97      }
+       98  
+       99 +    const isMe = (c: ClientSession) =>                                                                            
+      100 +      c.id === sessionId ||                                                                                       
+      101 +      (!!sessionFingerprint && c.device_fingerprint === sessionFingerprint) ||                                    
+      102 +      (!!sessionAvatar && c.avatar_icon === sessionAvatar) ||                                                     
+      103 +      (!!sessionPseudo && c.pseudo === sessionPseudo)                                                             
+      104 +                                                                                                                  
+      105      setClients((data || []).filter(client => {
+       96 -      if (!isLiveSocialClient(client as ClientSession, restaurant.id, sessionId)) return false                    
+       97 -      if (sessionFingerprint && client.device_fingerprint === sessionFingerprint) return false                    
+      106 +      const typed = client as ClientSession                                                                       
+      107 +      if (isMe(typed)) return false                                                                               
+      108 +      if (!isLiveSocialClient(typed, restaurant.id, sessionId)) return false                                      
+      109        return true
+      110      }) as ClientSession[])
+      100 -  }, [restaurant.id, sessionId, sessionRestaurantId, sessionFingerprint])                                         
+      111 +  }, [restaurant.id, sessionId, sessionRestaurantId, sessionFingerprint, sessionAvatar, sessionPseudo])           
+      112  
+      113    const loadAllMessages = useCallback(async () => {
+      114      if (!sessionId || sessionRestaurantId !== restaurant.id) return
+
+● Bash(npx tsc --noEmit 2>&1 | head -10 && echo "---ESLINT---" && npx eslint components/client/SocialPage.tsx 2>&1 | tail -10)
+  ⎿  ---ESLINT---                                                                         
+                                  
+● Type-check + lint clean.                                                                                                          
+                                                                                          
+  Filtre multi-critères dans loadClients (SocialPage.tsx:75) — un client est considéré comme "moi" si l'une de ces conditions est   
+  vraie : même id, même device_fingerprint, même avatar_icon, ou même pseudo. La requête SQL exclut déjà par id et fingerprint, et  
+  le filtre client-side fait le double check sur les 4 champs. Plus moyen que tu te voies toi-même.                                 
+                                                                                                                                    
+  Pour nettoyer la DB des sessions zombies (la VRAIE cause sous-jacente — tes anciens tests créent des sessions qui n'ont jamais été
+   marquées is_present=false) :
+                                                                                                                                    
+  -- Marque comme partis tous les doublons qui partagent ton fingerprint                                                            
+  UPDATE client_sessions                                                                                                            
+  SET is_present = false, left_at = NOW()                                                                                           
+  WHERE is_present = true                                                                                                           
+    AND last_seen_at < NOW() - INTERVAL '5 minutes';                                                                              
+                                                                                                                                    
+  Ou plus radical, tue tous les doublons et garde uniquement la session la plus récente par fingerprint :                           
+                                                                                                                                    
+  WITH ranked AS (                                                                                                                  
+    SELECT id,                                                                                                                    
+    AND last_seen_at < NOW() - INTERVAL '5 minutes';
+
+  Ou plus radical, tue tous les doublons et garde uniquement la session la plus récente par fingerprint :
+
+  WITH ranked AS (
+    SELECT id,
+           ROW_NUMBER() OVER (PARTITION BY restaurant_id, device_fingerprint ORDER BY last_seen_at DESC NULLS LAST) AS rn
+    FROM client_sessions
+    WHERE is_present = true
+  )
+  UPDATE client_sessions cs
+  SET is_present = false, left_at = NOW()
+  FROM ranked r
+  WHERE cs.id = r.id AND r.rn > 1;
+
+  Recharge la page après — tu ne devrais plus apparaître.
+
+✻ Crunched for 1m 55s
+
+❯ retire cette logique de cc la c'est trop naz, laisse le reste, c'est mieux, ou soit tu ameliore, parceque quand on t'envoi cc, ca 
+   doit venir dans ta boite a message comme un message aussi, et tu doit recevoir aussi une notif et aussi la personne qui t'a      
+  envotyé du genre comme messanger le fait, fais cs amelioration, et aussi, soi tu veux utiliser des emogis ce sont des emogis de   
+  lucide que tu dois utiliser                                                                                                       
+                                                                                                                                    
+● Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to
+   enable access
+                                                                                                                                    
+✻ Worked for 1s
+                                                                                                                                    
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯  
+────────────

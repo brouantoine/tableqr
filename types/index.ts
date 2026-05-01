@@ -183,18 +183,9 @@ export interface SocialMessage {
   message: string
   is_anonymous: boolean
   is_read: boolean
-  trigger_type?: 'plat_partage' | 'libre' | 'jeu'
+  trigger_type?: 'plat_partage' | 'libre' | 'jeu' | 'coucou'
   created_at: string
   sender?: ClientSession
-}
-
-export interface SocialWave {
-  id: string
-  restaurant_id: string
-  sender_session_id: string
-  receiver_session_id: string
-  is_mutual: boolean
-  created_at: string
 }
 
 export interface Match {

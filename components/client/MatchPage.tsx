@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { getPresenceCutoffIso, isLiveSocialClient } from '@/lib/social/presence'
+import { Hand, Heart, Mail, MessageCircle } from 'lucide-react'
 import type { ClientSession, Restaurant } from '@/types'
 
 export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
@@ -101,13 +102,13 @@ export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
     ).eq('id', existing.id)
     setSharingWith(null)
     setContactInput('')
-    alert('Contact partagé ! 💌')
+    alert('Contact partagé !')
   }
 
   if (conversations.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8 text-center">
-        <span className="text-6xl mb-4">💬</span>
+        <MessageCircle size={56} className="text-gray-300 mb-4" />
         <h2 className="text-xl font-bold text-gray-900 mb-2">Pas encore de conversations</h2>
         <p className="text-gray-500 text-sm">Échangez avec d&apos;autres clients dans l&apos;onglet Social d&apos;abord !</p>
       </div>
@@ -117,7 +118,10 @@ export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <div className="bg-white px-4 py-4 shadow-sm">
-        <h1 className="font-bold text-gray-900 text-lg">Match 💘</h1>
+        <h1 className="font-bold text-gray-900 text-lg inline-flex items-center gap-2">
+          <Heart size={18} fill="currentColor" style={{ color: p }} />
+          <span>Match</span>
+        </h1>
         <p className="text-sm text-gray-500">La soirée se termine... et vous ?</p>
       </div>
 
@@ -153,28 +157,31 @@ export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
                       </button>
                     </div>
                   ) : (
-                    <button onClick={() => setSharingWith(client.id)} className="mt-3 text-sm underline" style={{ color: p }}>
-                      Partager mon contact 💌
+                    <button onClick={() => setSharingWith(client.id)} className="mt-3 inline-flex items-center gap-1.5 text-sm underline" style={{ color: p }}>
+                      <Mail size={14} />
+                      <span>Partager mon contact</span>
                     </button>
                   )}
                 </div>
               ) : voted ? (
                 <div className="text-center py-3">
                   {matchVotes[client.id]
-                    ? <p className="text-gray-500 text-sm">💌 Vote envoyé, en attente de réponse...</p>
+                    ? <p className="inline-flex items-center justify-center gap-1.5 text-gray-500 text-sm"><Mail size={14} /> Vote envoyé, en attente de réponse...</p>
                     : <p className="text-gray-500 text-sm">Bonne soirée quand même !</p>
                   }
                 </div>
               ) : (
                 <div className="flex gap-3">
                   <button onClick={() => vote(client.id, false)}
-                    className="flex-1 py-3 rounded-xl bg-gray-100 font-bold text-gray-600 text-lg">
-                    👋 Bonne soirée
+                    className="flex-1 py-3 rounded-xl bg-gray-100 font-bold text-gray-600 text-lg inline-flex items-center justify-center gap-2">
+                    <Hand size={18} />
+                    <span>Bonne soirée</span>
                   </button>
                   <button onClick={() => vote(client.id, true)}
-                    className="flex-1 py-3 rounded-xl text-white font-bold text-lg"
+                    className="flex-1 py-3 rounded-xl text-white font-bold text-lg inline-flex items-center justify-center gap-2"
                     style={{ backgroundColor: p }}>
-                    💘 On matche ?
+                    <Heart size={18} fill="currentColor" />
+                    <span>On matche ?</span>
                   </button>
                 </div>
               )}

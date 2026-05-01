@@ -33,7 +33,7 @@ export function useNotificationSound() {
     }
   }, [])
 
-  const playSound = useCallback((type: 'order' | 'message' | 'ready' | 'wave' | 'match' = 'order') => {
+  const playSound = useCallback((type: 'order' | 'message' | 'ready' | 'coucou' | 'match' = 'order') => {
     try {
       // Réutiliser le contexte débloqué ou en créer un nouveau
       const ctx = audioCtxRef.current && audioCtxRef.current.state !== 'closed'
@@ -49,7 +49,7 @@ export function useNotificationSound() {
         order:   { freqs: [523, 659, 784],       duration: 0.15 }, // Do Mi Sol
         ready:   { freqs: [784, 1047],           duration: 0.2  }, // Sol Do aigu
         message: { freqs: [440, 554],            duration: 0.12 }, // La Do#
-        wave:    { freqs: [659, 988],            duration: 0.09 }, // Mi Si - cristallin court
+        coucou:  { freqs: [659, 988],            duration: 0.09 }, // Mi Si - cristallin court
         match:   { freqs: [659, 784, 988, 1318], duration: 0.13 }, // Mi Sol Si Mi - festif
       }
 
@@ -75,7 +75,7 @@ export function useNotificationSound() {
         if (type === 'order') navigator.vibrate([100, 50, 100])
         else if (type === 'ready') navigator.vibrate([200])
         else if (type === 'match') navigator.vibrate([60, 40, 60, 40, 120])
-        else if (type === 'wave') navigator.vibrate([40, 30, 40])
+        else if (type === 'coucou') navigator.vibrate([40, 30, 40])
         else navigator.vibrate([50])
       }
 

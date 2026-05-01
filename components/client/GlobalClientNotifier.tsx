@@ -1,7 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bell, ChefHat, CheckCircle, Utensils, MessageCircle, X, Heart, Gift, Tag, type LucideIcon } from 'lucide-react'
+import { Bell, ChefHat, CheckCircle, Utensils, MessageCircle, X, Heart, Gift, Tag, Hand, type LucideIcon } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
@@ -13,6 +14,7 @@ interface ToastNotif {
   body?: string
   type: string
   status?: string
+  href?: string
 }
 
 declare global {
@@ -32,6 +34,7 @@ const TOAST_CONFIG: Record<string, { icon: LucideIcon; color: string; bg: string
   order_ready:  { icon: Utensils,     color: '#10B981', bg: '#ECFDF5' },
   order_status: { icon: ChefHat,      color: '#F59E0B', bg: '#FFFBEB' },
   message:      { icon: MessageCircle,color: '#3B82F6', bg: '#EFF6FF' },
+  coucou:       { icon: Hand,         color: '#F26522', bg: '#FFF7F0' },
   match:        { icon: Heart,        color: '#EF4444', bg: '#FEF2F2' },
   anniversaire: { icon: Gift,         color: '#8B5CF6', bg: '#F5F3FF' },
   promo:        { icon: Tag,          color: '#F26522', bg: '#FFF7F0' },
@@ -42,9 +45,10 @@ function pickConfig(notif: { type: string; status?: string }) {
   return TOAST_CONFIG[notif.status || ''] || TOAST_CONFIG[notif.type] || TOAST_CONFIG.default
 }
 
-export default function GlobalClientNotifier({ primaryColor }: { primaryColor: string }) {
+export default function GlobalClientNotifier({ slug, primaryColor }: { slug: string; primaryColor: string }) {
   const { session, addNotification } = useSessionStore()
   const { playSound } = useNotificationSound()
+  const router = useRouter()
   const playRef = useRef(playSound)
   const seenRef = useRef<Set<string>>(new Set())
   const [toasts, setToasts] = useState<ToastNotif[]>([])
@@ -110,13 +114,17 @@ export default function GlobalClientNotifier({ primaryColor }: { primaryColor: s
           .eq('id', msg.sender_session_id)
           .single()
 
-        playRef.current('message')
+        const isCoucou = msg.trigger_type === 'coucou'
+        playRef.current(isCoucou ? 'coucou' : 'message')
 
         pushToast({
           id: msg.id,
           title: sender?.pseudo || 'Nouveau message',
-          body: msg.message.length > 70 ? msg.message.slice(0, 70) + '...' : msg.message,
-          type: 'message',
+          body: isCoucou
+            ? 'vous a envoyé un coucou'
+            : msg.message.length > 70 ? msg.message.slice(0, 70) + '...' : msg.message,
+          type: isCoucou ? 'coucou' : 'message',
+          href: `/${slug}/social?chat=${msg.sender_session_id}`,
         })
       })
       .subscribe()
@@ -125,10 +133,15 @@ export default function GlobalClientNotifier({ primaryColor }: { primaryColor: s
       supabase.removeChannel(notifChannel)
       supabase.removeChannel(socialChannel)
     }
-  }, [session, addNotification])
+  }, [session, addNotification, slug])
 
   function dismiss(id: string) {
     setToasts(prev => prev.filter(t => t.id !== id))
+  }
+
+  function openToast(t: ToastNotif) {
+    dismiss(t.id)
+    if (t.href) router.push(t.href)
   }
 
   return (
@@ -146,7 +159,7 @@ export default function GlobalClientNotifier({ primaryColor }: { primaryColor: s
               animate={{ y: idx * 6, opacity: 1, scale: 1 }}
               exit={{ y: -120, opacity: 0, scale: 0.95 }}
               transition={{ type: 'spring', damping: 24, stiffness: 280 }}
-              onClick={() => dismiss(t.id)}
+              onClick={() => openToast(t)}
               className="pointer-events-auto cursor-pointer mb-2 px-4 w-full max-w-md">
               <div
                 className="flex items-start gap-3 p-3.5 rounded-2xl bg-white shadow-xl border border-gray-100"

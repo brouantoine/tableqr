@@ -5,13 +5,12 @@ import TwemojiAvatar from './TwemojiAvatar'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
-import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { getPresenceCutoffIso, getPresenceStamp, isLiveSocialClient } from '@/lib/social/presence'
 import { formatTimeAgo } from '@/lib/utils'
-import { Send, ChevronLeft, Search, Moon, UserRound, Plus } from 'lucide-react'
+import { Send, ChevronLeft, Search, Moon, UserRound, Plus, Hand, Check } from 'lucide-react'
 import type { ClientSession, SocialMessage, Restaurant } from '@/types'
 
-const WAVE_DISPLAY_MS = 60_000
+const COUCOU_DISPLAY_MS = 60_000
 
 const MODE_INFO: Record<SocialMode, { label: string; short: string; long: string; color: string }> = {
   receptif:  {
@@ -49,20 +48,20 @@ function appendMessage(prev: Record<string, SocialMessage[]>, clientId: string, 
 
 export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   const { session, setSession } = useSessionStore()
-  const { playSound } = useNotificationSound()
   const searchParams = useSearchParams()
   const chatParam = searchParams.get('chat')
   const [view, setView] = useState<'list' | 'chat'>('list')
   const [clients, setClients] = useState<ClientSession[]>([])
+  const [conversationClients, setConversationClients] = useState<Record<string, ClientSession>>({})
   const [conversations, setConversations] = useState<Record<string, SocialMessage[]>>({})
   const [selectedClient, setSelectedClient] = useState<ClientSession | null>(null)
   const [socialMode, setSocialMode] = useState<SocialMode>((session?.social_mode as SocialMode) || 'receptif')
   const [newMsg, setNewMsg] = useState('')
   const [sending, setSending] = useState(false)
   const [search, setSearch] = useState('')
-  const [outgoingWaves, setOutgoingWaves] = useState<Record<string, number>>({})
-  const [waveBusy, setWaveBusy] = useState<Record<string, boolean>>({})
-  const [waveFlash, setWaveFlash] = useState<{ pseudo: string; mutual: boolean } | null>(null)
+  const [outgoingCoucous, setOutgoingCoucous] = useState<Record<string, number>>({})
+  const [coucouBusy, setCoucouBusy] = useState<Record<string, boolean>>({})
+  const [coucouFlash, setCoucouFlash] = useState<{ pseudo: string } | null>(null)
   const [modeHint, setModeHint] = useState<SocialMode | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const activeChatRef = useRef<{ view: 'list' | 'chat'; selectedClientId?: string }>({ view: 'list' })
@@ -71,12 +70,24 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   const sessionId = session?.id
   const sessionRestaurantId = session?.restaurant_id
   const sessionFingerprint = session?.device_fingerprint
+  const sessionAvatar = session?.avatar_icon
+  const sessionPseudo = session?.pseudo
   const selectedClientId = selectedClient?.id
   const hasValidSession = Boolean(sessionId && sessionRestaurantId === restaurant.id)
 
+  const rememberClients = useCallback((items: ClientSession[]) => {
+    setConversationClients(prev => {
+      const next = { ...prev }
+      for (const item of items) {
+        if (item.id !== sessionId) next[item.id] = item
+      }
+      return next
+    })
+  }, [sessionId])
+
   const loadClients = useCallback(async () => {
     if (!sessionId || sessionRestaurantId !== restaurant.id) return
-    const { data, error } = await supabase.from('client_sessions')
+    let query = supabase.from('client_sessions')
       .select('*')
       .eq('restaurant_id', restaurant.id)
       .eq('is_present', true)
@@ -85,6 +96,9 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
       .neq('id', sessionId)
       .gte('last_seen_at', getPresenceCutoffIso())
       .order('last_seen_at', { ascending: false })
+    if (sessionFingerprint) query = query.neq('device_fingerprint', sessionFingerprint)
+
+    const { data, error } = await query
 
     if (error) {
       console.error('Load social clients error:', error)
@@ -93,11 +107,16 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     }
 
     setClients((data || []).filter(client => {
-      if (!isLiveSocialClient(client as ClientSession, restaurant.id, sessionId)) return false
-      if (sessionFingerprint && client.device_fingerprint === sessionFingerprint) return false
+      const typed = client as ClientSession
+      const sameDevice = !!sessionFingerprint && typed.device_fingerprint === sessionFingerprint
+      const sameProfile = !!sessionAvatar && !!sessionPseudo
+        && typed.avatar_icon === sessionAvatar
+        && typed.pseudo === sessionPseudo
+      if (sameDevice || sameProfile) return false
+      if (!isLiveSocialClient(typed, restaurant.id, sessionId)) return false
       return true
     }) as ClientSession[])
-  }, [restaurant.id, sessionId, sessionRestaurantId, sessionFingerprint])
+  }, [restaurant.id, sessionId, sessionRestaurantId, sessionFingerprint, sessionAvatar, sessionPseudo])
 
   const loadAllMessages = useCallback(async () => {
     if (!sessionId || sessionRestaurantId !== restaurant.id) return
@@ -119,7 +138,16 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
       grouped[otherId].push(typedMsg)
     })
     setConversations(grouped)
-  }, [restaurant.id, sessionId, sessionRestaurantId])
+
+    const otherIds = Object.keys(grouped).filter(id => id !== sessionId)
+    if (otherIds.length > 0) {
+      const { data: participants } = await supabase.from('client_sessions')
+        .select('*')
+        .in('id', otherIds)
+        .eq('restaurant_id', restaurant.id)
+      rememberClients((participants || []) as ClientSession[])
+    }
+  }, [restaurant.id, sessionId, sessionRestaurantId, rememberClients])
 
   const markConversationRead = useCallback(async (clientId: string) => {
     if (!sessionId || sessionRestaurantId !== restaurant.id) return
@@ -162,6 +190,13 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
         if (msg.restaurant_id !== restaurant.id) return
 
         setConversations(prev => appendMessage(prev, msg.sender_session_id, msg))
+        const { data: sender } = await supabase.from('client_sessions')
+          .select('*')
+          .eq('id', msg.sender_session_id)
+          .eq('restaurant_id', restaurant.id)
+          .maybeSingle()
+        if (sender) rememberClients([sender as ClientSession])
+
         if (activeChatRef.current.view === 'chat' && activeChatRef.current.selectedClientId === msg.sender_session_id) {
           void markConversationRead(msg.sender_session_id)
         }
@@ -183,7 +218,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
       supabase.removeChannel(messagesChannel)
       supabase.removeChannel(presenceChannel)
     }
-  }, [hasValidSession, sessionId, restaurant.id, loadClients, loadAllMessages, markConversationRead])
+  }, [hasValidSession, sessionId, restaurant.id, loadClients, loadAllMessages, markConversationRead, rememberClients])
 
   useEffect(() => {
     if (view === 'chat') setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
@@ -191,14 +226,14 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
 
   useEffect(() => {
     if (!selectedClientId) return
-    const freshClient = clients.find(client => client.id === selectedClientId)
+    const freshClient = clients.find(client => client.id === selectedClientId) || conversationClients[selectedClientId]
     if (!freshClient) {
       setSelectedClient(null)
       setView('list')
       return
     }
     setSelectedClient(freshClient)
-  }, [clients, selectedClientId])
+  }, [clients, conversationClients, selectedClientId])
 
   useEffect(() => {
     if (view === 'chat' && selectedClientId) void markConversationRead(selectedClientId)
@@ -210,7 +245,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     return () => { window.__activeSocialChatId = null }
   }, [view, selectedClientId])
 
-  // Ouverture automatique du chat depuis ?chat=<id> (deeplink coucou réciproque)
+  // Ouverture automatique du chat depuis une notification message/coucou
   useEffect(() => {
     if (!chatParam || !sessionId) return
     const local = clients.find(c => c.id === chatParam)
@@ -230,39 +265,41 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
         .eq('restaurant_id', restaurant.id)
         .maybeSingle()
       if (cancelled || !data) return
-      setSelectedClient(data as ClientSession)
+      const client = data as ClientSession
+      rememberClients([client])
+      setSelectedClient(client)
       setView('chat')
       const url = new URL(window.location.href)
       url.searchParams.delete('chat')
       window.history.replaceState({}, '', url.pathname + (url.search ? `?${url.searchParams}` : ''))
     })()
     return () => { cancelled = true }
-  }, [chatParam, sessionId, clients, restaurant.id])
+  }, [chatParam, sessionId, clients, restaurant.id, rememberClients])
 
   // Nettoyage automatique des coucous expirés (visuel "Coucou ✓")
   useEffect(() => {
-    if (Object.keys(outgoingWaves).length === 0) return
+    if (Object.keys(outgoingCoucous).length === 0) return
     const timer = window.setInterval(() => {
       const now = Date.now()
-      setOutgoingWaves(prev => {
+      setOutgoingCoucous(prev => {
         const next: Record<string, number> = {}
         let changed = false
         for (const [id, ts] of Object.entries(prev)) {
-          if (now - ts < WAVE_DISPLAY_MS) next[id] = ts
+          if (now - ts < COUCOU_DISPLAY_MS) next[id] = ts
           else changed = true
         }
         return changed ? next : prev
       })
     }, 5000)
     return () => window.clearInterval(timer)
-  }, [outgoingWaves])
+  }, [outgoingCoucous])
 
-  async function sendWave(client: ClientSession) {
-    if (!sessionId || waveBusy[client.id]) return
-    if (outgoingWaves[client.id] && Date.now() - outgoingWaves[client.id] < 8000) return
-    setWaveBusy(prev => ({ ...prev, [client.id]: true }))
+  async function sendCoucou(client: ClientSession) {
+    if (!sessionId || coucouBusy[client.id]) return
+    if (outgoingCoucous[client.id] && Date.now() - outgoingCoucous[client.id] < 8000) return
+    setCoucouBusy(prev => ({ ...prev, [client.id]: true }))
     try {
-      const res = await fetch('/api/social/waves', {
+      const res = await fetch('/api/social/coucou', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -271,24 +308,18 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
           receiver_session_id: client.id,
         }),
       })
-      const json = await res.json() as { mutual?: boolean; error?: string }
+      const json = await res.json() as { data?: SocialMessage; error?: string }
       if (!res.ok) return
 
-      setOutgoingWaves(prev => ({ ...prev, [client.id]: Date.now() }))
-
-      if (json.mutual) {
-        playSound('match')
-        setWaveFlash({ pseudo: client.pseudo, mutual: true })
-        setSelectedClient(client)
-        setView('chat')
-        window.setTimeout(() => setWaveFlash(null), 2400)
-      } else {
-        playSound('wave')
-        setWaveFlash({ pseudo: client.pseudo, mutual: false })
-        window.setTimeout(() => setWaveFlash(null), 1800)
+      if (json.data) {
+        setConversations(prev => appendMessage(prev, client.id, json.data as SocialMessage))
       }
+      rememberClients([client])
+      setOutgoingCoucous(prev => ({ ...prev, [client.id]: Date.now() }))
+      setCoucouFlash({ pseudo: client.pseudo })
+      window.setTimeout(() => setCoucouFlash(null), 1800)
     } finally {
-      setWaveBusy(prev => ({ ...prev, [client.id]: false }))
+      setCoucouBusy(prev => ({ ...prev, [client.id]: false }))
     }
   }
 
@@ -363,15 +394,20 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   const normalizedSearch = search.trim().toLowerCase()
   const filteredClients = clients.filter(c => c.pseudo?.toLowerCase().includes(normalizedSearch))
   const visibleConversationEntries = Object.entries(conversations)
+    .filter(([clientId]) => clientId !== sessionId)
     .map(([clientId, msgs]) => ({
-      client: clients.find(c => c.id === clientId),
+      client: clients.find(c => c.id === clientId) || conversationClients[clientId],
       msgs,
     }))
-    .filter(entry =>
-      entry.client &&
-      entry.msgs.length > 0 &&
-      (!normalizedSearch || entry.client.pseudo?.toLowerCase().includes(normalizedSearch))
-    )
+    .filter(entry => {
+      if (!entry.client || entry.msgs.length === 0) return false
+      const sameDevice = !!sessionFingerprint && entry.client.device_fingerprint === sessionFingerprint
+      const sameProfile = !!sessionAvatar && !!sessionPseudo
+        && entry.client.avatar_icon === sessionAvatar
+        && entry.client.pseudo === sessionPseudo
+      if (sameDevice || sameProfile) return false
+      return !normalizedSearch || entry.client.pseudo?.toLowerCase().includes(normalizedSearch)
+    })
     .sort((a, b) => {
       const aLast = a.msgs[a.msgs.length - 1]?.created_at || ''
       const bLast = b.msgs[b.msgs.length - 1]?.created_at || ''
@@ -399,7 +435,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     </div>
   )
 
-  const flashOverlay = waveFlash && (
+  const flashOverlay = coucouFlash && (
     <div className="pointer-events-none fixed inset-x-0 z-[80] flex justify-center px-4"
       style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}>
       <motion.div
@@ -408,12 +444,13 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
         exit={{ y: -24, opacity: 0 }}
         className="px-4 py-2.5 rounded-full bg-white flex items-center gap-2"
         style={{ boxShadow: '0 12px 32px rgba(0,0,0,0.18)' }}>
-        <motion.span
+        <motion.div
           animate={{ rotate: [0, 18, -12, 8, 0] }}
-          transition={{ duration: 0.9 }}
-          className="text-lg">{waveFlash.mutual ? '✨' : '👋'}</motion.span>
+          transition={{ duration: 0.9 }}>
+          <Hand size={20} className="text-orange-500" />
+        </motion.div>
         <p className="text-xs font-black text-gray-900">
-          {waveFlash.mutual ? `Coucou réciproque avec ${waveFlash.pseudo} !` : `Coucou envoyé à ${waveFlash.pseudo}`}
+          Coucou envoyé à {coucouFlash.pseudo}
         </p>
       </motion.div>
     </div>
@@ -514,7 +551,16 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
                       </div>
                       <div className="mt-0.5 flex items-center justify-between">
                         <p className={`text-sm truncate max-w-[230px] ${unread > 0 ? 'text-gray-800 font-semibold' : 'text-gray-500'}`}>
-                          {lastMsg.sender_session_id === session?.id ? 'Vous : ' : ''}{lastMsg.message}
+                          {lastMsg.trigger_type === 'coucou' ? (
+                            <span className="inline-flex items-center gap-1">
+                              <Hand size={13} />
+                              <span>
+                                {lastMsg.sender_session_id === session?.id ? 'Vous avez envoyé un coucou' : 'Vous a envoyé un coucou'}
+                              </span>
+                            </span>
+                          ) : (
+                            <>{lastMsg.sender_session_id === session?.id ? 'Vous : ' : ''}{lastMsg.message}</>
+                          )}
                         </p>
                         {unread > 0 && (
                           <span className="w-5 h-5 rounded-full text-white text-xs font-black flex items-center justify-center flex-shrink-0"
@@ -537,8 +583,8 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
             </div>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {discoveryClients.map((client, i) => {
-                const waved = !!outgoingWaves[client.id]
-                const busy = !!waveBusy[client.id]
+                const sent = !!outgoingCoucous[client.id]
+                const busy = !!coucouBusy[client.id]
                 return (
                   <motion.div key={client.id}
                     initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
@@ -555,13 +601,25 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
                       <p className="text-xs font-bold text-gray-700 max-w-[70px] truncate">{client.pseudo}</p>
                     </button>
                     <motion.button whileTap={{ scale: 0.9 }}
-                      onClick={() => sendWave(client)}
-                      disabled={busy || waved}
-                      className="w-full px-2 py-1 rounded-full text-[10px] font-black transition-all"
-                      style={waved
+                      onClick={() => sendCoucou(client)}
+                      disabled={busy || sent}
+                      className="w-full px-2 py-1 rounded-full text-[10px] font-black transition-all flex items-center justify-center gap-1"
+                      style={sent
                         ? { backgroundColor: '#ECFDF5', color: '#059669' }
                         : { backgroundColor: `${p}15`, color: p }}>
-                      {waved ? '✓ Coucou' : busy ? '...' : '👋 Coucou'}
+                      {sent ? (
+                        <>
+                          <Check size={12} />
+                          <span>Coucou</span>
+                        </>
+                      ) : busy ? (
+                        <span>...</span>
+                      ) : (
+                        <>
+                          <Hand size={12} />
+                          <span>Coucou</span>
+                        </>
+                      )}
                     </motion.button>
                   </motion.div>
                 )
@@ -625,6 +683,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
         <AnimatePresence>
           {currentMessages.map((msg, i) => {
             const isMe = msg.sender_session_id === session?.id
+            const isCoucou = msg.trigger_type === 'coucou'
             const showTime = i === 0 || (new Date(msg.created_at).getTime() - new Date(currentMessages[i-1].created_at).getTime()) > 5 * 60 * 1000
             const showAvatar = !isMe && (i === currentMessages.length - 1 || currentMessages[i + 1]?.sender_session_id !== msg.sender_session_id)
 
@@ -645,8 +704,15 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
                   <div className={`max-w-[72%] px-4 py-2.5 text-sm leading-relaxed ${isMe ? 'rounded-3xl rounded-br-lg' : 'rounded-3xl rounded-bl-lg'}`}
                     style={isMe
                       ? { backgroundColor: p, color: '#fff', boxShadow: `0 2px 8px ${p}40` }
-                      : { backgroundColor: '#fff', color: '#111', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-                    {msg.message}
+                      : isCoucou
+                        ? { backgroundColor: '#FFF7F0', color: '#9A3412', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }
+                        : { backgroundColor: '#fff', color: '#111', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+                    {isCoucou ? (
+                      <span className="inline-flex items-center gap-1.5 font-black">
+                        <Hand size={14} strokeWidth={2.6} />
+                        <span>Coucou</span>
+                      </span>
+                    ) : msg.message}
                   </div>
                   {isMe && (
                     <div style={{ width: 30, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>

@@ -5,7 +5,6 @@ import { useSessionStore } from '@/lib/store'
 import BottomNav from './BottomNav'
 import SplashScreen from './SplashScreen'
 import GlobalClientNotifier from './GlobalClientNotifier'
-import WaveListener from './WaveListener'
 import { useClientPresence } from '@/hooks/useClientPresence'
 import type { Restaurant } from '@/types'
 
@@ -43,8 +42,7 @@ export default function ClientLayout({ children, restaurant }: { children: React
           duration={2800}
         />
       )}
-      <GlobalClientNotifier primaryColor={restaurant.primary_color} />
-      <WaveListener slug={restaurant.slug} primaryColor={restaurant.primary_color} />
+      <GlobalClientNotifier slug={restaurant.slug} primaryColor={restaurant.primary_color} />
       {children}
       {showNav && (
         <BottomNav

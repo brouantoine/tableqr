@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { getPresenceCutoffIso, getPresenceStamp, isLiveSocialClient } from '@/lib/social/presence'
 import { formatTimeAgo } from '@/lib/utils'
-import { Send, ChevronLeft, Search, MoreVertical, Moon, UserRound } from 'lucide-react'
+import { Send, ChevronLeft, Search, Moon, UserRound } from 'lucide-react'
 import type { ClientSession, SocialMessage, Restaurant } from '@/types'
 
 type SocialMode = 'receptif' | 'discret' | 'invisible'
@@ -397,7 +397,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
 
   // ── VUE CHAT ──
   return (
-    <div className="flex flex-col bg-white" style={{ height: '100dvh' }}>
+    <div className="fixed inset-0 z-50 mx-auto flex max-w-md flex-col bg-white" style={{ height: '100dvh' }}>
 
       {/* Header chat style Messenger */}
       <div className="flex items-center gap-3 px-4 py-3 bg-white flex-shrink-0"
@@ -421,18 +421,14 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
           </p>
         </div>
 
-        <button className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center">
-          <MoreVertical size={16} className="text-gray-400" />
-        </button>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={{ backgroundColor: '#F8F8F8' }}>
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3" style={{ backgroundColor: '#F8F8F8' }}>
         {currentMessages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <TwemojiAvatar avatarId={selectedClient?.avatar_icon || ''} size={64} className="mb-4" />
             <p className="font-black text-gray-900">{selectedClient?.pseudo}</p>
-            <p className="text-gray-400 text-sm mt-1 max-w-xs">Envoyez un message anonyme — personne ne saura qui vous êtes 👻</p>
           </div>
         )}
 
@@ -481,7 +477,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
         <div className="flex items-center gap-2">
           <TwemojiAvatar avatarId={session?.avatar_icon || ''} size={32} className="flex-shrink-0" />
           <div className="flex-1 flex items-center rounded-3xl px-4 py-2.5 gap-2" style={{ backgroundColor: '#F5F5F5' }}>
-            <input type="text" placeholder="Message anonyme..."
+            <input type="text" placeholder="Message..."
               value={newMsg} onChange={e => setNewMsg(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
               className="flex-1 bg-transparent text-sm outline-none text-gray-900 placeholder-gray-400"

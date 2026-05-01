@@ -211,7 +211,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     <div className="min-h-screen pb-32" style={{ backgroundColor: '#F8F8F8' }}>
 
       {/* ── HEADER COMPACT ── */}
-      <div className="px-5 pt-6 pb-3 bg-white border-b border-gray-100">
+      <div className="px-5 pt-5 pb-3 bg-white border-b border-gray-100">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             {session ? (
@@ -223,9 +223,11 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">
-                {tableLabel ? `Table ${tableLabel}` : 'Menu digital'}
-              </p>
+              {tableLabel && (
+                <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">
+                  Table {tableLabel}
+                </p>
+              )}
               <h1 className="font-black text-gray-950 text-lg leading-tight truncate">{restaurant.name}</h1>
             </div>
           </div>
@@ -253,11 +255,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
               </AnimatePresence>
             </motion.button>
           </div>
-        </div>
-
-        <div className="mt-5">
-          <p className="text-2xl font-black text-gray-950 leading-tight">Qu&apos;est-ce qui vous fait envie ?</p>
-          <p className="text-sm text-gray-500 mt-1">Parcourez, ajoutez, commandez sans attendre.</p>
         </div>
       </div>
 

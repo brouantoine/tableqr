@@ -1,11 +1,11 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bell, ChefHat, CheckCircle, Utensils, MessageCircle, X, Heart, Gift, Tag } from 'lucide-react'
+import { Bell, ChefHat, CheckCircle, Utensils, MessageCircle, X, Heart, Gift, Tag, type LucideIcon } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
-import type { Notification } from '@/types'
+import type { Notification, SocialMessage } from '@/types'
 
 interface ToastNotif {
   id: string
@@ -15,7 +15,13 @@ interface ToastNotif {
   status?: string
 }
 
-const TOAST_CONFIG: Record<string, { icon: any; color: string; bg: string }> = {
+declare global {
+  interface Window {
+    __activeSocialChatId?: string | null
+  }
+}
+
+const TOAST_CONFIG: Record<string, { icon: LucideIcon; color: string; bg: string }> = {
   // statuts de commande
   confirmed:    { icon: CheckCircle,  color: '#3B82F6', bg: '#EFF6FF' },
   preparing:    { icon: ChefHat,      color: '#F59E0B', bg: '#FFFBEB' },
@@ -48,7 +54,14 @@ export default function GlobalClientNotifier({ primaryColor }: { primaryColor: s
   useEffect(() => {
     if (!session) return
 
-    const channel = supabase.channel(`client-notif-${session.id}`)
+    const pushToast = (toast: ToastNotif) => {
+      setToasts(prev => [toast, ...prev].slice(0, 3))
+      setTimeout(() => {
+        setToasts(prev => prev.filter(t => t.id !== toast.id))
+      }, 4500)
+    }
+
+    const notifChannel = supabase.channel(`client-notif-${session.id}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'notifications',
         filter: `session_id=eq.${session.id}`,
@@ -57,11 +70,9 @@ export default function GlobalClientNotifier({ primaryColor }: { primaryColor: s
         if (seenRef.current.has(n.id)) return
         seenRef.current.add(n.id)
 
-        // Stocke dans le store global pour la cloche / page notif
         addNotification(n)
 
-        // Choix du son selon le type/statut
-        const status = (n.data as any)?.status
+        const status = (n.data as { status?: string } | null)?.status
         if (n.type === 'order_ready' || status === 'ready') {
           playRef.current('ready')
         } else if (n.type === 'message') {
@@ -70,24 +81,50 @@ export default function GlobalClientNotifier({ primaryColor }: { primaryColor: s
           playRef.current('order')
         }
 
-        // Affiche un toast en haut
-        const toast: ToastNotif = {
+        pushToast({
           id: n.id,
           title: n.title,
           body: n.body || undefined,
           type: n.type,
           status,
-        }
-        setToasts(prev => [toast, ...prev].slice(0, 3))
-
-        // Auto-dismiss après 4.5s
-        setTimeout(() => {
-          setToasts(prev => prev.filter(t => t.id !== toast.id))
-        }, 4500)
+        })
       })
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
+    const socialChannel = supabase.channel(`client-social-msg-${session.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'social_messages',
+        filter: `receiver_session_id=eq.${session.id}`,
+      }, async (payload) => {
+        const msg = payload.new as SocialMessage
+        if (msg.restaurant_id !== session.restaurant_id) return
+        if (seenRef.current.has(msg.id)) return
+        seenRef.current.add(msg.id)
+
+        // Si on est déjà sur la conversation du sender, pas de toast/son
+        const activeChat = typeof window !== 'undefined' ? window.__activeSocialChatId : null
+        if (activeChat === msg.sender_session_id) return
+
+        const { data: sender } = await supabase.from('client_sessions')
+          .select('pseudo')
+          .eq('id', msg.sender_session_id)
+          .single()
+
+        playRef.current('message')
+
+        pushToast({
+          id: msg.id,
+          title: sender?.pseudo || 'Nouveau message',
+          body: msg.message.length > 70 ? msg.message.slice(0, 70) + '...' : msg.message,
+          type: 'message',
+        })
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(notifChannel)
+      supabase.removeChannel(socialChannel)
+    }
   }, [session, addNotification])
 
   function dismiss(id: string) {

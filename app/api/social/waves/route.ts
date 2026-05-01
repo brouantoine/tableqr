@@ -1,31 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 import { isLiveSocialClient } from '@/lib/social/presence'
-import type { ClientSession } from '@/types'
+import type { ClientSession, SocialWave } from '@/types'
 
-interface MessageBody {
+interface WaveBody {
   restaurant_id?: string
   sender_session_id?: string
   receiver_session_id?: string
-  message?: string
 }
+
+const MUTUAL_WINDOW_MS = 60_000
+const RATE_LIMIT_MS = 8_000
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json() as MessageBody
+    const body = await req.json() as WaveBody
     const restaurantId = body.restaurant_id
     const senderId = body.sender_session_id
     const receiverId = body.receiver_session_id
-    const message = body.message?.trim()
 
-    if (!restaurantId || !senderId || !receiverId || !message) {
+    if (!restaurantId || !senderId || !receiverId) {
       return NextResponse.json({ error: 'Données manquantes' }, { status: 400 })
     }
     if (senderId === receiverId) {
-      return NextResponse.json({ error: 'Conversation invalide' }, { status: 400 })
-    }
-    if (message.length > 1000) {
-      return NextResponse.json({ error: 'Message trop long' }, { status: 400 })
+      return NextResponse.json({ error: 'Coucou invalide' }, { status: 400 })
     }
 
     const admin = getSupabaseAdmin()
@@ -49,23 +47,57 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Client indisponible' }, { status: 409 })
     }
 
-    const { data: msg, error: messageError } = await admin
-      .from('social_messages')
+    const rateCutoff = new Date(Date.now() - RATE_LIMIT_MS).toISOString()
+    const { data: recent } = await admin
+      .from('social_waves')
+      .select('id')
+      .eq('restaurant_id', restaurantId)
+      .eq('sender_session_id', senderId)
+      .eq('receiver_session_id', receiverId)
+      .gte('created_at', rateCutoff)
+      .limit(1)
+
+    if (recent && recent.length > 0) {
+      return NextResponse.json({ error: 'Trop rapide' }, { status: 429 })
+    }
+
+    const mutualCutoff = new Date(Date.now() - MUTUAL_WINDOW_MS).toISOString()
+    const { data: pending } = await admin
+      .from('social_waves')
+      .select('id')
+      .eq('restaurant_id', restaurantId)
+      .eq('sender_session_id', receiverId)
+      .eq('receiver_session_id', senderId)
+      .eq('is_mutual', false)
+      .gte('created_at', mutualCutoff)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    const mutual = (pending?.length ?? 0) > 0
+
+    const { data: wave, error: waveError } = await admin
+      .from('social_waves')
       .insert({
         restaurant_id: restaurantId,
         sender_session_id: senderId,
         receiver_session_id: receiverId,
-        message,
-        is_anonymous: true,
+        is_mutual: mutual,
       })
       .select()
       .single()
 
-    if (messageError || !msg) {
-      return NextResponse.json({ error: messageError?.message || 'Message non envoyé' }, { status: 500 })
+    if (waveError || !wave) {
+      return NextResponse.json({ error: waveError?.message || 'Coucou non envoyé' }, { status: 500 })
     }
 
-    return NextResponse.json({ data: msg })
+    if (mutual && pending?.[0]?.id) {
+      await admin
+        .from('social_waves')
+        .update({ is_mutual: true })
+        .eq('id', pending[0].id)
+    }
+
+    return NextResponse.json({ data: wave as SocialWave, mutual })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Erreur serveur' }, { status: 500 })
   }

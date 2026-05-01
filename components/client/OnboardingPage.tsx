@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { generateDeviceFingerprint } from '@/lib/utils'
 import { getAvatarLabel } from './TwemojiAvatar'
+import { getPresenceCutoffIso } from '@/lib/social/presence'
 import type { ClientSession, Gender, ProfileType, Restaurant, RestaurantTable } from '@/types'
 
 // Avatars pros — emojis Twemoji haute qualité
@@ -46,7 +47,9 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0])
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [takenAvatars, setTakenAvatars] = useState<Set<string>>(new Set())
   const p = restaurant.primary_color
+  const ownAvatarId = isGuestUpgrade ? session?.avatar_icon : undefined
 
   useEffect(() => {
     async function check() {
@@ -76,6 +79,38 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
     }
     check()
   }, [])
+
+  // Avatars pris par les autres clients encore présents (avec auto-bascule)
+  useEffect(() => {
+    let cancelled = false
+    async function loadTaken() {
+      const { data } = await supabase.from('client_sessions')
+        .select('id, avatar_icon')
+        .eq('restaurant_id', restaurant.id)
+        .eq('is_present', true)
+        .gte('last_seen_at', getPresenceCutoffIso())
+      if (cancelled) return
+      const taken = new Set<string>()
+      for (const row of data || []) {
+        if (!row.avatar_icon) continue
+        if (ownAvatarId && row.id === session?.id) continue
+        taken.add(row.avatar_icon)
+      }
+      setTakenAvatars(taken)
+      setSelectedAvatar(prev => {
+        if (!taken.has(prev.id) || prev.id === ownAvatarId) return prev
+        return AVATARS.find(a => !taken.has(a.id) || a.id === ownAvatarId) || prev
+      })
+    }
+    void loadTaken()
+    const channel = supabase.channel(`onboarding-taken-${restaurant.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'client_sessions',
+        filter: `restaurant_id=eq.${restaurant.id}`,
+      }, () => { void loadTaken() })
+      .subscribe()
+    return () => { cancelled = true; supabase.removeChannel(channel) }
+  }, [restaurant.id, ownAvatarId, session?.id])
 
   async function finish() {
     if (!selectedProfile || loading) return
@@ -191,21 +226,39 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
 
               {/* Grid avatars */}
               <div className="grid grid-cols-4 gap-3">
-                {AVATARS.map((av, i) => (
-                  <motion.button key={av.id}
-                    initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: i * 0.04 }} whileTap={{ scale: 0.9 }}
-                    onClick={() => setSelectedAvatar(av)}
-                    className="flex flex-col items-center gap-2 p-3 rounded-2xl transition-all"
-                    style={selectedAvatar.id === av.id
-                      ? { backgroundColor: av.bg + '30', border: `2px solid ${p}` }
-                      : { backgroundColor: '#1A1A1A', border: '2px solid transparent' }}>
-                    <TwemojiIcon emoji={av.emoji} size={36} />
-                    <span className="text-xs font-bold" style={{ color: selectedAvatar.id === av.id ? p : '#6B7280' }}>
-                      {av.label}
-                    </span>
-                  </motion.button>
-                ))}
+                {AVATARS.map((av, i) => {
+                  const isMine = av.id === ownAvatarId
+                  const isTaken = takenAvatars.has(av.id) && !isMine
+                  const isSelected = selectedAvatar.id === av.id
+                  return (
+                    <motion.button key={av.id}
+                      initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: i * 0.04 }}
+                      whileTap={isTaken ? undefined : { scale: 0.9 }}
+                      onClick={() => { if (!isTaken) setSelectedAvatar(av) }}
+                      disabled={isTaken}
+                      aria-disabled={isTaken}
+                      className="relative flex flex-col items-center gap-2 p-3 rounded-2xl transition-all disabled:cursor-not-allowed"
+                      style={isSelected
+                        ? { backgroundColor: av.bg + '30', border: `2px solid ${p}` }
+                        : { backgroundColor: '#1A1A1A', border: '2px solid transparent', opacity: isTaken ? 0.35 : 1 }}>
+                      <div style={isTaken ? { filter: 'grayscale(1)' } : undefined}>
+                        <TwemojiIcon emoji={av.emoji} size={36} />
+                      </div>
+                      <span className="text-xs font-bold" style={{
+                        color: isSelected ? p : isTaken ? '#4B5563' : '#6B7280'
+                      }}>
+                        {av.label}
+                      </span>
+                      {isTaken && (
+                        <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider"
+                          style={{ backgroundColor: '#000', color: '#9CA3AF', border: '1px solid #2D2D2D' }}>
+                          Pris
+                        </span>
+                      )}
+                    </motion.button>
+                  )
+                })}
               </div>
             </motion.div>
           )}

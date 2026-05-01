@@ -188,6 +188,15 @@ export interface SocialMessage {
   sender?: ClientSession
 }
 
+export interface SocialWave {
+  id: string
+  restaurant_id: string
+  sender_session_id: string
+  receiver_session_id: string
+  is_mutual: boolean
+  created_at: string
+}
+
 export interface Match {
   id: string
   restaurant_id: string

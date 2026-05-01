@@ -9,7 +9,7 @@ export function useNotificationSound() {
     function unlock() {
       if (unlockedRef.current) return
       try {
-        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+        const ctx = new (window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!)()
         // Jouer un son silencieux pour débloquer iOS
         const buf = ctx.createBuffer(1, 1, 22050)
         const src = ctx.createBufferSource()
@@ -33,12 +33,12 @@ export function useNotificationSound() {
     }
   }, [])
 
-  const playSound = useCallback((type: 'order' | 'message' | 'ready' = 'order') => {
+  const playSound = useCallback((type: 'order' | 'message' | 'ready' | 'wave' | 'match' = 'order') => {
     try {
       // Réutiliser le contexte débloqué ou en créer un nouveau
       const ctx = audioCtxRef.current && audioCtxRef.current.state !== 'closed'
         ? audioCtxRef.current
-        : new (window.AudioContext || (window as any).webkitAudioContext)()
+        : new (window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!)()
 
       audioCtxRef.current = ctx
 
@@ -46,9 +46,11 @@ export function useNotificationSound() {
       if (ctx.state === 'suspended') ctx.resume()
 
       const configs: Record<string, { freqs: number[]; duration: number }> = {
-        order:   { freqs: [523, 659, 784], duration: 0.15 }, // Do Mi Sol
-        ready:   { freqs: [784, 1047],     duration: 0.2  }, // Sol Do aigu
-        message: { freqs: [440, 554],      duration: 0.12 }, // La Do#
+        order:   { freqs: [523, 659, 784],       duration: 0.15 }, // Do Mi Sol
+        ready:   { freqs: [784, 1047],           duration: 0.2  }, // Sol Do aigu
+        message: { freqs: [440, 554],            duration: 0.12 }, // La Do#
+        wave:    { freqs: [659, 988],            duration: 0.09 }, // Mi Si - cristallin court
+        match:   { freqs: [659, 784, 988, 1318], duration: 0.13 }, // Mi Sol Si Mi - festif
       }
 
       const config = configs[type]
@@ -72,6 +74,8 @@ export function useNotificationSound() {
       if ('vibrate' in navigator) {
         if (type === 'order') navigator.vibrate([100, 50, 100])
         else if (type === 'ready') navigator.vibrate([200])
+        else if (type === 'match') navigator.vibrate([60, 40, 60, 40, 120])
+        else if (type === 'wave') navigator.vibrate([40, 30, 40])
         else navigator.vibrate([50])
       }
 

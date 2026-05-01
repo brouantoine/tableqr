@@ -1,13 +1,38 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
 import TwemojiAvatar from './TwemojiAvatar'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
+import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { getPresenceCutoffIso, getPresenceStamp, isLiveSocialClient } from '@/lib/social/presence'
 import { formatTimeAgo } from '@/lib/utils'
 import { Send, ChevronLeft, Search, Moon, UserRound, Plus } from 'lucide-react'
 import type { ClientSession, SocialMessage, Restaurant } from '@/types'
+
+const WAVE_DISPLAY_MS = 60_000
+
+const MODE_INFO: Record<SocialMode, { label: string; short: string; long: string; color: string }> = {
+  receptif:  {
+    label: 'Disponible',
+    short: 'visible · coucous & messages activés',
+    long: 'Vous êtes visible des autres clients. Ils peuvent vous faire coucou et vous écrire.',
+    color: '#10B981',
+  },
+  discret:   {
+    label: 'Discret',
+    short: 'visible mais préfère la tranquillité',
+    long: 'Vous restez visible mais vous indiquez que vous préférez ne pas être trop sollicité.',
+    color: '#F59E0B',
+  },
+  invisible: {
+    label: 'Non réceptif',
+    short: 'caché · personne ne peut vous voir',
+    long: 'Vous disparaissez de la liste. Personne ne peut ni vous écrire ni vous faire coucou.',
+    color: '#9CA3AF',
+  },
+}
 
 type SocialMode = 'receptif' | 'discret' | 'invisible'
 
@@ -24,6 +49,9 @@ function appendMessage(prev: Record<string, SocialMessage[]>, clientId: string, 
 
 export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   const { session, setSession } = useSessionStore()
+  const { playSound } = useNotificationSound()
+  const searchParams = useSearchParams()
+  const chatParam = searchParams.get('chat')
   const [view, setView] = useState<'list' | 'chat'>('list')
   const [clients, setClients] = useState<ClientSession[]>([])
   const [conversations, setConversations] = useState<Record<string, SocialMessage[]>>({})
@@ -32,6 +60,10 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   const [newMsg, setNewMsg] = useState('')
   const [sending, setSending] = useState(false)
   const [search, setSearch] = useState('')
+  const [outgoingWaves, setOutgoingWaves] = useState<Record<string, number>>({})
+  const [waveBusy, setWaveBusy] = useState<Record<string, boolean>>({})
+  const [waveFlash, setWaveFlash] = useState<{ pseudo: string; mutual: boolean } | null>(null)
+  const [modeHint, setModeHint] = useState<SocialMode | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const activeChatRef = useRef<{ view: 'list' | 'chat'; selectedClientId?: string }>({ view: 'list' })
   const p = restaurant.primary_color
@@ -169,9 +201,99 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     if (view === 'chat' && selectedClientId) void markConversationRead(selectedClientId)
   }, [view, selectedClientId, markConversationRead])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    window.__activeSocialChatId = view === 'chat' ? selectedClientId || null : null
+    return () => { window.__activeSocialChatId = null }
+  }, [view, selectedClientId])
+
+  // Ouverture automatique du chat depuis ?chat=<id> (deeplink coucou réciproque)
+  useEffect(() => {
+    if (!chatParam || !sessionId) return
+    const local = clients.find(c => c.id === chatParam)
+    if (local) {
+      setSelectedClient(local)
+      setView('chat')
+      const url = new URL(window.location.href)
+      url.searchParams.delete('chat')
+      window.history.replaceState({}, '', url.pathname + (url.search ? `?${url.searchParams}` : ''))
+      return
+    }
+    let cancelled = false
+    void (async () => {
+      const { data } = await supabase.from('client_sessions')
+        .select('*')
+        .eq('id', chatParam)
+        .eq('restaurant_id', restaurant.id)
+        .maybeSingle()
+      if (cancelled || !data) return
+      setSelectedClient(data as ClientSession)
+      setView('chat')
+      const url = new URL(window.location.href)
+      url.searchParams.delete('chat')
+      window.history.replaceState({}, '', url.pathname + (url.search ? `?${url.searchParams}` : ''))
+    })()
+    return () => { cancelled = true }
+  }, [chatParam, sessionId, clients, restaurant.id])
+
+  // Nettoyage automatique des coucous expirés (visuel "Coucou ✓")
+  useEffect(() => {
+    if (Object.keys(outgoingWaves).length === 0) return
+    const timer = window.setInterval(() => {
+      const now = Date.now()
+      setOutgoingWaves(prev => {
+        const next: Record<string, number> = {}
+        let changed = false
+        for (const [id, ts] of Object.entries(prev)) {
+          if (now - ts < WAVE_DISPLAY_MS) next[id] = ts
+          else changed = true
+        }
+        return changed ? next : prev
+      })
+    }, 5000)
+    return () => window.clearInterval(timer)
+  }, [outgoingWaves])
+
+  async function sendWave(client: ClientSession) {
+    if (!sessionId || waveBusy[client.id]) return
+    if (outgoingWaves[client.id] && Date.now() - outgoingWaves[client.id] < 8000) return
+    setWaveBusy(prev => ({ ...prev, [client.id]: true }))
+    try {
+      const res = await fetch('/api/social/waves', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurant_id: restaurant.id,
+          sender_session_id: sessionId,
+          receiver_session_id: client.id,
+        }),
+      })
+      const json = await res.json() as { mutual?: boolean; error?: string }
+      if (!res.ok) return
+
+      setOutgoingWaves(prev => ({ ...prev, [client.id]: Date.now() }))
+
+      if (json.mutual) {
+        playSound('match')
+        setWaveFlash({ pseudo: client.pseudo, mutual: true })
+        setSelectedClient(client)
+        setView('chat')
+        window.setTimeout(() => setWaveFlash(null), 2400)
+      } else {
+        playSound('wave')
+        setWaveFlash({ pseudo: client.pseudo, mutual: false })
+        window.setTimeout(() => setWaveFlash(null), 1800)
+      }
+    } finally {
+      setWaveBusy(prev => ({ ...prev, [client.id]: false }))
+    }
+  }
+
   async function updateMode(mode: SocialMode) {
     if (!sessionId) return
     setSocialMode(mode)
+    setModeHint(mode)
+    window.setTimeout(() => setModeHint(prev => (prev === mode ? null : prev)), 3500)
     const now = getPresenceStamp()
     const { data } = await supabase.from('client_sessions')
       .update({ social_mode: mode, is_present: true, last_seen_at: now, left_at: null })
@@ -274,41 +396,81 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     </div>
   )
 
+  const flashOverlay = waveFlash && (
+    <div className="pointer-events-none fixed inset-x-0 z-[80] flex justify-center px-4"
+      style={{ top: 'calc(env(safe-area-inset-top) + 12px)' }}>
+      <motion.div
+        initial={{ y: -24, opacity: 0, scale: 0.9 }}
+        animate={{ y: 0, opacity: 1, scale: 1 }}
+        exit={{ y: -24, opacity: 0 }}
+        className="px-4 py-2.5 rounded-full bg-white flex items-center gap-2"
+        style={{ boxShadow: '0 12px 32px rgba(0,0,0,0.18)' }}>
+        <motion.span
+          animate={{ rotate: [0, 18, -12, 8, 0] }}
+          transition={{ duration: 0.9 }}
+          className="text-lg">{waveFlash.mutual ? '✨' : '👋'}</motion.span>
+        <p className="text-xs font-black text-gray-900">
+          {waveFlash.mutual ? `Coucou réciproque avec ${waveFlash.pseudo} !` : `Coucou envoyé à ${waveFlash.pseudo}`}
+        </p>
+      </motion.div>
+    </div>
+  )
+
   // ── VUE LISTE ──
   if (view === 'list') return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 56px)', backgroundColor: '#F8F8F8' }}>
+      <AnimatePresence>{flashOverlay}</AnimatePresence>
 
       <div className="bg-white px-4 pt-5 pb-4" style={{ boxShadow: '0 1px 0 #F0F0F0' }}>
-        <div className="flex items-center gap-3 mb-4 px-1">
+        <div className="flex items-center gap-3 mb-3 px-1">
           <div className="relative">
             <TwemojiAvatar avatarId={session?.avatar_icon || ''} size={42} />
             <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
-              style={{ backgroundColor: socialMode === 'receptif' ? '#10B981' : socialMode === 'discret' ? '#F59E0B' : '#9CA3AF' }} />
+              style={{ backgroundColor: MODE_INFO[socialMode].color }} />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-black text-gray-900 text-lg leading-tight truncate">Social</p>
-            <p className="text-xs font-medium truncate" style={{ color: socialMode === 'receptif' ? '#10B981' : socialMode === 'discret' ? '#F59E0B' : '#9CA3AF' }}>
-              {session?.pseudo || 'Moi'}
+            <p className="font-black text-gray-900 text-base leading-tight truncate">{session?.pseudo || 'Moi'}</p>
+            <p className="text-[11px] mt-0.5 truncate">
+              <span className="font-black" style={{ color: MODE_INFO[socialMode].color }}>{MODE_INFO[socialMode].label}</span>
+              <span className="text-gray-400 font-medium"> · {MODE_INFO[socialMode].short}</span>
             </p>
           </div>
           <div className="flex gap-1.5">
-            {[
-              { key: 'receptif', color: '#10B981', label: 'Disponible' },
-              { key: 'discret', color: '#F59E0B', label: 'Discret' },
-              { key: 'invisible', color: '#9CA3AF', label: 'Invisible' },
-            ].map(m => (
-              <button key={m.key} onClick={() => updateMode(m.key as SocialMode)}
-                aria-label={m.label}
-                title={m.label}
-                className="w-7 h-7 rounded-full flex items-center justify-center transition-all"
-                style={socialMode === m.key
-                  ? { backgroundColor: m.color + '20', border: `2px solid ${m.color}` }
-                  : { backgroundColor: '#F5F5F5', border: '2px solid transparent' }}>
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: m.color }} />
-              </button>
-            ))}
+            {(Object.keys(MODE_INFO) as SocialMode[]).map(key => {
+              const info = MODE_INFO[key]
+              return (
+                <button key={key} onClick={() => updateMode(key)}
+                  aria-label={`${info.label} — ${info.long}`}
+                  title={`${info.label} — ${info.long}`}
+                  className="w-7 h-7 rounded-full flex items-center justify-center transition-all"
+                  style={socialMode === key
+                    ? { backgroundColor: info.color + '20', border: `2px solid ${info.color}` }
+                    : { backgroundColor: '#F5F5F5', border: '2px solid transparent' }}>
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: info.color }} />
+                </button>
+              )
+            })}
           </div>
         </div>
+
+        <AnimatePresence>
+          {modeHint && (
+            <motion.div
+              key={modeHint}
+              initial={{ opacity: 0, y: -6, scaleY: 0.9 }}
+              animate={{ opacity: 1, y: 0, scaleY: 1 }}
+              exit={{ opacity: 0, y: -6, scaleY: 0.9 }}
+              transition={{ duration: 0.18 }}
+              className="rounded-xl px-3 py-2 mb-3 flex items-start gap-2"
+              style={{ backgroundColor: MODE_INFO[modeHint].color + '15', border: `1px solid ${MODE_INFO[modeHint].color}30` }}>
+              <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: MODE_INFO[modeHint].color }} />
+              <p className="text-[11px] leading-snug">
+                <span className="font-black" style={{ color: MODE_INFO[modeHint].color }}>Mode {MODE_INFO[modeHint].label}.</span>
+                <span className="text-gray-600"> {MODE_INFO[modeHint].long}</span>
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="relative">
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -366,22 +528,41 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
 
         {hasDiscovery && (
           <div className="px-4 pt-4">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">En salle</p>
-            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-              {discoveryClients.map((client, i) => (
-                <motion.button key={client.id}
-                  initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.04 }} whileTap={{ scale: 0.92 }}
-                  onClick={() => { setSelectedClient(client); setView('chat') }}
-                  className="flex flex-col items-center gap-1.5 flex-shrink-0">
-                  <div className="relative">
-                    <TwemojiAvatar avatarId={client.avatar_icon || ''} size={54} />
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
-                      style={{ backgroundColor: client.social_mode === 'receptif' ? '#10B981' : '#F59E0B' }} />
-                  </div>
-                  <p className="text-xs font-bold text-gray-700 max-w-[58px] truncate">{client.pseudo}</p>
-                </motion.button>
-              ))}
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">En salle</p>
+              <p className="text-[10px] font-bold text-gray-300">Tap pour ouvrir · Coucou pour briser la glace</p>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+              {discoveryClients.map((client, i) => {
+                const waved = !!outgoingWaves[client.id]
+                const busy = !!waveBusy[client.id]
+                return (
+                  <motion.div key={client.id}
+                    initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="flex flex-col items-center gap-2 flex-shrink-0 w-[78px]">
+                    <button
+                      onClick={() => { setSelectedClient(client); setView('chat') }}
+                      className="flex flex-col items-center gap-1">
+                      <div className="relative">
+                        <TwemojiAvatar avatarId={client.avatar_icon || ''} size={54} />
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
+                          style={{ backgroundColor: client.social_mode === 'receptif' ? '#10B981' : '#F59E0B' }} />
+                      </div>
+                      <p className="text-xs font-bold text-gray-700 max-w-[70px] truncate">{client.pseudo}</p>
+                    </button>
+                    <motion.button whileTap={{ scale: 0.9 }}
+                      onClick={() => sendWave(client)}
+                      disabled={busy || waved}
+                      className="w-full px-2 py-1 rounded-full text-[10px] font-black transition-all"
+                      style={waved
+                        ? { backgroundColor: '#ECFDF5', color: '#059669' }
+                        : { backgroundColor: `${p}15`, color: p }}>
+                      {waved ? '✓ Coucou' : busy ? '...' : '👋 Coucou'}
+                    </motion.button>
+                  </motion.div>
+                )
+              })}
             </div>
           </div>
         )}
@@ -403,6 +584,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   // ── VUE CHAT ──
   return (
     <div className="fixed inset-0 z-50 mx-auto flex max-w-md flex-col bg-white" style={{ height: '100dvh' }}>
+      <AnimatePresence>{flashOverlay}</AnimatePresence>
 
       {/* Header chat style Messenger */}
       <div className="flex items-center gap-3 px-4 py-3 bg-white flex-shrink-0"

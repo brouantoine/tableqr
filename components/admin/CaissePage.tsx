@@ -582,7 +582,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                         <div className="flex items-center gap-2">
                           {(method as any).logo
                             ? <img src={(method as any).logo} alt={method.label} className="w-7 h-7 object-contain rounded-lg" />
-                            : <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-500">{method.label.charAt(0)}</div>
+                            : <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500"><CreditCard size={13} strokeWidth={2.2} /></div>
                           }
                           <span className="text-sm font-medium text-gray-700">{method.label}</span>
                         </div>

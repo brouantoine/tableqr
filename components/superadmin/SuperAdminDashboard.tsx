@@ -188,11 +188,11 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
                   transition={{ delay: i * 0.03 }} whileTap={{ scale: 0.98 }}
                   onClick={() => setSelectedResto(r)}
                   className="w-full bg-white rounded-2xl p-3.5 text-left flex items-center gap-3 shadow-sm border border-gray-50 hover:border-gray-200 transition-all">
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-white text-base shadow-sm"
+                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-white shadow-sm"
                     style={{ backgroundColor: r.primary_color }}>
                     {r.logo_url
                       ? <img src={r.logo_url} alt="" className="w-full h-full object-cover rounded-2xl" />
-                      : r.name.charAt(0).toUpperCase()}
+                      : <Store size={20} strokeWidth={2.2} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
@@ -480,9 +480,9 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
                   ))}
                   <div className="rounded-2xl p-4" style={{ backgroundColor: form.primary_color + '12' }}>
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-base"
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white"
                         style={{ backgroundColor: form.primary_color }}>
-                        {form.name.charAt(0) || 'R'}
+                        <Store size={18} strokeWidth={2.2} />
                       </div>
                       <div>
                         <p className="font-black text-sm" style={{ color: form.primary_color }}>{form.name || 'Mon Restaurant'}</p>

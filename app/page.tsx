@@ -2,7 +2,7 @@
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { useState } from 'react'
-import { Check, ChevronRight, Star, Zap, Shield, BarChart3, MessageCircle, Gamepad2, QrCode, Phone, Mail, ArrowRight, Menu, Bell, Hand } from 'lucide-react'
+import { Check, ChevronRight, Star, Zap, Shield, BarChart3, MessageCircle, Gamepad2, QrCode, Phone, Mail, ArrowRight, Menu, Bell, Hand, User } from 'lucide-react'
 
 const FEATURES = [
   { icon: QrCode, title: 'QR Code intelligent', desc: 'Chaque table a son QR unique. Le client scanne et commande en 30 secondes.', color: '#F26522' },
@@ -359,9 +359,9 @@ export default function LandingPage() {
                 </div>
                 <p className="text-gray-600 text-sm leading-relaxed mb-5 italic">&ldquo;{t.text}&rdquo;</p>
                 <div className="flex items-center gap-3 pt-4 border-t border-gray-50">
-                  <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white font-black text-sm flex-shrink-0"
+                  <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white flex-shrink-0"
                     style={{ backgroundColor: '#F26522' }}>
-                    {t.name.charAt(0)}
+                    <User size={16} strokeWidth={2.2} />
                   </div>
                   <div>
                     <p className="font-black text-gray-900 text-sm">{t.name}</p>

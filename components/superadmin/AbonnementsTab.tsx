@@ -199,9 +199,9 @@ export default function AbonnementsTab({ restaurants }: { restaurants: Restauran
           </div>
           {subscribed.map((r, i) => (
             <div key={r.id} className={`flex items-center gap-3 px-5 py-3.5 ${i > 0 ? 'border-t border-gray-50' : ''}`}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm text-white flex-shrink-0"
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
                 style={{ backgroundColor: r.primary_color }}>
-                {r.name.charAt(0).toUpperCase()}
+                <Store size={16} strokeWidth={2.2} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-gray-900 truncate">{r.name}</p>
@@ -231,9 +231,9 @@ export default function AbonnementsTab({ restaurants }: { restaurants: Restauran
             const daysAgo = Math.floor((Date.now() - createdAt.getTime()) / 86400000)
             return (
               <div key={r.id} className={`flex items-center gap-3 px-5 py-3.5 ${i > 0 ? 'border-t border-gray-50' : ''}`}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm text-white flex-shrink-0"
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
                   style={{ backgroundColor: r.primary_color }}>
-                  {r.name.charAt(0).toUpperCase()}
+                  <Store size={16} strokeWidth={2.2} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-gray-900 truncate">{r.name}</p>

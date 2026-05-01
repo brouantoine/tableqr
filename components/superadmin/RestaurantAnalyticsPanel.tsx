@@ -183,11 +183,11 @@ export default function RestaurantAnalyticsPanel({
 
         <div className="flex-shrink-0 rounded-t-[2rem] overflow-hidden">
           <div className="h-14 flex items-center px-4 gap-3" style={{ backgroundColor: p + '18' }}>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0"
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: p, color: '#fff' }}>
               {restaurant.logo_url
                 ? <img src={restaurant.logo_url} alt="" className="w-full h-full object-cover rounded-xl" />
-                : restaurant.name.charAt(0).toUpperCase()}
+                : <Store size={16} strokeWidth={2.2} />}
             </div>
             <div className="flex-1 min-w-0">
               <p className="font-black text-gray-900 truncate text-sm leading-tight">{restaurant.name}</p>

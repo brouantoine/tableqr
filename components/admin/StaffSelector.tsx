@@ -2,7 +2,14 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, X, Check, Users } from 'lucide-react'
+import { Plus, X, Check, Users, ChefHat, User, UserCog } from 'lucide-react'
+
+function iconForRole(role: string) {
+  const r = role.toLowerCase()
+  if (r.includes('chef') || r.includes('cuisin')) return ChefHat
+  if (r.includes('manager') || r.includes('gérant') || r.includes('gerant') || r.includes('patron') || r.includes('proprié')) return UserCog
+  return User
+}
 
 interface Staff {
   id: string
@@ -86,10 +93,15 @@ export function StaffSelector({ restaurantId, primaryColor }: { restaurantId: st
             <motion.div key={member.id} layout
               className="flex items-center gap-3 p-3 rounded-2xl transition-all"
               style={{ backgroundColor: member.is_active_today ? member.color + '10' : '#F9FAFB', border: `1.5px solid ${member.is_active_today ? member.color + '30' : '#E5E7EB'}` }}>
-              <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white font-black text-sm flex-shrink-0"
-                style={{ backgroundColor: member.color }}>
-                {member.name.charAt(0).toUpperCase()}
-              </div>
+              {(() => {
+                const RoleIcon = iconForRole(member.role)
+                return (
+                  <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white flex-shrink-0"
+                    style={{ backgroundColor: member.color }}>
+                    <RoleIcon size={16} strokeWidth={2.2} />
+                  </div>
+                )
+              })()}
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-sm text-gray-900">{member.name}</p>
                 <p className="text-xs text-gray-400">{member.role}</p>

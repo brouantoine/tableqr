@@ -1,19 +1,18 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import TwemojiAvatar from './TwemojiAvatar'
-import { TwemojiIcon } from '@/components/Twemoji'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Heart, UtensilsCrossed, MessageCircle, Gamepad2, Bell, Package } from 'lucide-react'
 import { useSessionStore } from '@/lib/store'
 import { supabase } from '@/lib/supabase/client'
-import { formatPrice } from '@/lib/utils'
-import type { MenuCategory, MenuItem, Restaurant } from '@/types'
+import { formatPrice, generateDeviceFingerprint } from '@/lib/utils'
+import type { MenuCategory, MenuItem, Restaurant, RestaurantTable } from '@/types'
 import OnboardingPage from './OnboardingPage'
 
 export default function MenuPage({ restaurant, categories }: { restaurant: Restaurant; categories: MenuCategory[] }) {
   const router = useRouter()
-  const { cart, addToCart, updateQuantity, session, clearCart } = useSessionStore()
+  const { cart, addToCart, updateQuantity, session, setSession, clearCart } = useSessionStore()
 
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id)
   const [search, setSearch] = useState('')
@@ -26,14 +25,22 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   const [activeOrdersCount, setActiveOrdersCount] = useState(0)
   const [pendingHref, setPendingHref] = useState<string | null>(null)
 
-  // ── Onboarding uniquement déclenché au "Confirmer la commande" ──
+  // ── Onboarding différé : s'ouvre 3s après l'envoi pour les invités ──
   const [showOnboarding, setShowOnboarding] = useState(false)
   // Phase de transition vers l'onboarding (le panier se ferme en douceur)
   const [transitioning, setTransitioning] = useState(false)
-
-  // Snapshot du panier + notes figé au moment du clic "Confirmer"
-  // La commande sera envoyée automatiquement après l'identification
-  const pendingOrderRef = useRef<{ items: typeof cart.items; notes: Record<string, string> } | null>(null)
+  // Drapeau : la session courante a été créée comme "invité" (pseudo générique).
+  // Active l'onboarding non bloquant pour permettre la personnalisation après coup.
+  const [isGuestUpgrade, setIsGuestUpgrade] = useState(false)
+  // Timer pour l'auto-redirect vers l'onboarding (annulable)
+  const guestRedirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cancelGuestRedirect = useCallback(() => {
+    if (guestRedirectTimer.current) {
+      clearTimeout(guestRedirectTimer.current)
+      guestRedirectTimer.current = null
+    }
+  }, [])
+  useEffect(() => () => cancelGuestRedirect(), [cancelGuestRedirect])
 
   const p = restaurant.primary_color
 
@@ -56,8 +63,16 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   }, [session])
 
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tableId)
-  const sessionValid = session && session.restaurant_id === restaurant.id && session.is_present
-  const tableObj = { id: isUuid ? tableId : null, table_number: tableDisplayName || tableId, restaurant_id: restaurant.id } as any
+  const sessionValid = Boolean(session && session.restaurant_id === restaurant.id && session.is_present)
+  const tableObj: RestaurantTable = {
+    id: isUuid ? tableId : '',
+    table_number: tableDisplayName || tableId,
+    restaurant_id: restaurant.id,
+    capacity: 0,
+    qr_code: '',
+    is_active: true,
+    created_at: '',
+  }
 
   const allItems = categories.flatMap(c => c.items || [])
   const featured = allItems.filter(i => i.is_available).slice(0, 5)
@@ -65,10 +80,11 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     ? allItems.filter(i => i.name.toLowerCase().includes(search.toLowerCase()))
     : categories.find(c => c.id === activeCategory)?.items?.filter(i => i.is_available) || []
   const cartQty = (id: string) => cart.items.find(i => i.menu_item.id === id)?.quantity || 0
+  const isAnonymousSession = (sess: typeof session) => !sess || sess.pseudo === 'Invité' || sess.avatar_icon === 'ghost'
 
   // ── Envoi effectif de la commande ──
   async function sendOrder(sess: typeof session, itemsSnapshot: typeof cart.items, notesSnapshot: Record<string, string>) {
-    if (!sess || itemsSnapshot.length === 0) return
+    if (!sess || itemsSnapshot.length === 0) return false
     setOrdering(true)
     try {
       const res = await fetch('/api/orders', {
@@ -92,7 +108,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         await new Promise(r => setTimeout(r, 250))
         setNotes({})
         clearCart()
-        pendingOrderRef.current = null
         setShowCart(false)
         // Laisse la cart-modal se fermer en douceur avant d'afficher la popup succès
         setTimeout(() => setOrderPlaced(true), 250)
@@ -105,53 +120,89 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
             })
           }, 5 * 60 * 1000)
         }
+        return true
       }
+      return false
     } catch (e) {
       console.error('Order error:', e)
+      return false
     } finally {
       setOrdering(false)
     }
   }
 
-  // ── Bouton "Confirmer la commande" ──
-  async function placeOrder() {
-    if (cart.items.length === 0 || ordering) return
+  // ── Crée une session "invité" pour permettre l'envoi sans onboarding bloquant ──
+  async function ensureGuestSession() {
+    if (sessionValid && session) return session
+    const fingerprint = generateDeviceFingerprint()
+    // Cherche d'abord une session existante pour ce device sur ce resto
+    const { data: existing } = await supabase
+      .from('client_sessions').select('*')
+      .eq('restaurant_id', restaurant.id)
+      .eq('device_fingerprint', fingerprint)
+      .eq('is_present', true)
+      .maybeSingle()
+    if (existing) { setSession(existing); return existing }
 
-    if (!sessionValid) {
-      // Pas encore identifié → snapshot + onboarding (transition douce)
-      pendingOrderRef.current = { items: [...cart.items], notes: { ...notes } }
-      setTransitioning(true)
-      // Court délai pour laisser le tap-feedback se voir
-      await new Promise(r => setTimeout(r, 180))
-      setShowCart(false)
-      // Petite pause pour laisser le panier se fermer en douceur
-      await new Promise(r => setTimeout(r, 240))
-      setShowOnboarding(true)
-      // L'overlay onboarding est en place, on peut libérer la transition
-      setTransitioning(false)
-      return
-    }
-
-    // Déjà identifié → envoi direct
-    await sendOrder(session, cart.items, notes)
+    const { data } = await supabase.from('client_sessions').insert({
+      restaurant_id: restaurant.id,
+      ...(isUuid ? { table_id: tableId } : {}),
+      pseudo: 'Invité',
+      avatar_icon: 'ghost',
+      device_fingerprint: fingerprint,
+      gender: 'autre',
+      profile_type: 'solo',
+      is_present: true,
+    }).select().single()
+    if (data) { setSession(data); return data }
+    return null
   }
 
-  // ── Appelé par OnboardingPage une fois l'identification terminée ──
-  // La session est maintenant dans le store Zustand
-  function handleOnboardingDone() {
-    const pending = pendingOrderRef.current
-    if (pending) {
-      // On garde l'overlay onboarding affiché pendant l'envoi pour éviter le flash menu
-      const freshSession = useSessionStore.getState().session
-      sendOrder(freshSession, pending.items, pending.notes)
-        .finally(() => setShowOnboarding(false))
-    } else {
-      setShowOnboarding(false)
-      if (pendingHref) {
-        window.location.href = pendingHref
-        setPendingHref(null)
-      }
+  // ── Bouton "Confirmer la commande" ──
+  async function placeOrder() {
+    if (cart.items.length === 0 || ordering || transitioning) return
+
+    const wasGuest = !sessionValid
+    setTransitioning(true)
+    let useSess = session
+    if (wasGuest) {
+      useSess = await ensureGuestSession()
+      if (!useSess) { setTransitioning(false); return }
     }
+
+    // Petite pause pour laisser le panier se fermer en douceur
+    await new Promise(r => setTimeout(r, 180))
+    setShowCart(false)
+    await new Promise(r => setTimeout(r, 240))
+    setTransitioning(false)
+
+    // Envoi de la commande
+    const orderSent = await sendOrder(useSess, cart.items, notes)
+    if (!orderSent) return
+
+    // Pour les invités : 3s après le succès, ouvrir l'onboarding (non bloquant)
+    if (wasGuest && isAnonymousSession(useSess)) {
+      setIsGuestUpgrade(true)
+      cancelGuestRedirect()
+      guestRedirectTimer.current = setTimeout(() => {
+        setOrderPlaced(false)
+        setTimeout(() => setShowOnboarding(true), 240)
+      }, 3000)
+    }
+  }
+
+  // ── Callback OnboardingPage : identification terminée ou skip ──
+  function handleOnboardingDone() {
+    setShowOnboarding(false)
+    setIsGuestUpgrade(false)
+    if (pendingHref) {
+      window.location.href = pendingHref
+      setPendingHref(null)
+    }
+  }
+  function handleOnboardingSkip() {
+    setShowOnboarding(false)
+    setIsGuestUpgrade(false)
   }
 
   return (
@@ -438,17 +489,21 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
               style={{ maxHeight: '85vh' }}
               onClick={(e: React.MouseEvent) => e.stopPropagation()}>
 
-              <div className="flex items-center justify-between px-5 pt-5 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-green-100 flex items-center justify-center">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <div className="px-5 pt-6 pb-4">
+                <div className="flex flex-col items-center text-center mb-2">
+                  <motion.div
+                    initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: 'spring', damping: 14, stiffness: 280 }}
+                    className="w-16 h-16 rounded-3xl bg-green-100 flex items-center justify-center mb-3">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M20 6L9 17L4 12" />
                     </svg>
-                  </div>
-                  <div>
-                    <p className="font-black text-gray-900">Commande envoyée !</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Le chef prépare votre plat</p>
-                  </div>
+                  </motion.div>
+                  <p className="font-black text-gray-900 text-xl">Commande envoyée !</p>
+                  <p className="text-sm text-gray-500 mt-1">Le chef prépare votre plat</p>
+                  {isGuestUpgrade && (
+                    <p className="text-xs text-gray-400 mt-2">Personnalisation dans un instant…</p>
+                  )}
                 </div>
               </div>
 
@@ -466,6 +521,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                     <motion.button key={f.title}
                       whileTap={{ scale: 0.96 }}
                       onClick={() => {
+                        cancelGuestRedirect()
                         // Ferme d'abord la popup avec son anim, puis navigue en douceur
                         setOrderPlaced(false)
                         setTimeout(() => router.push(f.href), 220)
@@ -479,11 +535,15 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                   ))}
                 </div>
 
-                {/* Retour au menu → ferme simplement la popup */}
+                {/* Retour au menu → annule l'auto-redirect et ferme la popup */}
                 <motion.button
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => setOrderPlaced(false)}
-                  className="w-full py-3 rounded-2xl text-center font-bold text-gray-500 bg-gray-100 text-sm">
+                  onClick={() => {
+                    cancelGuestRedirect()
+                    setIsGuestUpgrade(false)
+                    setOrderPlaced(false)
+                  }}
+                  className="w-full py-3 rounded-2xl text-center font-bold text-sm text-gray-700 bg-white border-2 border-gray-200 hover:bg-gray-50 transition-colors">
                   Retourner au menu
                 </motion.button>
               </div>
@@ -598,7 +658,13 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
             transition={{ duration: 0.3 }}
             className="fixed inset-0 z-[60] overflow-y-auto"
             style={{ backgroundColor: '#0D0D0D' }}>
-            <OnboardingPage restaurant={restaurant} table={tableObj} onDone={handleOnboardingDone} />
+            <OnboardingPage
+              restaurant={restaurant}
+              table={tableObj}
+              onDone={handleOnboardingDone}
+              onSkip={handleOnboardingSkip}
+              isGuestUpgrade={isGuestUpgrade}
+            />
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,359 +1,1022 @@
-================================================================================
-TABLEQR — CONTEXTE COMPLET DU PROJET
-Généré le : 2026-04-27
-================================================================================
+                                                                                                                                    
+  ---                                                                                                                               
+  Après le changement :                                                                                                             
+  - Clique Save                                                                                                                     
+  - Pas besoin de redéployer, c'est instantané
+  - Ouvre https://tableqr-three.vercel.app en navigation privée (sinon ton cookie Vercel actuel masque le test)                     
+  - Si la page s'affiche → fix réussi                                                                                               
+                                                                                                                                    
+  Si tu veux le chemin le plus rapide et sans surprise → Option 1 (Disabled). Tu pourras toujours réactiver plus tard.              
+                                                                                                                                    
+  Dis-moi ce que tu vois exactement comme bouton/toggle pour Vercel Authentication, je te guide.                                    
+                                                                                                                                    
+✻ Cooked for 25s                                                                                                                    
+                  
+❯ Vercel Authentication                                                                                                             
+  Ensures visitors to your deployments are logged in to Vercel and are a member of your team. j'ai mis en disabled                  
+                                                                                                                                    
+● Parfait. Maintenant :                                                                                                             
+                                                                                                                                    
+  1. Clique Save (bouton en bas de la section, parfois nommé "Save Changes")                                                        
+  2. Attends 5-10 secondes
+  3. Ouvre https://tableqr-three.vercel.app en navigation privée (Ctrl+Shift+N sur Chrome / Ctrl+Shift+P sur Firefox)               
+                                                                                                                                    
+  Tu devrais voir ta landing page TableQR au lieu du 403.                                                                           
+                                                                                                                                    
+  Dis-moi le résultat.                                                                                                              
+                  
+✻ Baked for 5s
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. DESCRIPTION GÉNÉRALE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+❯ je pense pas que tu comprenne ce que j'explique regarde ici l'apercu de l'application dans vercel donne une erreur quatre cent    
+  trois forbidden, mais l'application marche je ne comprend pas, mais lui reste en forbidden le onboading ne s'affiche pas, oubien  
+  verifie meme si le onboading existe deja encore                                                                                   
+  Find…                                                                                                                             
+  F                                                                                                                                 
+  Other                                                                                                                             
+  Overview                                                                                                                          
+  Deployments                                                                                                                       
+  Logs                                                                                                                              
+  Analytics                                                                                                                         
+  Speed Insights                                                                                                                    
+  Observability                                                                                                                     
+  Firewall                                                                                                                          
+  CDN                                                                                                                               
+  Environment Variables                                                                                                             
+  Domains                                                                                                                           
+  Integrations                                                                                                                      
+  Storage                                                                                                                           
+  Flags                                                                                                                             
+  Agent                                                                                                                             
+  AI Gateway                                                                                                                        
+  Sandboxes                                                                                                                         
+  Workflows                                                                                                                         
+  Usage                                                                                                                             
+  Support                                                                                                                           
+  Settings                                                                                                                          
+  AI Gateway Credits                                                                                                                
+  Get $5/month in free AI Gateway credits after you add a credit card.                                                              
+                                                                                                                                    
+  Avatar for brouantoine                                                                                                            
+  brouantoine                                                                                                                       
+                                                                                                                                    
+                                                                                                                                    
+  Deployments                                                                                                                       
+  BiaCyA45p                                                                                                                         
+  Deployment                                                                                                                        
+  Logs                                                                                                                              
+  Resources                                                                                                                         
+  Source                                                                                                                            
+  Open Graph                                                                                                                        
+  Deployment Details                                                                                                                
+  Created                                                                                                                           
+  github/brouantoine                                                                                                                
+  brouantoine                                                                                                                       
+  16m ago                                                                                                                           
+  Status                                                                                                                            
+  Ready                                                                                                                             
+  Latest                                                                                                                            
+  Duration                                                                                                                          
+  35s                                                                                                                               
+  15m ago                                                                                                                           
+  Environment                                                                                                                       
+  Production                                                                                                                        
+  Current                                                                                                                           
+  Domains                                                                                                                           
+  tableqr-three.vercel.app                                                                                                          
+  +1                                                                                                                                
+  tableqr-git-main-assanvo-brou-antoines-projects.vercel.app                                                                        
+  tableqr-965fhex4v-assanvo-brou-antoines-projects.vercel.app                                                                       
+  Source                                                                                                                            
+  main                                                                                                                              
+  7f261ea                                                                                                                           
+  http                                                                                                                              
+                                                                                                                                    
+  Deployment Settings                                                                                                               
+  4 Recommendations                                                                                                                 
+  Build Logs                                                                                                                        
+  35s                                                                                                                               
+  Deployment Summary                                                                                                                
+  Deployment Checks                                                                                                                 
+  Assigning Custom Domains                                                                                                          
 
-TableQR est une application SaaS multi-tenant de restaurant digital ciblant
-l'Afrique de l'Ouest (Côte d'Ivoire, Sénégal, Cameroun, Togo, Ghana, Nigeria).
+● Ah je comprends mieux maintenant. Tu parles de l'aperçu (preview iframe) à l'intérieur du dashboard Vercel — la petite vue
+  visuelle de ton app sur la page Deployment. Ce 403 est différent de l'accès au site lui-même.
+                                                                                                                                    
+  Je vérifie deux choses : la cause de l'iframe 403, et l'onboarding.                                                               
+                                                                                                                                    
+  Searched for 1 pattern, listed 1 directory (ctrl+o to expand)                                                                     
+                                                                                       
+● Trois choses à clarifier :                                                                                                        
+                                                     
+  1. L'onboarding existe bien                                                                                                       
+                                                                                                                                    
+  - Admin : app/admin/onboarding/page.tsx — checklist après connexion (créer tables, menu, etc.) → URL : /admin/onboarding          
+  - Client : components/client/OnboardingPage.tsx — utilisé dans le flow client après scan QR                                       
+                                                                                                                                    
+  Donc rien n'a disparu. Si tu ne le vois pas dans l'aperçu Vercel, c'est juste à cause du 403 de l'iframe.                         
+                                                                                                                                    
+  2. Le 403 dans l'aperçu Vercel = NORMAL et SANS IMPACT                                                                            
+                  
+  L'aperçu (la petite preview en bas de la page Deployment dans le dashboard) utilise l'URL technique du déploiement :              
+  tableqr-965fhex4v-assanvo-brou-antoines-projects.vercel.app
+                                                                                                                                    
+  Cette URL-là (avec -projects.vercel.app) reste toujours protégée par Vercel Authentication, même quand tu désactives la
+  protection. C'est une URL interne de tracking de déploiement, pas une URL publique.                                               
+   
+  Ce que tes utilisateurs voient = tableqr-three.vercel.app ← c'est ÇA la vraie URL publique. Et tu m'as dit que celle-ci marche.   
+  Donc tout va bien. ✅
+                                                                                                                                    
+  L'iframe dans le dashboard Vercel est juste un outil interne pour Vercel — il n'affecte pas tes utilisateurs.                     
+   
+  3. Pour vérifier que le fix de la prod a bien été sauvegardé                                                                      
+                  
+  - Ouvre https://tableqr-three.vercel.app en navigation privée                                                                     
+  - Si ça s'affiche → 100% bon, ignore le 403 du dashboard
+  - L'onboarding admin sera sur https://tableqr-three.vercel.app/admin/onboarding                                                   
+                  
+  Résumé : tu n'as rien à corriger. Le 403 dans le dashboard Vercel est cosmétique. Ton app est en ligne et accessible publiquement 
+  sur tableqr-three.vercel.app. L'onboarding existe et est accessible aux endroits prévus.
+                                                                                                                                    
+✻ Baked for 43s                       
+                                                                                          
+※ recap: You're adding Web Push admin notifs to TableQR; everything is coded, icons regenerated with Montserrat wordmark, and Vercel
+   is deployed at tableqr-three.vercel.app. Next action: run migration_admin_push.sql in Supabase, then test the push by clicking   
+  the bell in admin.                                                                                                                
+                                                                                                                                    
+❯ su mobil je ne vois pas le icon de notif dans l'admin, tu peux gerer ca ? et aussi dans l'app, le user connecté, ou je ne sais    
+  pas n'importe quel sous titre ou tu utilise la premiere lettre avec un contour orange fais disparaitre ca chjap je veux plus      
+  voir, utilises des icones lucide, adapté a chaque cas, pour l'utilisateur connecté, c'est l'icon du user, ou user chef cuisinier, 
+   etc                                                                                                                              
+                                                                                                                                    
+● Je commence par regarder l'AdminShell pour le bouton mobile, puis je cherche tous les "première lettre dans un rond orange".      
 
-Concept : le client scanne un QR code sur sa table → il accède à un menu digital,
-commande, paie via Wave/Orange Money/espèces, et interagit socialement avec
-d'autres clients dans la salle.
+  Read 1 file (ctrl+o to expand)                                                                                                    
+                                    
+● Je cherche tous les avatars "première lettre + rond orange" dans le code.                                                         
+                                                   
+  Searched for 2 patterns (ctrl+o to expand)                                                                                        
+                                                                                                                                    
+● Je regarde chaque endroit pour choisir la bonne icône.                                                                            
+                                                                                                                                    
+  Searched for 2 patterns, read 3 files (ctrl+o to expand)                                                                          
+                                                                                                                                    
+● Plan clair. Je remplace tous les avatars "première lettre + rond orange" par des icônes Lucide adaptées au contexte, et je fixe le
+   bouton push mobile.                                                                                                              
+                                                                                          
+  Stratégie d'icônes :                                                                                                              
+  - AdminShell (admin connecté) → ChefHat                                                                                           
+  - StaffSelector (équipe) → ChefHat (chef/cuisinier), UserCog (manager/gérant), User (défaut)                                      
+  - Témoignages landing → User                                                                                                      
+  - Cartes restaurant superadmin (sans logo) → Store                                                                                
+  - PushToggle → toujours visible avec hint si non supporté
+                                                                                                                                    
+● Update(components/admin/AdminShell.tsx)                                                                                           
+  ⎿  Added 1 line, removed 1 line                                                                                                   
+      2  import { useState, useEffect } from 'react'                                                                                
+      3  import { usePathname } from 'next/navigation'                                                                              
+      4  import Link from 'next/link'
+      5 -import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut } from 'lucide-react'             
+      5 +import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut, ChefHat } from 'lucide-rea
+        +ct'                                                                                                                        
+      6  import { supabase } from '@/lib/supabase/client'                                                                         
+      7  import PushToggle from './PushToggle'                                                                                    
+      8                                                                                                                             
+                                                                                                                                    
+● Update(components/admin/AdminShell.tsx)                                                                                           
+  ⎿  Added 4 lines, removed 4 lines                                                                                                 
+      41      <div className="min-h-screen bg-gray-50 flex flex-col">                                                               
+      42        <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-3 sticky top-0 z-30 flex items-center justi       
+          fy-between">
+      43          <div className="flex items-center gap-2.5">                                                                       
+      44 -          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-     
+         -sm"                                                                                                                       
+      44 +          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-sm"                     
+      45              style={{ backgroundColor: primaryColor }}>                                                                  
+      46 -            {restaurantName.charAt(0)}                                                                                    
+      46 +            <ChefHat size={16} strokeWidth={2.2} />                                                                       
+      47            </div>                                                                                                          
+      48 -          <span className="font-black text-sm text-gray-900">{restaurantName}</span>                                      
+      48 +          <span className="font-black text-sm text-gray-900 truncate max-w-[140px] sm:max-w-none">{restaurantName}<
+         +/span>                                                                                                             
+      49          </div>
+      50 -        <div className="flex items-center gap-3">                                                                  
+      50 +        <div className="flex items-center gap-2 sm:gap-3">                                                         
+      51            {isSuperAdmin && (
+      52              <Link href="/superadmin" className="text-xs font-semibold text-gray-400 hover:text-gray-600">
+      53                ← Tous les restos
 
-Tarif : 15 000 FCFA / mois, tout inclus, sans engagement.
+● Maintenant le PushToggle — je le rends toujours visible avec un état "info" pour iOS Safari non-PWA.
+                                                                                          
+  Read 1 file (ctrl+o to expand)    
+                                                                                                                                    
+● Write(components/admin/PushToggle.tsx)
+  ⎿  Added 68 lines, removed 12 lines                                                                                               
+      1  'use client'                                                                                                               
+      2  import { useEffect, useState } from 'react'                                                                                
+      3 -import { Bell, BellOff, BellRing } from 'lucide-react'                                                                     
+      3 +import { Bell, BellOff, BellRing, Smartphone, X } from 'lucide-react'                                                      
+      4                                                                                                                             
+      5  function urlBase64ToUint8Array(base64String: string) {                                                                     
+      6    const padding = '='.repeat((4 - (base64String.length % 4)) % 4)                                                          
+     ...                                                                                                                          
+      11    return out                                                                                                              
+      12  }                                                                                                                         
+      13                                                                                                                            
+      14 -type State = 'unsupported' | 'denied' | 'idle' | 'subscribed' | 'loading'                                                 
+      14 +type State = 'unsupported-ios' | 'unsupported' | 'denied' | 'idle' | 'subscribed' | 'loading'                      
+      15  
+      16 +function detectIOS() {                                                                                             
+      17 +  if (typeof navigator === 'undefined') return false                                                               
+      18 +  const ua = navigator.userAgent                                                                                   
+      19 +  return /iPad|iPhone|iPod/.test(ua) || (ua.includes('Mac') && 'ontouchend' in document)                           
+      20 +}                                                                                                                  
+      21 +                                                                                                                   
+      22 +function isStandalone() {                                                                                          
+      23 +  if (typeof window === 'undefined') return false                                                                  
+      24 +  return window.matchMedia?.('(display-mode: standalone)').matches                                                 
+      25 +    || (window.navigator as any).standalone === true                                                               
+      26 +}                                                                                                                  
+      27 +                                                                                                                   
+      28  export default function PushToggle() {
+      29    const [state, setState] = useState<State>('loading')
+      18 -  const [showHint, setShowHint] = useState(false)                                                                  
+      30 +  const [showHint, setShowHint] = useState<null | 'ok' | 'ios'>(null)                                              
+      31  
+      32    useEffect(() => {
+      33      if (typeof window === 'undefined') return
+      22 -    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {            
+      23 -      setState('unsupported'); return                                                                              
+      34 +    const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window          
+      35 +    if (!supported) {                                                                                              
+      36 +      setState(detectIOS() && !isStandalone() ? 'unsupported-ios' : 'unsupported')                                 
+      37 +      return                                                                                                       
+      38      }
+      39      if (Notification.permission === 'denied') { setState('denied'); return }
+      40  
+     ...
+      76          return
+      77        }
+      78        setState('subscribed')
+      65 -      setShowHint(true)                                                                                            
+      66 -      setTimeout(() => setShowHint(false), 3000)                                                                   
+      79 +      setShowHint('ok')                                                                                            
+      80 +      setTimeout(() => setShowHint(null), 3000)                                                                    
+      81      } catch (e) {
+      82        console.error('Subscribe error', e)
+      83        setState('idle')
+     ...
+      107  
+      108    const isOn = state === 'subscribed'
+      109    const isDenied = state === 'denied'
+       96 -  const Icon = isOn ? BellRing : isDenied ? BellOff : Bell                                                        
+      110 +  const isIos = state === 'unsupported-ios'                                                                       
+      111 +  const Icon = isOn ? BellRing : isDenied ? BellOff : isIos ? Smartphone : Bell                                   
+      112 +  const iconColor = isOn ? 'text-emerald-600' : isDenied ? 'text-red-400' : isIos ? 'text-blue-500' : 'text-gray-5
+          +00'                                                                                                               
+      113  
+      114 +  function handleClick() {                                                                                        
+      115 +    if (isIos) { setShowHint('ios'); return }                                                                     
+      116 +    if (isOn) return disable()                                                                                    
+      117 +    return enable()                                                                                               
+      118 +  }                                                                                                               
+      119 +                                                                                                                  
+      120    return (
+      121      <div className="relative">
+      122        <button
+      101 -        onClick={isOn ? disable : enable}                                                                         
+      123 +        onClick={handleClick}                                                                                     
+      124          disabled={state === 'loading' || isDenied}
+      125          title={
+      126 +          isIos ? 'iOS : ajoute le site à l\'écran d\'accueil pour activer les notifications' :                   
+      127            isDenied ? 'Notifications bloquées (autorise dans les réglages du navigateur)' :
+      128            isOn ? 'Notifications activées — clique pour désactiver' :
+      129            'Activer les notifications de commandes'
+      130          }
+      108 -        className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-co
+          -lors disabled:opacity-50">                                                                                        
+      109 -        <Icon size={14} className={isOn ? 'text-emerald-600' : isDenied ? 'text-red-400' : 'text-gray-500'} />    
+      131 +        className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200
+          + transition-colors disabled:opacity-50">                                                                          
+      132 +        <Icon size={15} className={iconColor} />                                                                  
+      133          {isOn && (
+      134            <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+      135          )}
+      136 +        {isIos && (                                                                                               
+      137 +          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-blue-500 ring-2 ring-white" />    
+      138 +        )}                                                                                                        
+      139        </button>
+      114 -      {showHint && (                                                                                              
+      140 +                                                                                                                  
+      141 +      {showHint === 'ok' && (                                                                                     
+      142          <div className="absolute right-0 top-full mt-2 px-3 py-2 bg-emerald-600 text-white text-xs font-semibold r
+           ounded-lg shadow-lg whitespace-nowrap z-50">
+      143            Notifications activées ✓
+      144          </div>
+      145        )}
+      146 +                                                                                                                  
+      147 +      {showHint === 'ios' && (                                                                                    
+      148 +        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" onClick=
+          +{() => setShowHint(null)}>                                                                                        
+      149 +          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()
+          +}>                                                                                                                
+      150 +            <div className="flex items-start justify-between mb-3">                                               
+      151 +              <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center">                 
+      152 +                <Smartphone size={22} className="text-blue-500" />                                                
+      153 +              </div>                                                                                              
+      154 +              <button onClick={() => setShowHint(null)} className="w-8 h-8 rounded-xl bg-gray-100 flex items-cente
+          +r justify-center">                                                                                                
+      155 +                <X size={14} className="text-gray-500" />                                                         
+      156 +              </button>                                                                                           
+      157 +            </div>                                                                                                
+      158 +            <h3 className="font-black text-gray-900 text-base mb-2">Activer sur iPhone</h3>                       
+      159 +            <p className="text-sm text-gray-600 leading-relaxed mb-4">                                            
+      160 +              Apple n&apos;autorise les notifications push que depuis l&apos;app installée. Pour recevoir les comm
+          +andes :                                                                                                           
+      161 +            </p>                                                                                                  
+      162 +            <ol className="space-y-2 text-sm text-gray-700 mb-4">                                                 
+      163 +              <li className="flex gap-2"><span className="font-black text-blue-500">1.</span><span>Ouvre ce site d
+          +ans <b>Safari</b></span></li>                                                                                     
+      164 +              <li className="flex gap-2"><span className="font-black text-blue-500">2.</span><span>Touche le bouto
+          +n <b>Partager</b> (carré + flèche)</span></li>                                                                    
+      165 +              <li className="flex gap-2"><span className="font-black text-blue-500">3.</span><span>Choisis <b>Sur 
+          +l&apos;écran d&apos;accueil</b></span></li>                                                                       
+      166 +              <li className="flex gap-2"><span className="font-black text-blue-500">4.</span><span>Lance l&apos;ap
+          +p depuis l&apos;icône, puis reviens activer la cloche</span></li>                                                 
+      167 +            </ol>                                                                                                 
+      168 +            <button onClick={() => setShowHint(null)}                                                             
+      169 +              className="w-full py-3 rounded-2xl bg-gray-900 text-white font-black text-sm">                      
+      170 +              Compris                                                                                             
+      171 +            </button>                                                                                             
+      172 +          </div>                                                                                                  
+      173 +        </div>                                                                                                    
+      174 +      )}                                                                                                          
+      175      </div>
+      176    )
+      177  }
 
-Contact commercial :
-- Téléphone : +225 07 88 33 98 82
-- Email : lemenunumerique@gmail.com
+● Maintenant le StaffSelector.       
+                                                                                          
+● Update(components/admin/StaffSelector.tsx)
+  ⎿  Added 8 lines, removed 1 line                                                                                                  
+       2  import { useState, useEffect } from 'react'                                                                               
+       3  import { motion, AnimatePresence } from 'framer-motion'                                                                   
+       4  import { supabase } from '@/lib/supabase/client'                                                                        
+       5 -import { Plus, X, Check, Users } from 'lucide-react'                                                                      
+       5 +import { Plus, X, Check, Users, ChefHat, User, UserCog } from 'lucide-react'                                            
+       6                                                                                                                            
+       7 +function iconForRole(role: string) {                                                                                    
+       8 +  const r = role.toLowerCase()                                                                                          
+       9 +  if (r.includes('chef') || r.includes('cuisin')) return ChefHat                                                          
+      10 +  if (r.includes('manager') || r.includes('gérant') || r.includes('gerant') || r.includes('patron') || r.includes('       
+         +proprié')) return UserCog                                                                                                 
+      11 +  return User                                                                                                             
+      12 +}                                                                                                                  
+      13 +                                                                                                                   
+      14  interface Staff {
+      15    id: string
+      16    restaurant_id: string
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2. STACK TECHNIQUE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+● Update(components/admin/StaffSelector.tsx)
+  ⎿  Added 9 lines, removed 4 lines                                                       
+       93              <motion.div key={member.id} layout                                                                           
+       94                className="flex items-center gap-3 p-3 rounded-2xl transition-all"                                         
+       95                style={{ backgroundColor: member.is_active_today ? member.color + '10' : '#F9FAFB', border: `1.5px s
+           olid ${member.is_active_today ? member.color + '30' : '#E5E7EB'}` }}>                                                    
+       96 -              <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white font-black text-sm f     
+          -lex-shrink-0"                                                                                                            
+       97 -                style={{ backgroundColor: member.color }}>                                                             
+       98 -                {member.name.charAt(0).toUpperCase()}                                                                  
+       99 -              </div>                                                                                                     
+       96 +              {(() => {                                                                                                  
+       97 +                const RoleIcon = iconForRole(member.role)                                                                
+       98 +                return (                                                                                                 
+       99 +                  <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white flex-shrink-0"  
+      100 +                    style={{ backgroundColor: member.color }}>                                                    
+      101 +                    <RoleIcon size={16} strokeWidth={2.2} />                                                      
+      102 +                  </div>                                                                                          
+      103 +                )                                                                                                 
+      104 +              })()}                                                                                               
+      105                <div className="flex-1 min-w-0">
+      106                  <p className="font-bold text-sm text-gray-900">{member.name}</p>
+      107                  <p className="text-xs text-gray-400">{member.role}</p>
 
-- Framework : Next.js 16.2.2 (⚠ version avec breaking changes — lire node_modules/next/dist/docs/)
-- React : 19.2.4
-- TypeScript : ^5
-- Styling : Tailwind CSS v4 + tailwind-merge + clsx + class-variance-authority
-- Backend/BDD : Supabase (PostgreSQL + Auth + Realtime + Storage)
-- State : Zustand v5 (persist middleware)
-- Animations : Framer Motion v12
-- Formulaires : React Hook Form v7 + Zod v4 + @hookform/resolvers
-- QR Codes : qrcode.react v4
-- Data fetching : @tanstack/react-query v5
-- Emojis : @twemoji/api v17
-- Emails : Resend v6 + Nodemailer v8
-- Icons : lucide-react v1.7
-- HTTP client : axios v1.14
-- Dates : date-fns v4
+● Témoignages landing.                    
+                                                                                          
+  Searched for 1 pattern (ctrl+o to expand)  
+                                                                                                                                    
+● Update(app/page.tsx)                    
+  ⎿  Added 1 line, removed 1 line                                                                                                   
+      2  import { motion } from 'framer-motion'                                                                                     
+      3  import Link from 'next/link'                                                                                               
+      4  import { useState } from 'react'
+      5 -import { Check, ChevronRight, Star, Zap, Shield, BarChart3, MessageCircle, Gamepad2, QrCode, Phone, Mail, ArrowRight       
+        -, Menu, Bell, Hand } from 'lucide-react'                                                                                 
+      5 +import { Check, ChevronRight, Star, Zap, Shield, BarChart3, MessageCircle, Gamepad2, QrCode, Phone, Mail, ArrowRight       
+        +, Menu, Bell, Hand, User } from 'lucide-react'                                                                           
+      6                                                                                                                           
+      7  const FEATURES = [                                                                                                         
+      8    { icon: QrCode, title: 'QR Code intelligent', desc: 'Chaque table a son QR unique. Le client scanne et commande en       
+          30 secondes.', color: '#F26522' },                                                                                        
+                                                                                                                                    
+● Update(app/page.tsx)                 
+  ⎿  Added 2 lines, removed 2 lines                                                       
+      359                  </div>                                                                                                   
+      360                  <p className="text-gray-600 text-sm leading-relaxed mb-5 italic">&ldquo;{t.text}&rdquo;</p>              
+      361                  <div className="flex items-center gap-3 pt-4 border-t border-gray-50">
+      362 -                  <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white font-black text-       
+          -sm flex-shrink-0"                                                                                                      
+      362 +                  <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-white flex-shrink-0"         
+      363                      style={{ backgroundColor: '#F26522' }}>                                                            
+      364 -                    {t.name.charAt(0)}                                                                                 
+      364 +                    <User size={16} strokeWidth={2.2} />                                                                 
+      365                    </div>                                                                                                 
+      366                    <div>                                                                                                  
+      367                      <p className="font-black text-gray-900 text-sm">{t.name}</p>                                         
 
-Commandes :
-  npm run dev     → démarrer en dev
-  npm run build   → build production
-  npm run start   → démarrer en prod
-  npm run lint    → ESLint
+● Maintenant les fichiers superadmin.   
+                                                                                          
+  Searched for 1 pattern (ctrl+o to expand)  
+                                                                                                                                    
+● Bash(for f in components/superadmin/AbonnementsTab.tsx components/superadmin/RestaurantAnalyticsPanel.tsx
+      components/superadmin/SuperAdminDashboard.tsx; do echo "===…)                                                                 
+  ⎿  === components/superadmin/AbonnementsTab.tsx ===                                                                             
+     'use client'                                                                                                                   
+     import { useState, useMemo } from 'react'                                                                                      
+     … +35 lines (ctrl+o to expand)                                                                                                 
+                                                                                                                                  
+● Update(components/superadmin/AbonnementsTab.tsx)                                                                                  
+  ⎿  Added 2 lines, removed 2 lines                                                              
+      199            </div>                                                                                                         
+      200            {subscribed.map((r, i) => (                                                                                    
+      201              <div key={r.id} className={`flex items-center gap-3 px-5 py-3.5 ${i > 0 ? 'border-t border-gray-50' :      
+           ''}`}>                                                                                                                   
+      202 -              <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm text-white fl       
+          -ex-shrink-0"                                                                                                             
+      202 +              <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"              
+      203                  style={{ backgroundColor: r.primary_color }}>                                                            
+      204 -                {r.name.charAt(0).toUpperCase()}                                                                         
+      204 +                <Store size={16} strokeWidth={2.2} />                                                                    
+      205                </div>                                                                                                     
+      206                <div className="flex-1 min-w-0">                                                                           
+      207                  <p className="text-sm font-bold text-gray-900 truncate">{r.name}</p>
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-3. STRUCTURE DES FICHIERS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Searched for 1 pattern, read 1 file (ctrl+o to expand)     
+                                                                                          
+● Update(components/superadmin/AbonnementsTab.tsx)
+  ⎿  Added 2 lines, removed 2 lines                                                                                                 
+      231              const daysAgo = Math.floor((Date.now() - createdAt.getTime()) / 86400000)                                    
+      232              return (                                                                                                     
+      233                <div key={r.id} className={`flex items-center gap-3 px-5 py-3.5 ${i > 0 ? 'border-t border-gray-50'        
+           : ''}`}>                                                                                                                 
+      234 -                <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm text-white        
+          -flex-shrink-0"                                                                                                           
+      234 +                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"            
+      235                    style={{ backgroundColor: r.primary_color }}>                                                        
+      236 -                  {r.name.charAt(0).toUpperCase()}                                                                       
+      236 +                  <Store size={16} strokeWidth={2.2} />                                                                  
+      237                  </div>                                                                                                   
+      238                  <div className="flex-1 min-w-0">                                                                         
+      239                    <p className="text-sm font-bold text-gray-900 truncate">{r.name}</p>
 
-tableqr_final/
-├── app/
-│   ├── page.tsx                        → Landing page publique (marketing)
-│   ├── layout.tsx                      → Root layout (Geist font, metadata)
-│   ├── globals.css
-│   ├── (client)/
-│   │   └── [slug]/                     → App client par restaurant (menu, commandes, social, jeux)
-│   │       ├── menu/
-│   │       ├── commandes/
-│   │       ├── social/
-│   │       ├── games/
-│   │       ├── notifications/
-│   │       ├── cart/
-│   │       └── table/
-│   ├── (auth)/
-│   │   └── login/
-│   ├── admin/                          → Espace restaurateur (auth Supabase)
-│   │   ├── login/
-│   │   ├── onboarding/
-│   │   ├── dashboard/
-│   │   ├── menu/
-│   │   ├── tables/
-│   │   ├── caisse/
-│   │   ├── stats/
-│   │   ├── activites/
-│   │   ├── settings/
-│   │   ├── forgot-password/
-│   │   └── reset-password/
-│   ├── superadmin/                     → Dashboard global (tous les restaurants)
-│   │   ├── page.tsx
-│   │   ├── login/
-│   │   └── restaurants/
-│   ├── t/
-│   │   └── [code]/page.tsx             → Redirect QR physique → /[slug]/menu?table=...
-│   ├── api/
-│   │   ├── auth/
-│   │   ├── bot/
-│   │   ├── contact/
-│   │   ├── menu/
-│   │   ├── orders/
-│   │   │   └── [orderId]/auto-confirm/
-│   │   ├── qr-codes/
-│   │   ├── qr-debug/
-│   │   ├── restaurants/
-│   │   ├── send-welcome-email/
-│   │   ├── sessions/
-│   │   └── social/
-│   ├── legal/
-│   │   ├── cgu/
-│   │   └── privacy/
-│   └── (admin)/                        → Route group admin (caisse, dashboard, menu-admin, settings, stats, tables)
-├── components/
-│   ├── admin/
-│   │   ├── AdminNav.tsx                → Navigation sidebar admin
-│   │   ├── AdminShell.tsx              → Shell layout admin
-│   │   ├── ActivitesPage.tsx
-│   │   ├── CaissePage.tsx              → Gestion commandes + caisse (live, historique, ventes manuelles)
-│   │   ├── ImagePickerModal.tsx
-│   │   ├── MenuAdminPage.tsx           → CRUD menu (catégories + plats)
-│   │   ├── SettingsPage.tsx
-│   │   ├── StaffSelector.tsx
-│   │   ├── StatsPage.tsx
-│   │   └── TablesAdminPage.tsx         → Gestion tables + QR codes
-│   ├── client/
-│   │   ├── ClientLayout.tsx            → Layout principal côté client
-│   │   ├── BottomNav.tsx               → Barre de navigation bas (menu, social, jeux, notifs)
-│   │   ├── MenuPage.tsx                → Page menu + ajout panier
-│   │   ├── MesCommandesPage.tsx        → Suivi commandes client
-│   │   ├── SocialPage.tsx              → Messagerie anonyme inter-tables
-│   │   ├── GamesPage.tsx               → Mini-jeux
-│   │   ├── MatchPage.tsx               → Système de match
-│   │   ├── NotificationsPage.tsx
-│   │   ├── NotificationBell.tsx
-│   │   ├── OnboardingPage.tsx          → Choix pseudo/avatar/genre/profil
-│   │   ├── SplashScreen.tsx
-│   │   ├── AvatarDisplay.tsx
-│   │   └── TwemojiAvatar.tsx
-│   ├── superadmin/
-│   │   └── SuperAdminDashboard.tsx
-│   ├── shared/
-│   ├── AvatarDisplay.tsx
-│   ├── Twemoji.tsx
-│   └── ui/                             → Composants UI génériques
-├── lib/
-│   ├── supabase/
-│   │   └── client.ts                   → supabase (public) + getSupabaseAdmin() (serveur)
-│   ├── store/
-│   │   └── index.ts                    → useSessionStore (client) + useAdminStore
-│   ├── hooks/
-│   ├── utils/
-│   │   ├── index.ts                    → cn, formatPrice, formatTimeAgo, generatePseudo, generateDeviceFingerprint
-│   │   └── avatars.ts
-│   ├── getAdminRestaurant.ts
-│   └── qr-print-template.ts
-├── hooks/
-│   ├── useNotificationSound.ts
-│   └── useRealtimeRefresh.ts           → Refresh sur visibilitychange + focus + online + interval
-├── types/
-│   └── index.ts                        → Tous les types TypeScript
-├── database.sql                        → Schéma SQL complet (à coller dans Supabase)
-├── migration_qr_preview.sql            → Migration : qr_codes table + is_preview + admin_email
-├── next.config.ts
-├── .env.local                          → Variables env (non committé)
-└── INSTALL.md                          → Guide d'installation complet
+  Read 1 file (ctrl+o to expand)        
+                                                                                          
+● Update(components/superadmin/RestaurantAnalyticsPanel.tsx)
+  ⎿  Added 2 lines, removed 2 lines                                                                                                 
+      183                                                                                                                           
+      184          <div className="flex-shrink-0 rounded-t-[2rem] overflow-hidden">                                                 
+      185            <div className="h-14 flex items-center px-4 gap-3" style={{ backgroundColor: p + '18' }}>                      
+      186 -            <div className="w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm flex-shrink-0"        
+      186 +            <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"                           
+      187                style={{ backgroundColor: p, color: '#fff' }}>                                                             
+      188                {restaurant.logo_url                                                                                       
+      189                  ? <img src={restaurant.logo_url} alt="" className="w-full h-full object-cover rounded-xl" />           
+      190 -                : restaurant.name.charAt(0).toUpperCase()}                                                               
+      190 +                : <Store size={16} strokeWidth={2.2} />}                                                                 
+      191              </div>                                                                                                       
+      192              <div className="flex-1 min-w-0">                                                                             
+      193                <p className="font-black text-gray-900 truncate text-sm leading-tight">{restaurant.name}</p>
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-4. BASE DE DONNÉES SUPABASE — TABLES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Read 1 file (ctrl+o to expand)        
+                                                                                          
+● Update(components/superadmin/SuperAdminDashboard.tsx)
+  ⎿  Added 2 lines, removed 2 lines                                                                                                 
+      188                    transition={{ delay: i * 0.03 }} whileTap={{ scale: 0.98 }}                                            
+      189                    onClick={() => setSelectedResto(r)}                                                                    
+      190                    className="w-full bg-white rounded-2xl p-3.5 text-left flex items-center gap-3 shadow-sm border        
+           border-gray-50 hover:border-gray-200 transition-all">                                                                    
+      191 -                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 font-black        
+          -text-white text-base shadow-sm"                                                                                          
+      191 +                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-white      
+          +shadow-sm"                                                                                                             
+      192                      style={{ backgroundColor: r.primary_color }}>                                                        
+      193                      {r.logo_url                                                                                          
+      194                        ? <img src={r.logo_url} alt="" className="w-full h-full object-cover rounded-2xl" />               
+      195 -                      : r.name.charAt(0).toUpperCase()}                                                                  
+      195 +                      : <Store size={20} strokeWidth={2.2} />}                                                    
+      196                    </div>
+      197                    <div className="flex-1 min-w-0">
+      198                      <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
 
-restaurants          → Tenants. Chaque restaurant = 1 slug unique. Contient
-                       couleurs (primary_color #F26522, secondary_color, accent_color),
-                       modules (social, games, delivery, loyalty, birthday),
-                       plan (starter/pro/enterprise), bot_name, currency (XOF par défaut),
-                       admin_email, is_active, is_preview.
+  Read 1 file (ctrl+o to expand)      
+                                                                                          
+● Update(components/superadmin/SuperAdminDashboard.tsx)
+  ⎿  Added 2 lines, removed 2 lines                                                                                                 
+      480                    ))}                                                                                                    
+      481                    <div className="rounded-2xl p-4" style={{ backgroundColor: form.primary_color + '12' }}>               
+      482                      <div className="flex items-center gap-3">                                                            
+      483 -                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-black        
+          -text-base"                                                                                                               
+      483 +                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white"                  
+      484                          style={{ backgroundColor: form.primary_color }}>                                               
+      485 -                        {form.name.charAt(0) || 'R'}                                                                   
+      485 +                        <Store size={18} strokeWidth={2.2} />                                                            
+      486                        </div>                                                                                             
+      487                        <div>                                                                                              
+      488                          <p className="font-black text-sm" style={{ color: form.primary_color }}>{form.name || 'Mon       
+            Restaurant'}</p>
 
-admin_users          → Comptes staff (owner/manager/cashier) liés à un restaurant.
+  Searched for 2 patterns, read 1 file (ctrl+o to expand)     
+                                                                                          
+● Update(components/admin/CaissePage.tsx)
+  ⎿  Added 1 line, removed 1 line                                                                                                   
+      582                          <div className="flex items-center gap-2">                                                        
+      583                            {(method as any).logo                                                                          
+      584                              ? <img src={(method as any).logo} alt={method.label} className="w-7 h-7 object-contain       
+            rounded-lg" />                                                                                                          
+      585 -                            : <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text       
+          --xs font-bold text-gray-500">{method.label.charAt(0)}</div>                                                              
+      585 +                            : <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text       
+          +-gray-500"><CreditCard size={13} strokeWidth={2.2} /></div>                                                            
+      586                            }                                                                                              
+      587                            <span className="text-sm font-medium text-gray-700">{method.label}</span>                      
+      588                          </div>                                                                                           
+                                                                                                                                    
+● Type-check.                              
+                                                                                          
+● Bash(npx tsc --noEmit 2>&1 | head -30)   
+  ⎿  (No output)                                                                                                                    
+                                  
+  Searched for 1 pattern (ctrl+o to expand)                                                                                         
+                                                                                                                                  
+● Tout propre. Récap concis :                                                                                                       
+                                                                                                                                    
+  Avatars "première lettre + rond orange" → icônes Lucide                                                                           
+  - AdminShell.tsx:44 → ChefHat (admin connecté)                                                                                    
+  - StaffSelector.tsx → ChefHat / UserCog / User (auto selon rôle : chef·cuisinier / gérant·manager·patron / défaut)                
+  - app/page.tsx (témoignages) → User                                                                                               
+  - AbonnementsTab.tsx (abonnés + essais) → Store                                                                                   
+  - RestaurantAnalyticsPanel.tsx → Store (fallback si pas de logo_url)                                                              
+  - SuperAdminDashboard.tsx (liste + form preview) → Store                                                                          
+  - CaissePage.tsx (méthode paiement sans logo) → CreditCard                                                                        
+                                                                                                                                    
+  PushToggle mobile — au lieu de disparaître silencieusement quand non supporté :                                                   
+  - iOS Safari (pas en PWA) → bouton bleu Smartphone avec point bleu, click ouvre une modale tutoriel "Activer sur iPhone" (4 étapes
+   : Safari → Partager → Sur l'écran d'accueil → relancer + activer)                                                                
+  - Bouton agrandi sur mobile (w-9 h-9 puis sm:w-8 sm:h-8) pour un meilleur tap target                                              
+  - Toujours masqué sur desktop sans support push (Safari macOS sans permission, etc.)                                              
+                                                                                                                                    
+  tsc --noEmit passe sans erreur. Aucun charAt(0) ne reste dans le code.                                                            
+                                                                                                                                    
+✻ Brewed for 4m 58s                                                                                                                 
+                                                                                                                                    
+※ recap: On a remplacé les avatars "première lettre" par des icônes Lucide partout (ChefHat pour l'admin, Store pour les restos,    
+  etc.) et fixé l'icône de notif push pour qu'elle reste visible sur mobile iOS avec une modale d'install PWA. Prochaine action : tu
+   testes sur mobile et tu me dis si l'icône cloche apparaît bien dans la barre admin.                                              
+                                                                                                                                    
+❯ ya deux choses a verifier, pour un client lambda qui vient, quand il arrive, il scan pour la premiere fois, il envoi sa commande, 
+   il doit voir clairement le message Commande envoyé, et 3 secondes apres, il es redirrigé vers la page onboadin, qui lui          
+  demander&a de s'identifier, aussi, je veux qu'il y'ait un bouton de refus de s'authentifier en basn ou il clique retour au menu,  
+  et aussi le bouton retour au menu, il est sans couleur il n'est pas visible rend le visible, mais pas trop visible, et aussije    
+  notifie que je ne recoius pas les notifiucations sur iphone j'ai bien placé sur l'ecran d'accueil mais aucun son, aucun icon de   
+  notif aucune notife meme                                                                                                          
+                                                                                                                                    
+● Je regarde le flow client et l'onboarding pour comprendre le state actuel, puis on diagnostique iOS.                              
+                                                                                                                                  
+  Searched for 2 patterns, read 3 files (ctrl+o to expand)                                                                          
+                                         
+● Je relis le sw.js et le store pour comprendre tous les morceaux avant de modifier.                                                
+                                                          
+  Searched for 2 patterns, read 3 files (ctrl+o to expand)                                                                          
+                                                                                                                                    
+● J'ai assez de contexte. Je code maintenant les changements.                                                                       
+                                                                                                                                    
+  1. MenuPage : envoi de commande direct + onboarding 3s après                                                                      
+                                                                                                                                    
+  Read 1 file (ctrl+o to expand)                                                                                                    
+                                                                                                                                    
+● Update(components/client/MenuPage.tsx)                                                                                            
+  ⎿  Added 1 line, removed 1 line                                                                                                   
+       7  import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Heart, UtensilsCrossed, MessageCircle, Gamepad2, Bell,       
+           Package } from 'lucide-react'                                                                                            
+       8  import { useSessionStore } from '@/lib/store'                                                                             
+       9  import { supabase } from '@/lib/supabase/client'                                                                          
+      10 -import { formatPrice } from '@/lib/utils'                                                                                 
+      10 +import { formatPrice, generateDeviceFingerprint } from '@/lib/utils'                                                      
+      11  import type { MenuCategory, MenuItem, Restaurant } from '@/types'                                                       
+      12  import OnboardingPage from './OnboardingPage'                                                                           
+      13                                                                                                                            
+                                                                                                                                    
+  Searched for 2 patterns (ctrl+o to expand)                                                                                        
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)                                                                      
+                                       
+● Maintenant je modifie placeOrder pour l'envoyer directement avec une session invitée, et l'onboarding s'ouvre 3s après.           
+                                                                                          
+● Update(components/client/MenuPage.tsx)                                                                                            
+  ⎿  Added 1 line, removed 1 line                                                                                                   
+      13                                                                                                                            
+      14  export default function MenuPage({ restaurant, categories }: { restaurant: Restaurant; categories: MenuCategory[] }       
+          ) {                                                                                                                     
+      15    const router = useRouter()                                                                                              
+      16 -  const { cart, addToCart, updateQuantity, session, clearCart } = useSessionStore()                                     
+      16 +  const { cart, addToCart, updateQuantity, session, setSession, clearCart } = useSessionStore()                           
+      17                                                                                                                          
+      18    const [activeCategory, setActiveCategory] = useState(categories[0]?.id)                                               
+      19    const [search, setSearch] = useState('')                                                                                
+                                                                                                                                    
+● Update(components/client/MenuPage.tsx)                                                                                            
+  ⎿  Added 4 lines, removed 5 lines                                                                                                 
+      26    const [activeOrdersCount, setActiveOrdersCount] = useState(0)                                                           
+      27    const [pendingHref, setPendingHref] = useState<string | null>(null)                                                     
+      28  
+      29 -  // ── Onboarding uniquement déclenché au "Confirmer la commande" ──                                                     
+      29 +  // ── Onboarding différé : s'ouvre 3s après l'envoi pour les invités ──                                               
+      30    const [showOnboarding, setShowOnboarding] = useState(false)                                                             
+      31    // Phase de transition vers l'onboarding (le panier se ferme en douceur)                                              
+      32    const [transitioning, setTransitioning] = useState(false)                                                             
+      33 +  // Drapeau : la session courante a été créée comme "invité" (pseudo générique).                                         
+      34 +  // Active l'onboarding non bloquant pour permettre la personnalisation après coup.                                      
+      35 +  const [isGuestUpgrade, setIsGuestUpgrade] = useState(false)                                                             
+      36                                                                                                                            
+      34 -  // Snapshot du panier + notes figé au moment du clic "Confirmer"                                                 
+      35 -  // La commande sera envoyée automatiquement après l'identification                                               
+      36 -  const pendingOrderRef = useRef<{ items: typeof cart.items; notes: Record<string, string> } | null>(null)         
+      37 -                                                                                                                   
+      37    const p = restaurant.primary_color
+      38  
+      39    const [tableId, setTableId] = useState('')
 
-restaurant_tables    → Tables physiques avec qr_code unique, zone, capacity.
+● Update(components/client/MenuPage.tsx)   
+  ⎿  Added 61 lines, removed 30 lines                                                     
+      112      }                                                                                                                    
+      113    }                                                                                                                      
+      114  
+      115 +  // ── Crée une session "invité" pour permettre l'envoi sans onboarding bloquant ──                                     
+      116 +  async function ensureGuestSession() {                                                                                
+      117 +    if (sessionValid && session) return session                                                                          
+      118 +    const fingerprint = generateDeviceFingerprint()                                                                    
+      119 +    // Cherche d'abord une session existante pour ce device sur ce resto                                               
+      120 +    const { data: existing } = await supabase                                                                            
+      121 +      .from('client_sessions').select('*')                                                                               
+      122 +      .eq('restaurant_id', restaurant.id)                                                                                
+      123 +      .eq('device_fingerprint', fingerprint)                                                                             
+      124 +      .eq('is_present', true)                                                                                     
+      125 +      .maybeSingle()                                                                                              
+      126 +    if (existing) { setSession(existing); return existing }                                                       
+      127 +                                                                                                                  
+      128 +    const { data } = await supabase.from('client_sessions').insert({                                              
+      129 +      restaurant_id: restaurant.id,                                                                               
+      130 +      ...(isUuid ? { table_id: tableId } : {}),                                                                   
+      131 +      pseudo: 'Invité',                                                                                           
+      132 +      avatar_icon: 'ghost',                                                                                       
+      133 +      device_fingerprint: fingerprint,                                                                            
+      134 +      gender: 'autre',                                                                                            
+      135 +      profile_type: 'solo',                                                                                       
+      136 +      is_present: true,                                                                                           
+      137 +    }).select().single()                                                                                          
+      138 +    if (data) { setSession(data); return data }                                                                   
+      139 +    return null                                                                                                   
+      140 +  }                                                                                                               
+      141 +                                                                                                                  
+      142    // ── Bouton "Confirmer la commande" ──
+      143    async function placeOrder() {
+      117 -    if (cart.items.length === 0 || ordering) return                                                               
+      144 +    if (cart.items.length === 0 || ordering || transitioning) return                                              
+      145  
+      119 -    if (!sessionValid) {                                                                                          
+      120 -      // Pas encore identifié → snapshot + onboarding (transition douce)                                          
+      121 -      pendingOrderRef.current = { items: [...cart.items], notes: { ...notes } }                                   
+      122 -      setTransitioning(true)                                                                                      
+      123 -      // Court délai pour laisser le tap-feedback se voir                                                         
+      124 -      await new Promise(r => setTimeout(r, 180))                                                                  
+      125 -      setShowCart(false)                                                                                          
+      126 -      // Petite pause pour laisser le panier se fermer en douceur                                                 
+      127 -      await new Promise(r => setTimeout(r, 240))                                                                  
+      128 -      setShowOnboarding(true)                                                                                     
+      129 -      // L'overlay onboarding est en place, on peut libérer la transition                                         
+      130 -      setTransitioning(false)                                                                                     
+      131 -      return                                                                                                      
+      146 +    const wasGuest = !sessionValid                                                                                
+      147 +    setTransitioning(true)                                                                                        
+      148 +    let useSess = session                                                                                         
+      149 +    if (wasGuest) {                                                                                               
+      150 +      useSess = await ensureGuestSession()                                                                        
+      151 +      if (!useSess) { setTransitioning(false); return }                                                           
+      152      }
+      153  
+      134 -    // Déjà identifié → envoi direct                                                                              
+      135 -    await sendOrder(session, cart.items, notes)                                                                   
+      154 +    // Petite pause pour laisser le panier se fermer en douceur                                                   
+      155 +    await new Promise(r => setTimeout(r, 180))                                                                    
+      156 +    setShowCart(false)                                                                                            
+      157 +    await new Promise(r => setTimeout(r, 240))                                                                    
+      158 +    setTransitioning(false)                                                                                       
+      159 +                                                                                                                  
+      160 +    // Envoi de la commande                                                                                       
+      161 +    await sendOrder(useSess, cart.items, notes)                                                                   
+      162 +                                                                                                                  
+      163 +    // Pour les invités : 3s après le succès, ouvrir l'onboarding (non bloquant)                                  
+      164 +    if (wasGuest) {                                                                                               
+      165 +      setIsGuestUpgrade(true)                                                                                     
+      166 +      setTimeout(() => {                                                                                          
+      167 +        setOrderPlaced(false)                                                                                     
+      168 +        setTimeout(() => setShowOnboarding(true), 240)                                                            
+      169 +      }, 3000)                                                                                                    
+      170 +    }                                                                                                             
+      171    }
+      172  
+      138 -  // ── Appelé par OnboardingPage une fois l'identification terminée ──                                           
+      139 -  // La session est maintenant dans le store Zustand                                                              
+      173 +  // ── Callback OnboardingPage : identification terminée ou skip ──                                              
+      174    function handleOnboardingDone() {
+      141 -    const pending = pendingOrderRef.current                                                                       
+      142 -    if (pending) {                                                                                                
+      143 -      // On garde l'overlay onboarding affiché pendant l'envoi pour éviter le flash menu                          
+      144 -      const freshSession = useSessionStore.getState().session                                                     
+      145 -      sendOrder(freshSession, pending.items, pending.notes)                                                       
+      146 -        .finally(() => setShowOnboarding(false))                                                                  
+      147 -    } else {                                                                                                      
+      148 -      setShowOnboarding(false)                                                                                    
+      149 -      if (pendingHref) {                                                                                          
+      150 -        window.location.href = pendingHref                                                                        
+      151 -        setPendingHref(null)                                                                                      
+      152 -      }                                                                                                           
+      175 +    setShowOnboarding(false)                                                                                      
+      176 +    setIsGuestUpgrade(false)                                                                                      
+      177 +    if (pendingHref) {                                                                                            
+      178 +      window.location.href = pendingHref                                                                          
+      179 +      setPendingHref(null)                                                                                        
+      180      }
+      181    }
+      182 +  function handleOnboardingSkip() {                                                                               
+      183 +    setShowOnboarding(false)                                                                                      
+      184 +    setIsGuestUpgrade(false)                                                                                      
+      185 +  }                                                                                                               
+      186  
+      187    return (
+      188      <div className="min-h-screen pb-32" style={{ backgroundColor: '#F8F8F8' }}>
 
-menu_categories      → Catégories (name, name_en, icon, position).
+● Je nettoie l'import inutilisé et je gère l'annulation de l'auto-redirect.
+                                                                                          
+● Update(components/client/MenuPage.tsx) 
+  ⎿  Added 1 line, removed 1 line                                                                                                   
+      1  'use client'                                                                                                               
+      2 -import { useState, useEffect, useRef } from 'react'                                                                        
+      2 +import { useState, useEffect, useRef, useCallback } from 'react'                                                         
+      3  import { useRouter } from 'next/navigation'                                                                                
+      4  import TwemojiAvatar from './TwemojiAvatar'                                                                              
+      5  import { TwemojiIcon } from '@/components/Twemoji'                                                                         
+                                                                                                                                  
+● Update(components/client/MenuPage.tsx)                                                                                          
+  ⎿  Added 8 lines                                                                                                                  
+      33    // Drapeau : la session courante a été créée comme "invité" (pseudo générique).                                         
+      34    // Active l'onboarding non bloquant pour permettre la personnalisation après coup.                                      
+      35    const [isGuestUpgrade, setIsGuestUpgrade] = useState(false)                                                             
+      36 +  // Timer pour l'auto-redirect vers l'onboarding (annulable)                                                             
+      37 +  const guestRedirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)                                         
+      38 +  const cancelGuestRedirect = useCallback(() => {                                                                         
+      39 +    if (guestRedirectTimer.current) {                                                                                   
+      40 +      clearTimeout(guestRedirectTimer.current)                                                                          
+      41 +      guestRedirectTimer.current = null                                                                                   
+      42 +    }                                                                                                                     
+      43 +  }, [])                                                                                                                  
+      44                                                                                                                            
+      45    const p = restaurant.primary_color
+      46  
 
-menu_items           → Plats (price, allergens, is_vegetarian/vegan/halal/spicy,
-                       stock, order_count, image_url).
+● Update(components/client/MenuPage.tsx)
+  ⎿  Added 2 lines, removed 1 line                                                        
+      171      // Pour les invités : 3s après le succès, ouvrir l'onboarding (non bloquant)                                         
+      172      if (wasGuest) {                                                                                                      
+      173        setIsGuestUpgrade(true)
+      174 -      setTimeout(() => {                                                                                                 
+      174 +      cancelGuestRedirect()                                                                                            
+      175 +      guestRedirectTimer.current = setTimeout(() => {                                                                    
+      176          setOrderPlaced(false)                                                                                          
+      177          setTimeout(() => setShowOnboarding(true), 240)                                                                 
+      178        }, 3000)                                                                                                           
+                                                                                                                                    
+● Maintenant la modale de succès : message plus clair + bouton "Retourner au menu" visible + cancel timer.                          
+                                                                                                                                    
+● Update(components/client/MenuPage.tsx)    
+  ⎿  Added 13 lines, removed 9 lines                                                                                                
+      477                style={{ maxHeight: '85vh' }}                                                                              
+      478                onClick={(e: React.MouseEvent) => e.stopPropagation()}>                                                    
+      479                                                                                                                         
+      480 -              <div className="flex items-center justify-between px-5 pt-5 pb-4">                                         
+      481 -                <div className="flex items-center gap-3">                                                              
+      482 -                  <div className="w-10 h-10 rounded-2xl bg-green-100 flex items-center justify-center">                  
+      483 -                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5"     
+          - strokeLinecap="round" strokeLinejoin="round">                                                                         
+      480 +              <div className="px-5 pt-6 pb-4">                                                                           
+      481 +                <div className="flex flex-col items-center text-center mb-2">                                            
+      482 +                  <motion.div                                                                                            
+      483 +                    initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}                              
+      484 +                    transition={{ type: 'spring', damping: 14, stiffness: 280 }}                                  
+      485 +                    className="w-16 h-16 rounded-3xl bg-green-100 flex items-center justify-center mb-3">         
+      486 +                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="3" s
+          +trokeLinecap="round" strokeLinejoin="round">                                                                      
+      487                        <path d="M20 6L9 17L4 12" />
+      488                      </svg>
+      486 -                  </div>                                                                                          
+      487 -                  <div>                                                                                           
+      488 -                    <p className="font-black text-gray-900">Commande envoyée !</p>                                
+      489 -                    <p className="text-xs text-gray-400 mt-0.5">Le chef prépare votre plat</p>                    
+      490 -                  </div>                                                                                          
+      489 +                  </motion.div>                                                                                   
+      490 +                  <p className="font-black text-gray-900 text-xl">Commande envoyée !</p>                          
+      491 +                  <p className="text-sm text-gray-500 mt-1">Le chef prépare votre plat</p>                        
+      492 +                  {isGuestUpgrade && (                                                                            
+      493 +                    <p className="text-xs text-gray-400 mt-2">Personnalisation dans un instant…</p>               
+      494 +                  )}                                                                                              
+      495                  </div>
+      496                </div>
+      497  
 
-client_sessions      → Sessions client anonymes. Contient pseudo, avatar_icon,
-                       gender, profile_type (solo/couple/famille/groupe),
-                       social_mode (receptif/discret/invisible), is_birthday,
-                       device_fingerprint, is_present, is_remote, push_token.
+● Update(components/client/MenuPage.tsx)
+  ⎿  Added 1 line                                                                         
+      509                      <motion.button key={f.title}                                                                         
+      510                        whileTap={{ scale: 0.96 }}                                                                         
+      511                        onClick={() => {
+      512 +                        cancelGuestRedirect()                                                                            
+      513                          // Ferme d'abord la popup avec son anim, puis navigue en douceur                               
+      514                          setOrderPlaced(false)                                                                            
+      515                          setTimeout(() => router.push(f.href), 220)                                                     
+                                                                                                                                  
+● Update(components/client/MenuPage.tsx)                                                                                            
+  ⎿  Added 7 lines, removed 3 lines                                                                                                 
+      523                    ))}                                                                                                    
+      524                  </div>                                                                                                   
+      525  
+      526 -                {/* Retour au menu → ferme simplement la popup */}                                                       
+      526 +                {/* Retour au menu → annule l'auto-redirect et ferme la popup */}                                      
+      527                  <motion.button                                                                                           
+      528                    whileTap={{ scale: 0.97 }}                                                                           
+      529 -                  onClick={() => setOrderPlaced(false)}                                                                
+      530 -                  className="w-full py-3 rounded-2xl text-center font-bold text-gray-500 bg-gray-100 text-sm">           
+      529 +                  onClick={() => {                                                                                       
+      530 +                    cancelGuestRedirect()                                                                                
+      531 +                    setIsGuestUpgrade(false)                                                                             
+      532 +                    setOrderPlaced(false)                                                                         
+      533 +                  }}                                                                                              
+      534 +                  className="w-full py-3 rounded-2xl text-center font-bold text-sm text-gray-700 bg-white border-2
+          + border-gray-200 hover:bg-gray-50 transition-colors">                                                             
+      535                    Retourner au menu
+      536                  </motion.button>
+      537                </div>
 
-orders               → Commandes. status: pending→confirmed→preparing→ready→served/cancelled.
-                       payment_status: unpaid/pending/paid/refunded.
-                       payment_method: cash/wave/orange_money/mtn/moov/card.
-                       order_type: dine_in/delivery/takeaway.
+● Maintenant l'overlay onboarding doit recevoir les nouveaux props.
+                                                                                          
+● Update(components/client/MenuPage.tsx)
+  ⎿  Added 7 lines, removed 1 line                                                                                                  
+      646              transition={{ duration: 0.3 }}                                                                               
+      647              className="fixed inset-0 z-[60] overflow-y-auto"                                                             
+      648              style={{ backgroundColor: '#0D0D0D' }}>                                                                    
+      649 -            <OnboardingPage restaurant={restaurant} table={tableObj} onDone={handleOnboardingDone} />                    
+      649 +            <OnboardingPage                                                                                            
+      650 +              restaurant={restaurant}                                                                                    
+      651 +              table={tableObj}                                                                                         
+      652 +              onDone={handleOnboardingDone}                                                                            
+      653 +              onSkip={handleOnboardingSkip}                                                                              
+      654 +              isGuestUpgrade={isGuestUpgrade}                                                                            
+      655 +            />                                                                                                           
+      656            </motion.div>                                                                                                  
+      657          )}
+      658        </AnimatePresence>
 
-order_items          → Lignes de commande.
+● 2. OnboardingPage : skip button + update existing guest session
+                                                                                          
+● Update(components/client/OnboardingPage.tsx)
+  ⎿  Added 3 lines, removed 1 line                                                                                                  
+      32    { value: 'groupe', emoji: '🎉', label: 'Entre amis', desc: 'Groupe' },                                                  
+      33  ]                                                                                                                         
+      34                                                                                                                          
+      35 -export default function OnboardingPage({ restaurant, table, onDone }: {                                                   
+      35 +export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGuestUpgrade }: {                         
+      36    restaurant: Restaurant                                                                                                  
+      37    table: RestaurantTable                                                                                                
+      38    onDone?: () => void                                                                                                   
+      39 +  onSkip?: () => void                                                                                                     
+      40 +  isGuestUpgrade?: boolean                                                                                                
+      41  }) {                                                                                                                      
+      42    const router = useRouter()                                                                                              
+      43    const { session, setSession } = useSessionStore()
+  ⎿  Found 1 new diagnostic issue in 1 file (ctrl+o to expand)
+                                      
+● Update(components/client/OnboardingPage.tsx)                                            
+  ⎿  Added 4 lines                                                                        
+      50                                                                                                                            
+      51    useEffect(() => {                                                                                                       
+      52      async function check() {                                                                                              
+      53 +      // Mode "upgrade invité" : on ne court-circuite pas même si la session existe,                                      
+      54 +      // car on veut que l'utilisateur la personnalise (pseudo/avatar/profil).                                          
+      55 +      if (isGuestUpgrade) { setChecking(false); return }                                                                  
+      56 +                                                                                                                        
+      57        const fingerprint = generateDeviceFingerprint()                                                                   
+      58        if (session && session.restaurant_id === restaurant.id && session.is_present) {                                     
+      59          onDone ? onDone() : router.push(`/${restaurant.slug}/menu?table=${table.id}`)                                     
+                                                                                                                                    
+● Update(components/client/OnboardingPage.tsx)                                                                                      
+  ⎿  Added 9 lines, removed 1 line                                                        
+       90        profile_type: selectedProfile as ProfileType,                                                                      
+       91        is_present: true,                                                                                                  
+       92      }
+       93 -    const { data } = await supabase.from('client_sessions').insert(sessionData).select().single()                        
+       93 +    // Mode upgrade invité : on met à jour la session existante au lieu d'en créer une nouvelle                        
+       94 +    let data: any = null                                                                                                 
+       95 +    if (isGuestUpgrade && session?.id) {                                                                               
+       96 +      const res = await supabase.from('client_sessions').update(sessionData).eq('id', session.id).select().single(     
+          +)                                                                                                                        
+       97 +      data = res.data                                                                                                    
+       98 +    } else {                                                                                                             
+       99 +      const res = await supabase.from('client_sessions').insert(sessionData).select().single()                           
+      100 +      data = res.data                                                                                             
+      101 +    }                                                                                                             
+      102      if (data) {
+      103        setSession(data)
+      104        // Petit délai pour laisser l'animation de "validation" se voir
 
-social_messages      → Messages anonymes entre sessions. trigger_type: plat_partage/libre/jeu.
+● Maintenant je rajoute le bouton "Retour au menu" en bas, et un bouton de fermeture en haut.
+                                                                                          
+● Update(components/client/OnboardingPage.tsx)
+  ⎿  Added 9 lines, removed 2 lines                                                                                                 
+      267            </motion.button>                                                                                               
+      268          )}                                                                                                               
+      269          {step === 'profile' && (                                                                                       
+      270 -          <button onClick={() => setStep('avatar')} className="w-full text-center text-sm text-gray-600 mt-3 py-2"       
+          ->                                                                                                                      
+      271 -            ← Retour                                                                                                     
+      270 +          <button onClick={() => setStep('avatar')} className="w-full text-center text-sm text-gray-500 mt-3 py-2"     
+          +>                                                                                                                      
+      271 +            ← Étape précédente                                                                                           
+      272            </button>                                                                                                      
+      273          )}                                                                                                               
+      274 +        {onSkip && (                                                                                                     
+      275 +          <button                                                                                                 
+      276 +            onClick={onSkip}                                                                                      
+      277 +            className="w-full mt-3 py-3 rounded-2xl text-center font-bold text-sm text-gray-300 bg-white/5 border 
+          +border-white/10 hover:bg-white/10 transition-colors">                                                             
+      278 +            Plus tard, retour au menu                                                                             
+      279 +          </button>                                                                                               
+      280 +        )}                                                                                                        
+      281        </div>
+      282      </div>
+      283    )
 
-matches              → Système de match entre 2 sessions (vote mutuel).
+● Bash(npx tsc --noEmit 2>&1 | head -30)   
+  ⎿  components/client/MenuPage.tsx(102,9): error TS2552: Cannot find name 'pendingOrderRef'. Did you mean 'pendingHref'?
+                                  
+  Read 1 file (ctrl+o to expand)                                                                                                    
+                                                                                          
+● Update(components/client/MenuPage.tsx)                                                                                            
+  ⎿  Removed 1 line                                                                                                                 
+       99          await new Promise(r => setTimeout(r, 250))                                                                       
+      100          setNotes({})                                                                                                     
+      101          clearCart()                                                                                                      
+      102 -        pendingOrderRef.current = null                                                                                   
+      102          setShowCart(false)                                                                                               
+      103          // Laisse la cart-modal se fermer en douceur avant d'afficher la popup succès                                    
+      104          setTimeout(() => setOrderPlaced(true), 250)                                                                      
+                                                                                                                                  
+● Bash(npx tsc --noEmit 2>&1 | head -20)                                                                                            
+  ⎿  (No output)                                                                                                                    
+                                                                                                                                    
+● 3. iOS Push : ajout d'un bouton "Test" pour diagnostiquer                                                                         
+                                                                                          
+  Read 1 file, listed 1 directory (ctrl+o to expand)                                                                                
+                                                                                                                                    
+● Write(app/api/admin/push/test/route.ts)                                                                                           
+  ⎿  Wrote 35 lines to app/api/admin/push/test/route.ts                                                                             
+       1 import { NextRequest, NextResponse } from 'next/server'                                                                    
+       2 import { cookies } from 'next/headers'                                                                                     
+       3 import { createServerClient } from '@supabase/ssr'                                                                         
+       4 import { getSupabaseAdmin } from '@/lib/supabase/client'                                                                   
+       5 import { sendPushToRestaurantAdmins } from '@/lib/push'                                                                    
+       6                                                                                                                            
+       7 export async function POST(_req: NextRequest) {                                                                            
+       8   try {                                                                                                                  
+       9     const cookieStore = await cookies()                                                                                    
+      10     const supa = createServerClient(                                                                                       
+     … +25 lines (ctrl+o to expand)                                                                                                 
+  ⎿  You're out of extra usage · resets 5:10am (Africa/Abidjan)                                                                     
+                                     
+✻ Baked for 6m 8s                                                                         
 
-game_sessions        → Parties de jeux (quiz/trivia/couple_quiz/mots_croises).
+❯ /rate-limit-options                                                                                                               
+   
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  What do you want to do?                                                                                                         
+                                                                                                                                    
+  ❯ 1. Stop and wait for limit to reset
+    2. Upgrade your plan
 
-game_players         → Joueurs dans une partie.
-
-notifications        → Push/in-app (plat_partage/message/jeu_invite/anniversaire/promo/match/order_ready).
-
-loyalty_records      → Fidélité par device_fingerprint.
-
-daily_analytics      → Agrégats journaliers par restaurant.
-
-qr_codes             → QR codes physiques indépendants (table migration_qr_preview.sql).
-                       code (unique uppercase), restaurant_id (nullable = non lié),
-                       table_name, scan_count.
-                       Route /t/[code] → redirect vers /[slug]/menu?table=...
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-5. TYPES TYPESCRIPT PRINCIPAUX (types/index.ts)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Restaurant, QRCode, AdminUser, RestaurantTable, MenuCategory, MenuItem,
-ClientSession, Order, OrderItem, SocialMessage, Match, GameSession, GamePlayer,
-Notification, CartItem, Cart, DashboardStats
-
-Types union importants :
-  OrderStatus    = 'pending'|'confirmed'|'preparing'|'ready'|'served'|'cancelled'
-  PaymentStatus  = 'unpaid'|'pending'|'paid'|'refunded'
-  PaymentMethod  = 'cash'|'wave'|'orange_money'|'mtn'|'moov'|'card'
-  OrderType      = 'dine_in'|'delivery'|'takeaway'
-  Gender         = 'homme'|'femme'|'jeune_homme'|'fille'|'maman'
-  ProfileType    = 'solo'|'couple'|'famille'|'groupe'
-  SocialMode     = 'receptif'|'discret'|'invisible'
-  GameType       = 'quiz'|'trivia'|'couple_quiz'|'mots_croises'
-  NotificationType = 'plat_partage'|'message'|'jeu_invite'|'anniversaire'|'promo'|'match'|'order_ready'
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-6. STATE MANAGEMENT (lib/store/index.ts)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-useSessionStore (persisted → 'tableqr-session')
-  - session, restaurant, cart, notifications, unread_count
-  - setSession, setRestaurant (wipe si changement de resto), clearSession
-  - addToCart, removeFromCart, updateQuantity, clearCart
-  - addNotification, markAllRead
-
-useAdminStore (persisted → 'tableqr-admin')
-  - restaurant, setRestaurant
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-7. SUPABASE CLIENT (lib/supabase/client.ts)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-supabase            → Client public (côté navigateur, clé anon, realtime activé)
-getSupabaseAdmin()  → Client admin (côté serveur uniquement, service_role key)
-                      Ne JAMAIS exposer côté client.
-
-Variables d'env requises (.env.local) :
-  NEXT_PUBLIC_SUPABASE_URL
-  NEXT_PUBLIC_SUPABASE_ANON_KEY
-  SUPABASE_SERVICE_ROLE_KEY
-  NEXT_PUBLIC_APP_URL
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-8. HOOKS UTILITAIRES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-useRealtimeRefresh(onRefresh, intervalMs=30000)
-  → Déclenche onRefresh sur : visibilitychange(visible), window.focus, online, et interval.
-  → Utilisé dans CaissePage (15000ms) pour rafraîchir ventes manuelles.
-
-useNotificationSound()
-  → Joue un son quand une nouvelle commande arrive en caisse.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-9. UTILS (lib/utils/index.ts)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-cn(...)                    → clsx + twMerge
-generatePseudo()           → "Tigre Bleu", "Lion Doré"... (liste FR)
-PROFILE_ICONS              → ['🦁','🐯','🦊','🐺','🦅','🦋','🐉','🦄','🌟','⚡','🔥','🌊','🌙','☀️','💎','🎭']
-GENDER_OPTIONS             → homme/femme/jeune_homme/fille/maman avec emoji
-PROFILE_OPTIONS            → solo/couple/famille/groupe avec emoji + desc
-formatPrice(amount, currency='XOF') → Intl.NumberFormat fr-FR
-formatTimeAgo(date)        → "À l'instant" / "Il y a Xmin" / "Il y a Xh" / date formatée
-generateDeviceFingerprint() → hash basé sur userAgent+language+screen+timezone
-ORDER_STATUS_CONFIG        → labels + classes Tailwind par status
-PAYMENT_METHOD_CONFIG      → labels + emoji par moyen de paiement
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-10. FLUX DE NAVIGATION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-CLIENT :
-  Scan QR code physique → /t/[CODE]
-    → lookup table qr_codes → incrémente scan_count
-    → redirect vers /[slug]/menu?table=[table_name]
-  /[slug]/menu → MenuPage (ClientLayout, BottomNav)
-  /[slug]/commandes, /social, /games, /notifications, /cart
-
-ADMIN :
-  /admin/login → auth Supabase (email+password)
-    → vérifie restaurants.admin_email = email connecté
-    → si première connexion (pas localStorage 'onboarding_done') → /admin/onboarding
-    → sinon → /admin/dashboard
-  /admin/dashboard, /caisse, /menu, /tables, /stats, /activites, /settings
-
-SUPER ADMIN :
-  /superadmin/login → /superadmin (vue tous les restaurants + stats globales)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-11. CAISSE (components/admin/CaissePage.tsx)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Onglets : live | caisse | ventes | recap | historique
-Flux status : pending/confirmed → preparing → served (STATUS_FLOW)
-Moyens de paiement : orange_money, wave, card, cash
-Ventes manuelles : formulaire label+quantité+prix+mode paiement (stocké localement)
-Realtime : supabase.channel orders + useRealtimeRefresh(15000)
-Son : useNotificationSound() sur INSERT order
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-12. COULEURS & BRANDING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Couleur principale : #F26522 (orange TableQR)
-Couleur secondaire par défaut : #D4A017
-Accent par défaut : #C0392B
-Chaque restaurant peut avoir ses propres couleurs (primary_color, secondary_color, accent_color).
-Restaurant démo : slug="chez-kofi", name="Chez Kofi", city="Abidjan", bot_name="Tantie"
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-13. CONFIGURATION NEXT.JS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-next.config.ts :
-  allowedDevOrigins: ['172.20.10.2']   → accès réseau local (mobile dev)
-
-⚠ IMPORTANT : Next.js 16.2.2 a des breaking changes par rapport aux versions
-antérieures. Toujours lire node_modules/next/dist/docs/ avant d'écrire du code
-(conventions routes, APIs, Server Components, etc.).
-params dans les Server Components est une Promise → doit être await-é.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-14. MODULES ACTIVABLES PAR RESTAURANT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-module_social    → messagerie anonyme inter-tables + matching
-module_games     → mini-jeux (quiz, trivia, couple_quiz, mots_croises)
-module_delivery  → commandes livraison
-module_loyalty   → fidélité par device_fingerprint
-module_birthday  → détection/cadeau anniversaire
-
-Plans : starter | pro | enterprise (avec plan_expires_at)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-15. MIGRATIONS SQL
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-database.sql              → Schéma initial complet
-migration_qr_preview.sql  → Ajoute :
-                            - restaurants.is_preview BOOLEAN
-                            - restaurants.admin_email TEXT
-                            - table qr_codes (code, batch_name, restaurant_id,
-                              table_name, linked_at, scan_count)
-
-================================================================================
-FIN DU CONTEXTE
-================================================================================
+  Enter to confirm · Esc to cancel

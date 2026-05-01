@@ -1,6 +1,7 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { Bell, BellOff, BellRing, Smartphone, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Bell, BellOff, BellRing, Loader2, Power, Send, Smartphone, X } from 'lucide-react'
+import { supabase } from '@/lib/supabase/client'
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
@@ -12,6 +13,8 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 type State = 'unsupported-ios' | 'unsupported' | 'denied' | 'idle' | 'subscribed' | 'loading'
+type Hint = null | 'ok' | 'ios' | 'menu' | 'test-ok' | 'test-empty' | 'test-error'
+type NavigatorWithStandalone = Navigator & { standalone?: boolean }
 
 function detectIOS() {
   if (typeof navigator === 'undefined') return false
@@ -22,12 +25,21 @@ function detectIOS() {
 function isStandalone() {
   if (typeof window === 'undefined') return false
   return window.matchMedia?.('(display-mode: standalone)').matches
-    || (window.navigator as any).standalone === true
+    || (window.navigator as NavigatorWithStandalone).standalone === true
 }
 
 export default function PushToggle() {
   const [state, setState] = useState<State>('loading')
-  const [showHint, setShowHint] = useState<null | 'ok' | 'ios'>(null)
+  const [showHint, setShowHint] = useState<Hint>(null)
+  const [testStatus, setTestStatus] = useState<'idle' | 'sending'>('idle')
+  const [testMessage, setTestMessage] = useState('')
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function showTemporaryHint(hint: Exclude<Hint, null>, duration = 4500) {
+    if (hintTimer.current) clearTimeout(hintTimer.current)
+    setShowHint(hint)
+    hintTimer.current = setTimeout(() => setShowHint(null), duration)
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -50,6 +62,17 @@ export default function PushToggle() {
     })()
   }, [])
 
+  useEffect(() => () => {
+    if (hintTimer.current) clearTimeout(hintTimer.current)
+  }, [])
+
+  async function authJsonHeaders() {
+    const { data } = await supabase.auth.getSession()
+    const headers: Record<string, string> = { 'content-type': 'application/json' }
+    if (data.session?.access_token) headers.authorization = `Bearer ${data.session.access_token}`
+    return headers
+  }
+
   async function enable() {
     setState('loading')
     try {
@@ -58,7 +81,12 @@ export default function PushToggle() {
 
       const reg = await navigator.serviceWorker.ready
       const vapid = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-      if (!vapid) { console.error('VAPID public key manquante'); setState('idle'); return }
+      if (!vapid) {
+        setTestMessage('Clé VAPID publique manquante.')
+        showTemporaryHint('test-error', 9000)
+        setState('idle')
+        return
+      }
 
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
@@ -67,19 +95,22 @@ export default function PushToggle() {
 
       const res = await fetch('/api/admin/push/subscribe', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: await authJsonHeaders(),
         body: JSON.stringify({ subscription: sub.toJSON() }),
       })
       if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
         await sub.unsubscribe().catch(() => {})
+        setTestMessage(data.error || 'Abonnement impossible côté serveur.')
+        showTemporaryHint('test-error', 9000)
         setState('idle')
         return
       }
       setState('subscribed')
-      setShowHint('ok')
-      setTimeout(() => setShowHint(null), 3000)
+      showTemporaryHint('ok', 7000)
     } catch (e) {
-      console.error('Subscribe error', e)
+      setTestMessage(e instanceof Error ? e.message : 'Abonnement impossible')
+      showTemporaryHint('test-error', 9000)
       setState('idle')
     }
   }
@@ -92,7 +123,7 @@ export default function PushToggle() {
       if (sub) {
         await fetch('/api/admin/push/unsubscribe', {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: await authJsonHeaders(),
           body: JSON.stringify({ endpoint: sub.endpoint }),
         }).catch(() => {})
         await sub.unsubscribe().catch(() => {})
@@ -100,6 +131,33 @@ export default function PushToggle() {
       setState('idle')
     } catch {
       setState('idle')
+    }
+  }
+
+  async function sendTest() {
+    if (testStatus === 'sending') return
+    setTestStatus('sending')
+    setTestMessage('')
+    try {
+      const res = await fetch('/api/admin/push/test', {
+        method: 'POST',
+        headers: await authJsonHeaders(),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Test impossible')
+
+      if ((data.sent || 0) > 0) {
+        setTestMessage('Test envoyé. Si rien ne s’affiche, vérifie les notifications de TableQR dans Réglages iPhone.')
+        showTemporaryHint('test-ok', 8000)
+      } else {
+        setTestMessage('Aucun appareil abonné côté serveur. Désactive puis réactive la cloche depuis l’app installée.')
+        showTemporaryHint('test-empty', 9000)
+      }
+    } catch (e) {
+      setTestMessage(e instanceof Error ? e.message : 'Test impossible')
+      showTemporaryHint('test-error', 9000)
+    } finally {
+      setTestStatus('idle')
     }
   }
 
@@ -113,7 +171,7 @@ export default function PushToggle() {
 
   function handleClick() {
     if (isIos) { setShowHint('ios'); return }
-    if (isOn) return disable()
+    if (isOn) { setShowHint(showHint === 'menu' ? null : 'menu'); return }
     return enable()
   }
 
@@ -125,7 +183,7 @@ export default function PushToggle() {
         title={
           isIos ? 'iOS : ajoute le site à l\'écran d\'accueil pour activer les notifications' :
           isDenied ? 'Notifications bloquées (autorise dans les réglages du navigateur)' :
-          isOn ? 'Notifications activées — clique pour désactiver' :
+          isOn ? 'Notifications activées — clique pour tester ou désactiver' :
           'Activer les notifications de commandes'
         }
         className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors disabled:opacity-50">
@@ -139,8 +197,45 @@ export default function PushToggle() {
       </button>
 
       {showHint === 'ok' && (
-        <div className="absolute right-0 top-full mt-2 px-3 py-2 bg-emerald-600 text-white text-xs font-semibold rounded-lg shadow-lg whitespace-nowrap z-50">
-          Notifications activées ✓
+        <div className="absolute right-0 top-full mt-2 w-64 p-3 bg-emerald-600 text-white text-xs font-semibold rounded-xl shadow-lg z-50">
+          <p>Notifications activées ✓</p>
+          <button
+            onClick={sendTest}
+            disabled={testStatus === 'sending'}
+            className="mt-2 w-full py-2 rounded-lg bg-white/15 hover:bg-white/20 flex items-center justify-center gap-2 disabled:opacity-70">
+            {testStatus === 'sending' ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+            <span>Envoyer un test</span>
+          </button>
+        </div>
+      )}
+
+      {showHint === 'menu' && (
+        <div className="absolute right-0 top-full mt-2 w-64 p-3 bg-white rounded-xl shadow-xl border border-gray-100 z-50">
+          <p className="font-black text-gray-900 text-sm mb-2">Notifications admin</p>
+          <button
+            onClick={sendTest}
+            disabled={testStatus === 'sending'}
+            className="w-full py-2.5 rounded-lg bg-emerald-50 text-emerald-700 font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-70">
+            {testStatus === 'sending' ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            <span>{testStatus === 'sending' ? 'Envoi du test...' : 'Tester une notification'}</span>
+          </button>
+          <button
+            onClick={() => { setShowHint(null); disable() }}
+            className="mt-2 w-full py-2.5 rounded-lg bg-gray-100 text-gray-600 font-bold text-xs flex items-center justify-center gap-2">
+            <Power size={14} />
+            <span>Désactiver</span>
+          </button>
+          <p className="mt-2 text-[11px] leading-relaxed text-gray-400">
+            Sur iPhone, le son dépend des réglages iOS de l’app TableQR et du mode silencieux.
+          </p>
+        </div>
+      )}
+
+      {(showHint === 'test-ok' || showHint === 'test-empty' || showHint === 'test-error') && (
+        <div className={`absolute right-0 top-full mt-2 w-72 p-3 text-white text-xs font-semibold rounded-xl shadow-lg z-50 ${
+          showHint === 'test-ok' ? 'bg-emerald-600' : showHint === 'test-empty' ? 'bg-amber-600' : 'bg-red-600'
+        }`}>
+          {testMessage}
         </div>
       )}
 

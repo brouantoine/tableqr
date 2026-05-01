@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { generateDeviceFingerprint } from '@/lib/utils'
 import { getAvatarLabel } from './TwemojiAvatar'
-import type { Gender, ProfileType, Restaurant, RestaurantTable } from '@/types'
+import type { ClientSession, Gender, ProfileType, Restaurant, RestaurantTable } from '@/types'
 
 // Avatars pros — emojis Twemoji haute qualité
 const AVATARS = [
@@ -32,10 +32,12 @@ const PROFILES = [
   { value: 'groupe', emoji: '🎉', label: 'Entre amis', desc: 'Groupe' },
 ]
 
-export default function OnboardingPage({ restaurant, table, onDone }: {
+export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGuestUpgrade }: {
   restaurant: Restaurant
   table: RestaurantTable
   onDone?: () => void
+  onSkip?: () => void
+  isGuestUpgrade?: boolean
 }) {
   const router = useRouter()
   const { session, setSession } = useSessionStore()
@@ -48,9 +50,14 @@ export default function OnboardingPage({ restaurant, table, onDone }: {
 
   useEffect(() => {
     async function check() {
+      // Mode "upgrade invité" : on ne court-circuite pas même si la session existe,
+      // car on veut que l'utilisateur la personnalise (pseudo/avatar/profil).
+      if (isGuestUpgrade) { setChecking(false); return }
+
       const fingerprint = generateDeviceFingerprint()
       if (session && session.restaurant_id === restaurant.id && session.is_present) {
-        onDone ? onDone() : router.push(`/${restaurant.slug}/menu?table=${table.id}`)
+        if (onDone) onDone()
+        else router.push(`/${restaurant.slug}/menu?table=${table.id}`)
         return
       }
       const { data } = await supabase
@@ -61,7 +68,8 @@ export default function OnboardingPage({ restaurant, table, onDone }: {
         .maybeSingle()
       if (data) {
         setSession(data)
-        onDone ? onDone() : router.push(`/${restaurant.slug}/menu?table=${table.id}`)
+        if (onDone) onDone()
+        else router.push(`/${restaurant.slug}/menu?table=${table.id}`)
         return
       }
       setChecking(false)
@@ -84,12 +92,21 @@ export default function OnboardingPage({ restaurant, table, onDone }: {
       profile_type: selectedProfile as ProfileType,
       is_present: true,
     }
-    const { data } = await supabase.from('client_sessions').insert(sessionData).select().single()
+    // Mode upgrade invité : on met à jour la session existante au lieu d'en créer une nouvelle
+    let data: ClientSession | null = null
+    if (isGuestUpgrade && session?.id) {
+      const res = await supabase.from('client_sessions').update(sessionData).eq('id', session.id).select().single()
+      data = res.data
+    } else {
+      const res = await supabase.from('client_sessions').insert(sessionData).select().single()
+      data = res.data
+    }
     if (data) {
       setSession(data)
       // Petit délai pour laisser l'animation de "validation" se voir
       await new Promise(r => setTimeout(r, 350))
-      onDone ? onDone() : router.push(`/${restaurant.slug}/menu?table=${table.id}`)
+      if (onDone) onDone()
+      else router.push(`/${restaurant.slug}/menu?table=${table.id}`)
     }
     setLoading(false)
   }
@@ -115,7 +132,7 @@ export default function OnboardingPage({ restaurant, table, onDone }: {
             </svg>
           </div>
           <span className="font-black text-white text-sm">{restaurant.name}</span>
-          <span className="ml-auto text-xs text-gray-500">Table {(table as any).table_number}</span>
+          <span className="ml-auto text-xs text-gray-500">Table {table.table_number}</span>
         </div>
 
         <AnimatePresence mode="wait">
@@ -123,9 +140,11 @@ export default function OnboardingPage({ restaurant, table, onDone }: {
             <motion.div key="avatar" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <p className="text-gray-500 text-xs uppercase tracking-widest font-bold mb-1">Étape 1 / 2</p>
               <h1 className="text-3xl font-black text-white leading-tight mb-1">
-                Choisissez<br />votre avatar
+                {isGuestUpgrade ? <>Identifiez-vous<br />pour ce repas</> : <>Choisissez<br />votre avatar</>}
               </h1>
-              <p className="text-gray-500 text-sm">Vous serez connu sous ce nom ce soir</p>
+              <p className="text-gray-500 text-sm">
+                {isGuestUpgrade ? 'Choisissez le nom et l’avatar visibles ce soir' : 'Vous serez connu sous ce nom ce soir'}
+              </p>
             </motion.div>
           ) : (
             <motion.div key="profile" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
@@ -253,8 +272,15 @@ export default function OnboardingPage({ restaurant, table, onDone }: {
           </motion.button>
         )}
         {step === 'profile' && (
-          <button onClick={() => setStep('avatar')} className="w-full text-center text-sm text-gray-600 mt-3 py-2">
-            ← Retour
+          <button onClick={() => setStep('avatar')} className="w-full text-center text-sm text-gray-500 mt-3 py-2">
+            ← Étape précédente
+          </button>
+        )}
+        {onSkip && (
+          <button
+            onClick={onSkip}
+            className="w-full mt-3 py-3 rounded-2xl text-center font-bold text-sm text-gray-200 bg-white/10 border border-white/15 hover:bg-white/15 transition-colors">
+            Non merci, retour au menu
           </button>
         )}
       </div>

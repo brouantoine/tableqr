@@ -70,6 +70,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
 
   const sessionId = session?.id
   const sessionRestaurantId = session?.restaurant_id
+  const sessionFingerprint = session?.device_fingerprint
   const selectedClientId = selectedClient?.id
   const hasValidSession = Boolean(sessionId && sessionRestaurantId === restaurant.id)
 
@@ -91,10 +92,12 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
       return
     }
 
-    setClients((data || []).filter(client =>
-      isLiveSocialClient(client as ClientSession, restaurant.id, sessionId)
-    ) as ClientSession[])
-  }, [restaurant.id, sessionId, sessionRestaurantId])
+    setClients((data || []).filter(client => {
+      if (!isLiveSocialClient(client as ClientSession, restaurant.id, sessionId)) return false
+      if (sessionFingerprint && client.device_fingerprint === sessionFingerprint) return false
+      return true
+    }) as ClientSession[])
+  }, [restaurant.id, sessionId, sessionRestaurantId, sessionFingerprint])
 
   const loadAllMessages = useCallback(async () => {
     if (!sessionId || sessionRestaurantId !== restaurant.id) return

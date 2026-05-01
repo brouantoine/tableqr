@@ -482,7 +482,8 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
       <AnimatePresence>
         {cart.item_count > 0 && !showCart && (
           <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-40">
+            className="fixed left-4 right-4 max-w-md mx-auto z-40"
+            style={{ bottom: 'calc(76px + env(safe-area-inset-bottom))' }}>
             <motion.button whileTap={{ scale: 0.97 }} onClick={() => setShowCart(true)}
               className="w-full min-h-16 rounded-3xl text-white font-black flex items-center justify-between gap-3 px-4 shadow-2xl"
               style={{ backgroundColor: p, boxShadow: `0 12px 36px ${p}45` }}>

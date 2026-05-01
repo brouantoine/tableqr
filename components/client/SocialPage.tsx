@@ -16,7 +16,7 @@ const WAVE_DISPLAY_MS = 60_000
 const MODE_INFO: Record<SocialMode, { label: string; short: string; long: string; color: string }> = {
   receptif:  {
     label: 'Disponible',
-    short: 'visible · coucous & messages activés',
+    short: '',
     long: 'Vous êtes visible des autres clients. Ils peuvent vous faire coucou et vous écrire.',
     color: '#10B981',
   },

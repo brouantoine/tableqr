@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import TwemojiAvatar from './TwemojiAvatar'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Heart, UtensilsCrossed, MessageCircle, Gamepad2, Bell, Package } from 'lucide-react'
+import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Heart, UtensilsCrossed, MessageCircle, Gamepad2, Bell, Package, Star, Flame, Leaf, ShieldCheck } from 'lucide-react'
 import { useSessionStore } from '@/lib/store'
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice, generateDeviceFingerprint } from '@/lib/utils'
@@ -81,6 +81,8 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     : categories.find(c => c.id === activeCategory)?.items?.filter(i => i.is_available) || []
   const cartQty = (id: string) => cart.items.find(i => i.menu_item.id === id)?.quantity || 0
   const isAnonymousSession = (sess: typeof session) => !sess || sess.pseudo === 'Invité' || sess.avatar_icon === 'ghost'
+  const activeCategoryName = categories.find(c => c.id === activeCategory)?.name || 'Menu'
+  const tableLabel = tableDisplayName || tableId
 
   // ── Envoi effectif de la commande ──
   async function sendOrder(sess: typeof session, itemsSnapshot: typeof cart.items, notesSnapshot: Record<string, string>) {
@@ -208,230 +210,284 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   return (
     <div className="min-h-screen pb-32" style={{ backgroundColor: '#F8F8F8' }}>
 
-      {/* ── HERO HEADER ── */}
-      <div className="relative px-5 pt-10 pb-6 rounded-b-[2.5rem] overflow-hidden"
-        style={{ background: 'linear-gradient(160deg, #1A1208 0%, #2D1F0A 60%, #3D2A0E 100%)' }}>
-        <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10"
-          style={{ background: `radial-gradient(circle, ${p}, transparent)`, transform: 'translate(30%, -30%)' }} />
-
-        <div className="flex items-center justify-between mb-6 relative z-10">
-          <div className="flex items-center gap-3">
-            {session && (
-              <>
-                <TwemojiAvatar avatarId={session.avatar_icon || ''} size={38} className="ring-2 ring-white/20" />
-                <div>
-                  <p className="text-white/60 text-xs">Bonsoir,</p>
-                  <p className="text-white font-black text-sm">{session.pseudo}</p>
-                </div>
-              </>
+      {/* ── HEADER COMPACT ── */}
+      <div className="px-5 pt-6 pb-3 bg-white border-b border-gray-100">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {session ? (
+              <TwemojiAvatar avatarId={session.avatar_icon || ''} size={40} className="ring-2 ring-gray-100" />
+            ) : (
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white flex-shrink-0"
+                style={{ backgroundColor: p }}>
+                <UtensilsCrossed size={18} />
+              </div>
             )}
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">
+                {tableLabel ? `Table ${tableLabel}` : 'Menu digital'}
+              </p>
+              <h1 className="font-black text-gray-950 text-lg leading-tight truncate">{restaurant.name}</h1>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-2 flex-shrink-0">
             <a href={`/${restaurant.slug}/commandes`}
-              className="relative w-10 h-10 rounded-2xl flex items-center justify-center"
-              style={{ backgroundColor: 'rgba(255,255,255,0.12)' }}>
-              <ClipboardList size={18} className="text-white" />
+              className="relative w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center">
+              <ClipboardList size={18} className="text-gray-700" />
               {activeOrdersCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center font-black text-white"
-                  style={{ backgroundColor: p, fontSize: '9px' }}>{activeOrdersCount}</span>
+                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full flex items-center justify-center font-black text-white text-[10px]"
+                  style={{ backgroundColor: p }}>{activeOrdersCount}</span>
               )}
             </a>
-            <motion.button whileTap={{ scale: 0.9 }} onClick={() => setShowCart(true)}
-              className="relative w-10 h-10 rounded-2xl flex items-center justify-center"
-              style={{ backgroundColor: p, boxShadow: `0 4px 15px ${p}60` }}>
-              <ShoppingBag size={18} className="text-white" />
+            <motion.button whileTap={{ scale: 0.92 }} onClick={() => setShowCart(true)}
+              className="relative w-10 h-10 rounded-2xl flex items-center justify-center text-white"
+              style={{ backgroundColor: p }}>
+              <ShoppingBag size={18} />
               <AnimatePresence>
                 {cart.item_count > 0 && (
                   <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-xs flex items-center justify-center font-black"
-                    style={{ color: p }}>{cart.item_count}</motion.span>
+                    className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-gray-950 text-[10px] flex items-center justify-center font-black text-white">
+                    {cart.item_count}
+                  </motion.span>
                 )}
               </AnimatePresence>
             </motion.button>
           </div>
         </div>
 
-        <div className="relative z-10 mb-5">
-          <h1 className="text-white text-2xl font-black leading-tight mb-0.5">
-            Qu&apos;est-ce qui vous<br />
-            <span style={{ color: p }}>fait envie</span> ce soir ?
-          </h1>
-          <p className="text-white/40 text-xs">{restaurant.name}</p>
-        </div>
-
-        <div className="relative z-10">
-          <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input type="text" placeholder="Rechercher un plat..."
-            value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-11 pr-4 rounded-2xl font-medium outline-none text-gray-800"
-            style={{ fontSize: '16px', padding: '14px 16px 14px 44px', backgroundColor: 'rgba(255,255,255,0.95)' }} />
-          {search && (
-            <button onClick={() => setSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-              <X size={12} className="text-gray-600" />
-            </button>
-          )}
+        <div className="mt-5">
+          <p className="text-2xl font-black text-gray-950 leading-tight">Qu&apos;est-ce qui vous fait envie ?</p>
+          <p className="text-sm text-gray-500 mt-1">Parcourez, ajoutez, commandez sans attendre.</p>
         </div>
       </div>
 
-      {/* ── FEATURED ── */}
-      {!search && featured.length > 0 && (
-        <div className="mt-5">
-          <div className="flex items-center justify-between px-5 mb-3">
-            <h2 className="font-black text-gray-900 text-sm">Les incontournables</h2>
+      {/* ── RECHERCHE + CATÉGORIES STICKY ── */}
+      <div className="sticky top-0 z-30 bg-[#F8F8F8]/95 backdrop-blur-xl border-b border-gray-100 pt-3 pb-3">
+        <div className="px-5">
+          <div className="relative">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input type="text" placeholder="Rechercher un plat"
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="w-full pl-11 pr-11 py-3.5 rounded-2xl bg-white border border-gray-100 font-bold outline-none text-gray-900 placeholder:text-gray-400 shadow-sm"
+              style={{ fontSize: '16px' }} />
+            {search && (
+              <button onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-xl bg-gray-100 flex items-center justify-center">
+                <X size={13} className="text-gray-500" />
+              </button>
+            )}
           </div>
-          <div className="flex gap-3 px-5 overflow-x-auto pb-1 scrollbar-hide">
+        </div>
+
+        <div className="mt-3 flex gap-2 px-5 overflow-x-auto scrollbar-hide">
+          {search ? (
+            <button onClick={() => setSearch('')}
+              className="flex-shrink-0 px-4 py-2.5 rounded-2xl bg-white text-sm font-black text-gray-700 border border-gray-100">
+              Voir tout le menu
+            </button>
+          ) : categories.map(cat => (
+            <motion.button key={cat.id} whileTap={{ scale: 0.94 }}
+              onClick={() => setActiveCategory(cat.id)}
+              className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-black transition-all"
+              style={activeCategory === cat.id
+                ? { backgroundColor: p, color: '#fff', boxShadow: `0 6px 18px ${p}35` }
+                : { backgroundColor: '#fff', color: '#4B5563', border: '1px solid #F0F0F0' }}>
+              <span>{cat.icon || '🍽️'}</span>
+              <span>{cat.name}</span>
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── LES PLUS COMMANDÉS ── */}
+      {!search && featured.length > 0 && (
+        <section className="mt-5">
+          <div className="flex items-center justify-between px-5 mb-3">
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">Raccourci</p>
+              <h2 className="font-black text-gray-950 text-lg">Les plus commandés</h2>
+            </div>
+            <Star size={18} style={{ color: p }} fill={p} />
+          </div>
+          <div className="flex gap-3 px-5 overflow-x-auto pb-2 scrollbar-hide">
             {featured.map((item, i) => (
-              <motion.button key={item.id}
-                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.06 }} whileTap={{ scale: 0.96 }}
+              <motion.div key={item.id}
+                role="button"
+                tabIndex={0}
+                initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.04 }} whileTap={{ scale: 0.97 }}
                 onClick={() => setSelectedItem(item)}
-                className="flex-shrink-0 w-44 h-52 rounded-3xl overflow-hidden relative text-left"
-                style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.15)' }}>
-                {item.image_url
-                  ? <img src={item.image_url} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
-                  : <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: p + '20' }}><UtensilsCrossed size={56} style={{ color: p + '80' }} /></div>
-                }
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.2) 50%, transparent 100%)' }} />
-                <div className="absolute top-3 right-3 w-8 h-8 rounded-2xl flex items-center justify-center"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)' }}>
-                  <Heart size={13} fill={liked.includes(item.id) ? '#ef4444' : 'none'} color="#fff" />
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 p-3">
-                  <p className="text-white font-black text-sm leading-tight mb-1.5 line-clamp-1">{item.name}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-white font-black text-sm">{formatPrice(item.price, restaurant.currency)}</span>
-                    <div onClick={(e: React.MouseEvent) => { e.stopPropagation(); addToCart(item) }}
-                      className="w-7 h-7 rounded-xl flex items-center justify-center text-white"
-                      style={{ backgroundColor: p }}>
-                      <Plus size={13} strokeWidth={3} />
-                    </div>
+                onKeyDown={(e) => { if (e.key === 'Enter') setSelectedItem(item) }}
+                className="flex-shrink-0 w-40 rounded-3xl bg-white overflow-hidden border border-gray-100 shadow-sm text-left">
+                <div className="relative h-24">
+                  {item.image_url
+                    ? <img src={item.image_url} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
+                    : <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: p + '12' }}><UtensilsCrossed size={32} style={{ color: p }} /></div>
+                  }
+                  <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-white/90 flex items-center gap-1 text-[10px] font-black text-gray-800">
+                    <Star size={10} fill={p} style={{ color: p }} />
+                    Populaire
                   </div>
                 </div>
-              </motion.button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── CATÉGORIES ── */}
-      {!search && (
-        <div className="mt-5">
-          <div className="flex gap-2.5 px-5 overflow-x-auto pb-1 scrollbar-hide">
-            {categories.map(cat => (
-              <motion.button key={cat.id} whileTap={{ scale: 0.94 }}
-                onClick={() => setActiveCategory(cat.id)}
-                className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all"
-                style={activeCategory === cat.id
-                  ? { backgroundColor: p, color: '#fff', boxShadow: `0 4px 15px ${p}50` }
-                  : { backgroundColor: '#fff', color: '#666', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-                <span>{cat.icon || '🍽️'}</span>
-                <span>{cat.name}</span>
-              </motion.button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── TITRE ── */}
-      <div className="flex items-center justify-between px-5 mt-5 mb-3">
-        <h2 className="font-black text-gray-900">
-          {search ? `"${search}"` : categories.find(c => c.id === activeCategory)?.name || 'Menu'}
-        </h2>
-        <span className="text-xs text-gray-400 font-medium bg-white px-3 py-1 rounded-full shadow-sm">
-          {activeItems.length} plats
-        </span>
-      </div>
-
-      {/* ── LISTE PLATS ── */}
-      <div className="px-5 space-y-3">
-        <AnimatePresence mode="popLayout">
-          {activeItems.map((item, i) => (
-            <motion.button key={item.id}
-              initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }} transition={{ delay: i * 0.04 }}
-              onClick={() => setSelectedItem(item)}
-              className="relative w-full rounded-3xl overflow-hidden text-left"
-              style={{ height: '180px', boxShadow: '0 6px 24px rgba(0,0,0,0.12)' }}>
-              {item.image_url
-                ? <img src={item.image_url} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
-                : <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: p + '20' }}><UtensilsCrossed size={64} style={{ color: p + '80' }} /></div>
-              }
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 45%, transparent 100%)' }} />
-              <div className="absolute top-3 left-3 flex gap-1.5">
-                {item.is_halal && <span className="text-xs px-2 py-0.5 rounded-full font-bold text-white" style={{ backgroundColor: '#10B981CC' }}>Halal</span>}
-                {item.is_spicy && <span className="text-xs px-2 py-0.5 rounded-full font-bold text-white" style={{ backgroundColor: '#EF4444CC' }}>Épicé</span>}
-                {item.is_vegetarian && <span className="text-xs px-2 py-0.5 rounded-full font-bold text-white" style={{ backgroundColor: '#22C55ECC' }}>Végé</span>}
-              </div>
-              <div onClick={(e: React.MouseEvent) => { e.stopPropagation(); setLiked(l => l.includes(item.id) ? l.filter(x => x !== item.id) : [...l, item.id]) }}
-                className="absolute top-3 right-3 w-8 h-8 rounded-2xl flex items-center justify-center cursor-pointer"
-                style={{ backgroundColor: 'rgba(0,0,0,0.3)', backdropFilter: 'blur(8px)' }}>
-                <Heart size={14} fill={liked.includes(item.id) ? '#ef4444' : 'none'} color="#fff" />
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 px-4 py-3">
-                <div className="flex items-end justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-black text-base leading-tight truncate">{item.name}</p>
-                    {item.description && (
-                      <p className="text-white/60 text-xs mt-0.5 line-clamp-1">{item.description}</p>
+                <div className="p-3">
+                  <p className="font-black text-gray-950 text-sm leading-tight line-clamp-2 min-h-9">{item.name}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="font-black text-sm whitespace-nowrap" style={{ color: p }}>{formatPrice(item.price, restaurant.currency)}</span>
+                    {cartQty(item.id) === 0 ? (
+                      <button onClick={(e) => { e.stopPropagation(); addToCart(item) }}
+                        aria-label={`Ajouter ${item.name}`}
+                        className="w-8 h-8 rounded-2xl flex items-center justify-center text-white flex-shrink-0"
+                        style={{ backgroundColor: p }}>
+                        <Plus size={15} strokeWidth={3} />
+                      </button>
+                    ) : (
+                      <span className="min-w-8 h-8 px-2 rounded-2xl bg-gray-100 flex items-center justify-center font-black text-xs text-gray-800">
+                        {cartQty(item.id)}
+                      </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-white font-black text-base">{formatPrice(item.price, restaurant.currency)}</span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── LISTE PLATS ── */}
+      <section className="px-5 mt-5">
+        <div className="flex items-end justify-between gap-4 mb-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">
+              {search ? 'Recherche' : 'Catégorie'}
+            </p>
+            <h2 className="font-black text-gray-950 text-xl leading-tight truncate">
+              {search ? `"${search}"` : activeCategoryName}
+            </h2>
+          </div>
+          <span className="text-xs text-gray-500 font-black bg-white px-3 py-1.5 rounded-full border border-gray-100 flex-shrink-0">
+            {activeItems.length} plat{activeItems.length > 1 ? 's' : ''}
+          </span>
+        </div>
+
+        <div className="space-y-3">
+          <AnimatePresence mode="popLayout">
+            {activeItems.map((item, i) => (
+              <motion.div key={item.id}
+                role="button"
+                tabIndex={0}
+                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98 }} transition={{ delay: i * 0.025 }}
+                onClick={() => setSelectedItem(item)}
+                onKeyDown={(e) => { if (e.key === 'Enter') setSelectedItem(item) }}
+                className="w-full rounded-3xl bg-white border border-gray-100 p-2.5 flex gap-3 text-left shadow-sm active:scale-[0.99] transition-transform">
+                <div className="relative w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-100">
+                  {item.image_url
+                    ? <img src={item.image_url} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
+                    : <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: p + '12' }}><UtensilsCrossed size={30} style={{ color: p }} /></div>
+                  }
+                  {i < 3 && !search && (
+                    <span className="absolute left-2 top-2 w-6 h-6 rounded-xl bg-white/95 flex items-center justify-center">
+                      <Star size={12} fill={p} style={{ color: p }} />
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0 py-1 pr-1 flex flex-col">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-black text-gray-950 text-base leading-tight line-clamp-2">{item.name}</p>
+                      <p className="text-xs text-gray-500 mt-1 leading-snug line-clamp-2">
+                        {item.description || 'Préparé à la demande'}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setLiked(l => l.includes(item.id) ? l.filter(x => x !== item.id) : [...l, item.id]) }}
+                      aria-label={liked.includes(item.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                      className="w-8 h-8 rounded-2xl bg-gray-50 flex items-center justify-center flex-shrink-0">
+                      <Heart size={14} fill={liked.includes(item.id) ? '#ef4444' : 'none'} color={liked.includes(item.id) ? '#ef4444' : '#9CA3AF'} />
+                    </button>
+                  </div>
+
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {item.is_halal && <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-black bg-emerald-50 text-emerald-700"><ShieldCheck size={10} /> Halal</span>}
+                    {item.is_spicy && <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-black bg-red-50 text-red-600"><Flame size={10} /> Épicé</span>}
+                    {item.is_vegetarian && <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-black bg-green-50 text-green-700"><Leaf size={10} /> Végé</span>}
+                  </div>
+
+                  <div className="mt-auto pt-3 flex items-center justify-between gap-3">
+                    <span className="font-black text-base whitespace-nowrap" style={{ color: p }}>{formatPrice(item.price, restaurant.currency)}</span>
                     <AnimatePresence mode="wait">
                       {cartQty(item.id) === 0 ? (
-                        <motion.div key="add"
-                          initial={{ scale: 0.8 }} animate={{ scale: 1 }} exit={{ scale: 0.8 }}
-                          whileTap={{ scale: 0.8 }}
-                          onClick={(e: React.MouseEvent) => { e.stopPropagation(); if (item.is_available) addToCart(item) }}
-                          className="w-9 h-9 rounded-2xl flex items-center justify-center text-white cursor-pointer"
-                          style={{ backgroundColor: p, boxShadow: `0 4px 15px ${p}80` }}>
-                          <Plus size={18} strokeWidth={3} />
-                        </motion.div>
+                        <motion.button key="add"
+                          initial={{ scale: 0.85 }} animate={{ scale: 1 }} exit={{ scale: 0.85 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={(e) => { e.stopPropagation(); addToCart(item) }}
+                          aria-label={`Ajouter ${item.name}`}
+                          className="h-9 px-3 rounded-2xl flex items-center gap-1.5 text-white font-black text-sm flex-shrink-0"
+                          style={{ backgroundColor: p, boxShadow: `0 6px 16px ${p}35` }}>
+                          <Plus size={15} strokeWidth={3} />
+                          <span>Ajouter</span>
+                        </motion.button>
                       ) : (
                         <motion.div key="counter"
-                          initial={{ scale: 0.8 }} animate={{ scale: 1 }}
-                          className="flex items-center gap-1 px-2 py-1.5 rounded-2xl"
-                          style={{ backgroundColor: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)' }}>
-                          <div onClick={(e: React.MouseEvent) => { e.stopPropagation(); updateQuantity(item.id, cartQty(item.id) - 1) }}
-                            className="w-6 h-6 rounded-lg flex items-center justify-center bg-white/20 cursor-pointer">
-                            <Minus size={11} color="#fff" strokeWidth={3} />
-                          </div>
-                          <span className="font-black text-sm w-5 text-center text-white">{cartQty(item.id)}</span>
-                          <div onClick={(e: React.MouseEvent) => { e.stopPropagation(); addToCart(item) }}
-                            className="w-6 h-6 rounded-lg flex items-center justify-center text-white cursor-pointer"
+                          initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+                          className="h-9 flex items-center gap-1 rounded-2xl bg-gray-100 px-1 flex-shrink-0">
+                          <button onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, cartQty(item.id) - 1) }}
+                            aria-label={`Retirer ${item.name}`}
+                            className="w-7 h-7 rounded-xl bg-white flex items-center justify-center">
+                            <Minus size={12} style={{ color: p }} strokeWidth={3} />
+                          </button>
+                          <span className="font-black text-sm w-6 text-center text-gray-900">{cartQty(item.id)}</span>
+                          <button onClick={(e) => { e.stopPropagation(); addToCart(item) }}
+                            aria-label={`Ajouter ${item.name}`}
+                            className="w-7 h-7 rounded-xl flex items-center justify-center text-white"
                             style={{ backgroundColor: p }}>
-                            <Plus size={11} strokeWidth={3} />
-                          </div>
+                            <Plus size={12} strokeWidth={3} />
+                          </button>
                         </motion.div>
                       )}
                     </AnimatePresence>
                   </div>
                 </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+
+          {activeItems.length === 0 && (
+            <div className="text-center py-16 bg-white rounded-3xl border border-gray-100">
+              <div className="w-14 h-14 rounded-3xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                <Search size={22} className="text-gray-400" />
               </div>
-            </motion.button>
-          ))}
-        </AnimatePresence>
-        {activeItems.length === 0 && (
-          <div className="text-center py-16">
-            <p className="text-gray-400 font-medium">Aucun plat trouvé</p>
-          </div>
-        )}
-      </div>
+              <p className="text-gray-900 font-black">Aucun plat trouvé</p>
+              <p className="text-gray-400 text-sm mt-1">Essayez un autre mot ou revenez au menu complet.</p>
+              {search && (
+                <button onClick={() => setSearch('')}
+                  className="mt-4 px-4 py-2.5 rounded-2xl text-white font-black text-sm"
+                  style={{ backgroundColor: p }}>
+                  Voir tout le menu
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* ── PANIER FLOTTANT ── */}
       <AnimatePresence>
         {cart.item_count > 0 && !showCart && (
           <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-20 left-4 right-4 max-w-md mx-auto z-40">
+            className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-40">
             <motion.button whileTap={{ scale: 0.97 }} onClick={() => setShowCart(true)}
-              className="w-full py-4 rounded-3xl text-white font-black flex items-center justify-between px-5 shadow-2xl"
-              style={{ backgroundColor: p, boxShadow: `0 10px 40px ${p}60` }}>
-              <div className="bg-white/20 rounded-xl w-8 h-8 flex items-center justify-center font-black text-sm">
-                {cart.item_count}
+              className="w-full min-h-16 rounded-3xl text-white font-black flex items-center justify-between gap-3 px-4 shadow-2xl"
+              style={{ backgroundColor: p, boxShadow: `0 12px 36px ${p}45` }}>
+              <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                <ShoppingBag size={20} />
               </div>
-              <span className="text-base">Voir mon panier</span>
-              <span className="font-black">{formatPrice(cart.total, restaurant.currency)}</span>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-sm leading-tight">Voir le panier</p>
+                <p className="text-xs text-white/75 leading-tight">{cart.item_count} article{cart.item_count > 1 ? 's' : ''}</p>
+              </div>
+              <span className="text-sm whitespace-nowrap">{formatPrice(cart.total, restaurant.currency)}</span>
             </motion.button>
           </motion.div>
         )}

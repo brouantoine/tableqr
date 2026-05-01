@@ -46,10 +46,12 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
 
   const [tableId, setTableId] = useState('')
   const [tableDisplayName, setTableDisplayName] = useState('')
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState('')
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     setTableId(params.get('table') || '')
     setTableDisplayName(params.get('tableName') || '')
+    setLogoPreviewUrl(params.get('logoPreview') || '')
   }, [])
 
   useEffect(() => {
@@ -83,6 +85,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   const isAnonymousSession = (sess: typeof session) => !sess || sess.pseudo === 'Invité' || sess.avatar_icon === 'ghost'
   const activeCategoryName = categories.find(c => c.id === activeCategory)?.name || 'Menu'
   const tableLabel = tableDisplayName || tableId
+  const displayLogoUrl = logoPreviewUrl || restaurant.logo_url
 
   // ── Envoi effectif de la commande ──
   async function sendOrder(sess: typeof session, itemsSnapshot: typeof cart.items, notesSnapshot: Record<string, string>) {
@@ -155,6 +158,8 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
       gender: 'autre',
       profile_type: 'solo',
       is_present: true,
+      last_seen_at: new Date().toISOString(),
+      left_at: null,
     }).select().single()
     if (data) { setSession(data); return data }
     return null
@@ -214,9 +219,9 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
       <div className="px-5 pt-5 pb-3 bg-white border-b border-gray-100">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            {restaurant.logo_url ? (
+            {displayLogoUrl ? (
               <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                <img src={restaurant.logo_url} alt="" className="w-full h-full object-contain p-1" />
+                <img src={displayLogoUrl} alt="" className="w-full h-full object-contain p-1" />
               </div>
             ) : session ? (
               <TwemojiAvatar avatarId={session.avatar_icon || ''} size={40} className="ring-2 ring-gray-100" />

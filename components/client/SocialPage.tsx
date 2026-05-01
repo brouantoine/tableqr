@@ -1,18 +1,18 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
-import { TwemojiIcon } from '@/components/Twemoji'
-import TwemojiAvatar, { AVATAR_MAP, getAvatarLabel } from './TwemojiAvatar'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import TwemojiAvatar from './TwemojiAvatar'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
+import { getPresenceCutoffIso, getPresenceStamp, isLiveSocialClient } from '@/lib/social/presence'
 import { formatTimeAgo } from '@/lib/utils'
-import { Send, ChevronLeft, Search, MoreVertical, Moon } from 'lucide-react'
+import { Send, ChevronLeft, Search, MoreVertical, Moon, UserRound } from 'lucide-react'
 import type { ClientSession, SocialMessage, Restaurant } from '@/types'
 
 type SocialMode = 'receptif' | 'discret' | 'invisible'
 
 export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
-  const { session } = useSessionStore()
+  const { session, setSession } = useSessionStore()
   const [view, setView] = useState<'list' | 'chat'>('list')
   const [clients, setClients] = useState<ClientSession[]>([])
   const [conversations, setConversations] = useState<Record<string, SocialMessage[]>>({})
@@ -24,83 +24,233 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const p = restaurant.primary_color
 
-  const myAvatar = AVATAR_MAP[session?.avatar_icon || '']
+  const sessionId = session?.id
+  const sessionRestaurantId = session?.restaurant_id
+  const selectedClientId = selectedClient?.id
+  const hasValidSession = Boolean(sessionId && sessionRestaurantId === restaurant.id)
+
+  const loadClients = useCallback(async () => {
+    if (!sessionId || sessionRestaurantId !== restaurant.id) return
+    const { data, error } = await supabase.from('client_sessions')
+      .select('*')
+      .eq('restaurant_id', restaurant.id)
+      .eq('is_present', true)
+      .eq('is_remote', false)
+      .neq('social_mode', 'invisible')
+      .neq('id', sessionId)
+      .gte('last_seen_at', getPresenceCutoffIso())
+      .order('last_seen_at', { ascending: false })
+
+    if (error) {
+      console.error('Load social clients error:', error)
+      setClients([])
+      return
+    }
+
+    setClients((data || []).filter(client =>
+      isLiveSocialClient(client as ClientSession, restaurant.id, sessionId)
+    ) as ClientSession[])
+  }, [restaurant.id, sessionId, sessionRestaurantId])
+
+  const loadAllMessages = useCallback(async () => {
+    if (!sessionId || sessionRestaurantId !== restaurant.id) return
+    const { data, error } = await supabase.from('social_messages').select('*')
+      .eq('restaurant_id', restaurant.id)
+      .or(`sender_session_id.eq.${sessionId},receiver_session_id.eq.${sessionId}`)
+      .order('created_at', { ascending: true })
+
+    if (error) {
+      console.error('Load social messages error:', error)
+      return
+    }
+
+    const grouped: Record<string, SocialMessage[]> = {}
+    ;(data || []).forEach(msg => {
+      const typedMsg = msg as SocialMessage
+      const otherId = typedMsg.sender_session_id === sessionId ? typedMsg.receiver_session_id : typedMsg.sender_session_id
+      if (!grouped[otherId]) grouped[otherId] = []
+      grouped[otherId].push(typedMsg)
+    })
+    setConversations(grouped)
+  }, [restaurant.id, sessionId, sessionRestaurantId])
+
+  const markConversationRead = useCallback(async (clientId: string) => {
+    if (!sessionId || sessionRestaurantId !== restaurant.id) return
+    await supabase.from('social_messages')
+      .update({ is_read: true })
+      .eq('restaurant_id', restaurant.id)
+      .eq('sender_session_id', clientId)
+      .eq('receiver_session_id', sessionId)
+      .eq('is_read', false)
+
+    setConversations(prev => ({
+      ...prev,
+      [clientId]: (prev[clientId] || []).map(msg =>
+        msg.sender_session_id === clientId && msg.receiver_session_id === sessionId
+          ? { ...msg, is_read: true }
+          : msg
+      ),
+    }))
+  }, [restaurant.id, sessionId, sessionRestaurantId])
 
   useEffect(() => {
-    if (!session) return
-    loadClients()
-    loadAllMessages()
-    const channel = supabase.channel(`social-${session.id}`)
+    setSocialMode((session?.social_mode as SocialMode) || 'receptif')
+  }, [session?.social_mode])
+
+  useEffect(() => {
+    if (!hasValidSession || !sessionId) return
+    void loadClients()
+    void loadAllMessages()
+
+    const messagesChannel = supabase.channel(`social-messages-${sessionId}`)
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'social_messages',
-        filter: `receiver_session_id=eq.${session.id}`
+        filter: `receiver_session_id=eq.${sessionId}`
       }, async (payload) => {
         const msg = payload.new as SocialMessage
+        if (msg.restaurant_id !== restaurant.id) return
+
         setConversations(prev => ({
           ...prev,
           [msg.sender_session_id]: [...(prev[msg.sender_session_id] || []), msg]
         }))
+
         await supabase.from('notifications').insert({
-          restaurant_id: restaurant.id, session_id: session.id,
+          restaurant_id: restaurant.id, session_id: sessionId,
           type: 'message', title: 'Nouveau message',
           body: msg.message.length > 40 ? msg.message.slice(0, 40) + '...' : msg.message,
           data: { sender_id: msg.sender_session_id },
         })
-        loadClients()
+
+        void loadClients()
       })
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [session])
+
+    const presenceChannel = supabase.channel(`social-presence-${restaurant.id}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'client_sessions',
+        filter: `restaurant_id=eq.${restaurant.id}`,
+      }, () => {
+        void loadClients()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(messagesChannel)
+      supabase.removeChannel(presenceChannel)
+    }
+  }, [hasValidSession, sessionId, restaurant.id, loadClients, loadAllMessages])
 
   useEffect(() => {
     if (view === 'chat') setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
   }, [view, conversations, selectedClient])
 
-  async function loadClients() {
-    if (!session) return
-    const { data } = await supabase.from('client_sessions')
-      .select('*').eq('restaurant_id', restaurant.id).eq('is_present', true)
-      .eq('is_remote', false).neq('social_mode', 'invisible').neq('id', session.id)
-    setClients(data || [])
-  }
+  useEffect(() => {
+    if (!selectedClientId) return
+    const freshClient = clients.find(client => client.id === selectedClientId)
+    if (!freshClient) {
+      setSelectedClient(null)
+      setView('list')
+      return
+    }
+    setSelectedClient(freshClient)
+  }, [clients, selectedClientId])
 
-  async function loadAllMessages() {
-    if (!session) return
-    const { data } = await supabase.from('social_messages').select('*')
-      .or(`sender_session_id.eq.${session.id},receiver_session_id.eq.${session.id}`)
-      .order('created_at', { ascending: true })
-    const grouped: Record<string, SocialMessage[]> = {}
-    ;(data || []).forEach(msg => {
-      const otherId = msg.sender_session_id === session.id ? msg.receiver_session_id : msg.sender_session_id
-      if (!grouped[otherId]) grouped[otherId] = []
-      grouped[otherId].push(msg as SocialMessage)
-    })
-    setConversations(grouped)
-  }
+  useEffect(() => {
+    if (view === 'chat' && selectedClientId) void markConversationRead(selectedClientId)
+  }, [view, selectedClientId, markConversationRead])
 
   async function updateMode(mode: SocialMode) {
-    if (!session) return
+    if (!sessionId) return
     setSocialMode(mode)
-    await supabase.from('client_sessions').update({ social_mode: mode }).eq('id', session.id)
+    const now = getPresenceStamp()
+    const { data } = await supabase.from('client_sessions')
+      .update({ social_mode: mode, is_present: true, last_seen_at: now, left_at: null })
+      .eq('id', sessionId)
+      .eq('restaurant_id', restaurant.id)
+      .select()
+      .single()
+    if (data) setSession(data as ClientSession)
+    void loadClients()
   }
 
   async function sendMessage() {
-    if (!session || !selectedClient || !newMsg.trim() || sending) return
+    if (!sessionId || !selectedClient || !newMsg.trim() || sending) return
     setSending(true)
-    const { data } = await supabase.from('social_messages').insert({
-      restaurant_id: restaurant.id, sender_session_id: session.id,
-      receiver_session_id: selectedClient.id, message: newMsg.trim(), is_anonymous: true,
-    }).select().single()
-    if (data) setConversations(prev => ({
-      ...prev, [selectedClient.id]: [...(prev[selectedClient.id] || []), data as SocialMessage]
-    }))
-    setNewMsg('')
-    setSending(false)
+    try {
+      const message = newMsg.trim()
+      const { data: receiver } = await supabase.from('client_sessions')
+        .select('*')
+        .eq('id', selectedClient.id)
+        .eq('restaurant_id', restaurant.id)
+        .eq('is_present', true)
+        .eq('is_remote', false)
+        .neq('social_mode', 'invisible')
+        .gte('last_seen_at', getPresenceCutoffIso())
+        .maybeSingle()
+
+      if (!receiver || !isLiveSocialClient(receiver as ClientSession, restaurant.id, sessionId)) {
+        setSelectedClient(null)
+        setView('list')
+        await loadClients()
+        return
+      }
+
+      const liveReceiver = receiver as ClientSession
+      setSelectedClient(liveReceiver)
+      const { data } = await supabase.from('social_messages').insert({
+        restaurant_id: restaurant.id,
+        sender_session_id: sessionId,
+        receiver_session_id: liveReceiver.id,
+        message,
+        is_anonymous: true,
+      }).select().single()
+
+      if (data) setConversations(prev => ({
+        ...prev, [liveReceiver.id]: [...(prev[liveReceiver.id] || []), data as SocialMessage]
+      }))
+      setNewMsg('')
+    } finally {
+      setSending(false)
+    }
   }
 
   const currentMessages = selectedClient ? (conversations[selectedClient.id] || []) : []
-  const filteredClients = clients.filter(c => c.pseudo?.toLowerCase().includes(search.toLowerCase()))
-  const hasConversations = Object.keys(conversations).length > 0
+  const normalizedSearch = search.trim().toLowerCase()
+  const filteredClients = clients.filter(c => c.pseudo?.toLowerCase().includes(normalizedSearch))
+  const visibleConversationEntries = Object.entries(conversations)
+    .map(([clientId, msgs]) => ({
+      client: clients.find(c => c.id === clientId),
+      msgs,
+    }))
+    .filter(entry =>
+      entry.client &&
+      entry.msgs.length > 0 &&
+      (!normalizedSearch || entry.client.pseudo?.toLowerCase().includes(normalizedSearch))
+    )
+    .sort((a, b) => {
+      const aLast = a.msgs[a.msgs.length - 1]?.created_at || ''
+      const bLast = b.msgs[b.msgs.length - 1]?.created_at || ''
+      return new Date(bLast).getTime() - new Date(aLast).getTime()
+    }) as { client: ClientSession; msgs: SocialMessage[] }[]
+  const hasConversations = visibleConversationEntries.length > 0
+
+  if (!hasValidSession) return (
+    <div className="flex flex-col items-center justify-center px-6 text-center" style={{ minHeight: 'calc(100vh - 56px)', backgroundColor: '#F8F8F8' }}>
+      <div className="w-20 h-20 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
+        <UserRound size={34} className="text-gray-300" />
+      </div>
+      <p className="font-black text-gray-900 text-lg mb-1">Identifiez-vous d&apos;abord</p>
+      <p className="text-gray-400 text-sm max-w-xs mb-5">
+        Le Social affiche uniquement les clients qui ont scanné ce restaurant et qui sont encore présents.
+      </p>
+      <a
+        href={`/${restaurant.slug}/menu`}
+        className="px-5 py-3 rounded-2xl bg-white border border-gray-200 text-sm font-bold text-gray-700 shadow-sm">
+        Retour au menu
+      </a>
+    </div>
+  )
 
   // ── VUE LISTE ──
   if (view === 'list') return (
@@ -185,28 +335,28 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
           <div className="px-4">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Messages</p>
             <div className="space-y-1">
-              {Object.entries(conversations).map(([clientId, msgs]) => {
-                const client = clients.find(c => c.id === clientId)
+              {visibleConversationEntries.map(({ client, msgs }) => {
                 const lastMsg = msgs[msgs.length - 1]
                 if (!lastMsg) return null
-                const unread = msgs.filter(m => m.sender_session_id !== session?.id && !(m as any).read_at).length
+                const unread = msgs.filter(m => m.sender_session_id !== session?.id && !m.is_read).length
                 return (
-                  <motion.button key={clientId} whileTap={{ scale: 0.98 }}
+                  <motion.button key={client.id} whileTap={{ scale: 0.98 }}
                     onClick={() => {
-                      setSelectedClient(client || { id: clientId, pseudo: 'Client parti', avatar_icon: 'ghost' } as any)
+                      setSelectedClient(client)
                       setView('chat')
+                      void markConversationRead(client.id)
                     }}
                     className="w-full flex items-center gap-3 bg-white rounded-2xl px-4 py-3.5 text-left"
                     style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
                     <div className="relative flex-shrink-0">
-                      <TwemojiAvatar avatarId={client?.avatar_icon || 'ghost'} size={46} />
+                      <TwemojiAvatar avatarId={client.avatar_icon || 'ghost'} size={46} />
                       <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
-                        style={{ backgroundColor: client?.social_mode === 'receptif' ? '#10B981' : '#D1D5DB' }} />
+                        style={{ backgroundColor: client.social_mode === 'receptif' ? '#10B981' : '#F59E0B' }} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-0.5">
                         <p className={`text-sm truncate ${unread > 0 ? 'font-black text-gray-900' : 'font-semibold text-gray-800'}`}>
-                          {client?.pseudo || 'Client parti'}
+                          {client.pseudo}
                         </p>
                         <p className="text-xs text-gray-400 flex-shrink-0 ml-2">{formatTimeAgo(lastMsg.created_at)}</p>
                       </div>
@@ -228,13 +378,17 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
         )}
 
         {/* Vide */}
-        {clients.length === 0 && !hasConversations && (
+        {filteredClients.length === 0 && !hasConversations && (
           <div className="flex flex-col items-center justify-center py-24 text-center px-6">
             <div className="w-20 h-20 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
               <Moon size={40} className="text-gray-300" />
             </div>
-            <p className="font-black text-gray-900 text-lg mb-1">Espace calme</p>
-            <p className="text-gray-400 text-sm">Personne d&apos;autre pour l&apos;instant. Soyez le premier !</p>
+            <p className="font-black text-gray-900 text-lg mb-1">
+              {normalizedSearch ? 'Aucun profil' : 'Espace calme'}
+            </p>
+            <p className="text-gray-400 text-sm">
+              {normalizedSearch ? 'Aucun client présent ne correspond à cette recherche.' : 'Personne d&apos;autre pour l&apos;instant.'}
+            </p>
           </div>
         )}
       </div>
@@ -242,8 +396,6 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   )
 
   // ── VUE CHAT ──
-  const otherAvatar = AVATAR_MAP[selectedClient?.avatar_icon || '']
-
   return (
     <div className="flex flex-col bg-white" style={{ height: '100dvh' }}>
 

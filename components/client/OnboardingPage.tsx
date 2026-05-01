@@ -82,6 +82,7 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
     setLoading(true)
     const fingerprint = generateDeviceFingerprint()
     const pseudo = getAvatarLabel(selectedAvatar.id)
+    const now = new Date().toISOString()
     const sessionData = {
       restaurant_id: restaurant.id,
       ...(table.id ? { table_id: table.id } : {}),
@@ -91,6 +92,8 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
       gender: 'autre' as Gender,
       profile_type: selectedProfile as ProfileType,
       is_present: true,
+      last_seen_at: now,
+      left_at: null,
     }
     // Mode upgrade invité : on met à jour la session existante au lieu d'en créer une nouvelle
     let data: ClientSession | null = null

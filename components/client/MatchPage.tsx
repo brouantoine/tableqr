@@ -1,7 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
+import { getPresenceCutoffIso, isLiveSocialClient } from '@/lib/social/presence'
 import type { ClientSession, Restaurant } from '@/types'
 
 export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
@@ -12,28 +13,42 @@ export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
   const [contactInput, setContactInput] = useState('')
   const [sharingWith, setSharingWith] = useState<string | null>(null)
   const p = restaurant.primary_color
+  const sessionId = session?.id
+  const sessionRestaurantId = session?.restaurant_id
 
-  useEffect(() => {
-    if (!session) return
-    loadConversations()
-  }, [session])
-
-  async function loadConversations() {
-    if (!session) return
+  const loadConversations = useCallback(async () => {
+    if (!sessionId || sessionRestaurantId !== restaurant.id) return
     // Charger les gens avec qui on a échangé des messages
     const { data } = await supabase.from('social_messages')
       .select('sender_session_id, receiver_session_id')
-      .or(`sender_session_id.eq.${session.id},receiver_session_id.eq.${session.id}`)
+      .eq('restaurant_id', restaurant.id)
+      .or(`sender_session_id.eq.${sessionId},receiver_session_id.eq.${sessionId}`)
     if (!data) return
 
     const ids = [...new Set(data.flatMap(m => [m.sender_session_id, m.receiver_session_id])
-      .filter(id => id !== session.id))]
+      .filter(id => id !== sessionId))]
 
     if (ids.length === 0) return
     const { data: clients } = await supabase.from('client_sessions')
-      .select('*').in('id', ids)
-    setConversations(clients || [])
-  }
+      .select('*')
+      .in('id', ids)
+      .eq('restaurant_id', restaurant.id)
+      .eq('is_present', true)
+      .eq('is_remote', false)
+      .neq('social_mode', 'invisible')
+      .gte('last_seen_at', getPresenceCutoffIso())
+    setConversations((clients || []).filter(client =>
+      isLiveSocialClient(client as ClientSession, restaurant.id, sessionId)
+    ) as ClientSession[])
+  }, [restaurant.id, sessionId, sessionRestaurantId])
+
+  useEffect(() => {
+    if (!sessionId) return
+    const refreshTimer = window.setTimeout(() => {
+      void loadConversations()
+    }, 0)
+    return () => window.clearTimeout(refreshTimer)
+  }, [sessionId, loadConversations])
 
   async function vote(targetId: string, liked: boolean) {
     if (!session) return
@@ -44,13 +59,15 @@ export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
     // Vérifier si match existant
     const { data: existing } = await supabase.from('matches')
       .select('*')
+      .eq('restaurant_id', restaurant.id)
       .or(`and(session_a_id.eq.${session.id},session_b_id.eq.${targetId}),and(session_a_id.eq.${targetId},session_b_id.eq.${session.id})`)
       .single()
 
     if (existing) {
       // Mettre à jour le vote
       const isA = existing.session_a_id === session.id
-      const update: any = isA ? { session_a_voted: true } : { session_b_voted: true }
+      const update: { session_a_voted?: boolean; session_b_voted?: boolean; is_matched?: boolean } =
+        isA ? { session_a_voted: true } : { session_b_voted: true }
       // Vérifier si les deux ont voté oui
       const bothMatch = isA ? existing.session_b_voted === true : existing.session_a_voted === true
       if (bothMatch) update.is_matched = true
@@ -73,6 +90,7 @@ export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
     if (!session || !contactInput.trim()) return
     const { data: existing } = await supabase.from('matches')
       .select('*')
+      .eq('restaurant_id', restaurant.id)
       .or(`and(session_a_id.eq.${session.id},session_b_id.eq.${targetId}),and(session_a_id.eq.${targetId},session_b_id.eq.${session.id})`)
       .single()
     if (!existing) return
@@ -105,7 +123,7 @@ export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
 
       <div className="px-4 pt-6 space-y-4">
         <p className="text-sm text-gray-600 text-center italic">
-          "C&apos;était une belle soirée. Est-ce que vous avez cliqué avec quelqu&apos;un ?"
+          &ldquo;C&apos;était une belle soirée. Est-ce que vous avez cliqué avec quelqu&apos;un ?&rdquo;
         </p>
         {conversations.map(client => {
           const voted = matchVotes[client.id] !== undefined

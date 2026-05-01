@@ -118,6 +118,7 @@ CREATE TABLE client_sessions (
   device_fingerprint TEXT,
   ip_address TEXT,
   entered_at TIMESTAMPTZ DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ DEFAULT NOW(),
   left_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -259,6 +260,7 @@ CREATE INDEX idx_orders_status ON orders(restaurant_id, status);
 CREATE INDEX idx_orders_created ON orders(restaurant_id, created_at DESC);
 CREATE INDEX idx_sessions_restaurant ON client_sessions(restaurant_id);
 CREATE INDEX idx_sessions_present ON client_sessions(restaurant_id, is_present);
+CREATE INDEX idx_sessions_live_social ON client_sessions(restaurant_id, is_present, is_remote, social_mode, last_seen_at DESC);
 CREATE INDEX idx_messages_receiver ON social_messages(receiver_session_id, is_read);
 CREATE INDEX idx_notifications_session ON notifications(session_id, is_read);
 CREATE INDEX idx_restaurant_slug ON restaurants(slug);

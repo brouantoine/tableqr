@@ -126,7 +126,8 @@ export interface ClientSession {
   notif_accepted: boolean
   device_fingerprint?: string
   entered_at: string
-  left_at?: string
+  last_seen_at?: string | null
+  left_at?: string | null
   created_at: string
   table?: RestaurantTable
   restaurant?: Restaurant

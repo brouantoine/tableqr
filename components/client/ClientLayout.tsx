@@ -5,6 +5,7 @@ import { useSessionStore } from '@/lib/store'
 import BottomNav from './BottomNav'
 import SplashScreen from './SplashScreen'
 import GlobalClientNotifier from './GlobalClientNotifier'
+import { useClientPresence } from '@/hooks/useClientPresence'
 import type { Restaurant } from '@/types'
 
 export default function ClientLayout({ children, restaurant }: { children: React.ReactNode; restaurant: Restaurant }) {
@@ -13,18 +14,24 @@ export default function ClientLayout({ children, restaurant }: { children: React
   const [showSplash, setShowSplash] = useState(false)
 
   const showNav = !pathname.includes('/table/')
+  useClientPresence(restaurant.id)
 
   useEffect(() => {
     // Splash uniquement au tout premier chargement de la session
     const key = `splash_${restaurant.id}`
+    let splashTimer: number | null = null
     if (!sessionStorage.getItem(key)) {
-      setShowSplash(true)
+      splashTimer = window.setTimeout(() => setShowSplash(true), 0)
       sessionStorage.setItem(key, '1')
     }
     setRestaurant(restaurant)
     document.documentElement.style.setProperty('--primary', restaurant.primary_color)
     document.documentElement.style.setProperty('--secondary', restaurant.secondary_color)
     document.documentElement.style.setProperty('--accent', restaurant.accent_color)
+
+    return () => {
+      if (splashTimer) window.clearTimeout(splashTimer)
+    }
   }, [restaurant, setRestaurant])
 
   return (

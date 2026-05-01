@@ -6,10 +6,21 @@ import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { getPresenceCutoffIso, getPresenceStamp, isLiveSocialClient } from '@/lib/social/presence'
 import { formatTimeAgo } from '@/lib/utils'
-import { Send, ChevronLeft, Search, Moon, UserRound } from 'lucide-react'
+import { Send, ChevronLeft, Search, Moon, UserRound, Plus } from 'lucide-react'
 import type { ClientSession, SocialMessage, Restaurant } from '@/types'
 
 type SocialMode = 'receptif' | 'discret' | 'invisible'
+
+function appendMessage(prev: Record<string, SocialMessage[]>, clientId: string, msg: SocialMessage) {
+  const current = prev[clientId] || []
+  if (current.some(item => item.id === msg.id)) return prev
+  return {
+    ...prev,
+    [clientId]: [...current, msg].sort((a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    ),
+  }
+}
 
 export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   const { session, setSession } = useSessionStore()
@@ -22,6 +33,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   const [sending, setSending] = useState(false)
   const [search, setSearch] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const activeChatRef = useRef<{ view: 'list' | 'chat'; selectedClientId?: string }>({ view: 'list' })
   const p = restaurant.primary_color
 
   const sessionId = session?.id
@@ -98,6 +110,10 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   }, [session?.social_mode])
 
   useEffect(() => {
+    activeChatRef.current = { view, selectedClientId }
+  }, [view, selectedClientId])
+
+  useEffect(() => {
     if (!hasValidSession || !sessionId) return
     void loadClients()
     void loadAllMessages()
@@ -110,17 +126,10 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
         const msg = payload.new as SocialMessage
         if (msg.restaurant_id !== restaurant.id) return
 
-        setConversations(prev => ({
-          ...prev,
-          [msg.sender_session_id]: [...(prev[msg.sender_session_id] || []), msg]
-        }))
-
-        await supabase.from('notifications').insert({
-          restaurant_id: restaurant.id, session_id: sessionId,
-          type: 'message', title: 'Nouveau message',
-          body: msg.message.length > 40 ? msg.message.slice(0, 40) + '...' : msg.message,
-          data: { sender_id: msg.sender_session_id },
-        })
+        setConversations(prev => appendMessage(prev, msg.sender_session_id, msg))
+        if (activeChatRef.current.view === 'chat' && activeChatRef.current.selectedClientId === msg.sender_session_id) {
+          void markConversationRead(msg.sender_session_id)
+        }
 
         void loadClients()
       })
@@ -139,7 +148,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
       supabase.removeChannel(messagesChannel)
       supabase.removeChannel(presenceChannel)
     }
-  }, [hasValidSession, sessionId, restaurant.id, loadClients, loadAllMessages])
+  }, [hasValidSession, sessionId, restaurant.id, loadClients, loadAllMessages, markConversationRead])
 
   useEffect(() => {
     if (view === 'chat') setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
@@ -198,17 +207,27 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
 
       const liveReceiver = receiver as ClientSession
       setSelectedClient(liveReceiver)
-      const { data } = await supabase.from('social_messages').insert({
-        restaurant_id: restaurant.id,
-        sender_session_id: sessionId,
-        receiver_session_id: liveReceiver.id,
-        message,
-        is_anonymous: true,
-      }).select().single()
+      const res = await fetch('/api/social/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurant_id: restaurant.id,
+          sender_session_id: sessionId,
+          receiver_session_id: liveReceiver.id,
+          message,
+        }),
+      })
+      const json = await res.json() as { data?: SocialMessage; error?: string }
+      if (!res.ok || !json.data) {
+        if (res.status === 409) {
+          setSelectedClient(null)
+          setView('list')
+          await loadClients()
+        }
+        return
+      }
 
-      if (data) setConversations(prev => ({
-        ...prev, [liveReceiver.id]: [...(prev[liveReceiver.id] || []), data as SocialMessage]
-      }))
+      setConversations(prev => appendMessage(prev, liveReceiver.id, json.data as SocialMessage))
       setNewMsg('')
     } finally {
       setSending(false)
@@ -234,6 +253,9 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
       return new Date(bLast).getTime() - new Date(aLast).getTime()
     }) as { client: ClientSession; msgs: SocialMessage[] }[]
   const hasConversations = visibleConversationEntries.length > 0
+  const conversationClientIds = new Set(visibleConversationEntries.map(entry => entry.client.id))
+  const discoveryClients = filteredClients.filter(client => !conversationClientIds.has(client.id))
+  const hasDiscovery = discoveryClients.length > 0
 
   if (!hasValidSession) return (
     <div className="flex flex-col items-center justify-center px-6 text-center" style={{ minHeight: 'calc(100vh - 56px)', backgroundColor: '#F8F8F8' }}>
@@ -256,44 +278,38 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   if (view === 'list') return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 56px)', backgroundColor: '#F8F8F8' }}>
 
-      {/* Header — Mon profil */}
       <div className="bg-white px-4 pt-5 pb-4" style={{ boxShadow: '0 1px 0 #F0F0F0' }}>
-        {/* Mon profil */}
         <div className="flex items-center gap-3 mb-4 px-1">
           <div className="relative">
-            <TwemojiAvatar avatarId={session?.avatar_icon || ''} size={48} />
-            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white"
+            <TwemojiAvatar avatarId={session?.avatar_icon || ''} size={42} />
+            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
               style={{ backgroundColor: socialMode === 'receptif' ? '#10B981' : socialMode === 'discret' ? '#F59E0B' : '#9CA3AF' }} />
           </div>
-          <div className="flex-1">
-            <p className="font-black text-gray-900">{session?.pseudo || 'Moi'}</p>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-xs font-medium" style={{ color: socialMode === 'receptif' ? '#10B981' : socialMode === 'discret' ? '#F59E0B' : '#9CA3AF' }}>
-                {socialMode === 'receptif' ? '● Disponible' : socialMode === 'discret' ? '● Discret' : '● Invisible'}
-              </span>
-              <span className="text-gray-300 text-xs">·</span>
-              <span className="text-xs text-gray-400">{restaurant.name}</span>
-            </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-gray-900 text-lg leading-tight truncate">Social</p>
+            <p className="text-xs font-medium truncate" style={{ color: socialMode === 'receptif' ? '#10B981' : socialMode === 'discret' ? '#F59E0B' : '#9CA3AF' }}>
+              {session?.pseudo || 'Moi'}
+            </p>
           </div>
-          {/* Mode switcher compact */}
           <div className="flex gap-1.5">
             {[
-              { key: 'receptif', color: '#10B981', label: '●' },
-              { key: 'discret', color: '#F59E0B', label: '●' },
-              { key: 'invisible', color: '#9CA3AF', label: '●' },
+              { key: 'receptif', color: '#10B981', label: 'Disponible' },
+              { key: 'discret', color: '#F59E0B', label: 'Discret' },
+              { key: 'invisible', color: '#9CA3AF', label: 'Invisible' },
             ].map(m => (
               <button key={m.key} onClick={() => updateMode(m.key as SocialMode)}
+                aria-label={m.label}
+                title={m.label}
                 className="w-7 h-7 rounded-full flex items-center justify-center transition-all"
                 style={socialMode === m.key
                   ? { backgroundColor: m.color + '20', border: `2px solid ${m.color}` }
                   : { backgroundColor: '#F5F5F5', border: '2px solid transparent' }}>
-                <span style={{ color: m.color, fontSize: '10px' }}>●</span>
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: m.color }} />
               </button>
             ))}
           </div>
         </div>
 
-        {/* Barre recherche */}
         <div className="relative">
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" placeholder="Rechercher..." value={search}
@@ -304,37 +320,9 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
       </div>
 
       <div className="flex-1 overflow-y-auto pb-24">
-
-        {/* Bulles des gens présents */}
-        {filteredClients.length > 0 && (
-          <div className="px-4 py-4">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
-              Dans le restaurant · {clients.length}
-            </p>
-            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-              {filteredClients.map((client, i) => (
-                <motion.button key={client.id}
-                  initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.04 }} whileTap={{ scale: 0.92 }}
-                  onClick={() => { setSelectedClient(client); setView('chat') }}
-                  className="flex flex-col items-center gap-1.5 flex-shrink-0">
-                  <div className="relative">
-                    <TwemojiAvatar avatarId={client.avatar_icon || ''} size={52} />
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
-                      style={{ backgroundColor: client.social_mode === 'receptif' ? '#10B981' : '#F59E0B' }} />
-                  </div>
-                  <p className="text-xs font-bold text-gray-700 max-w-[52px] truncate">{client.pseudo}</p>
-                </motion.button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Conversations */}
         {hasConversations && (
-          <div className="px-4">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Messages</p>
-            <div className="space-y-1">
+          <div className="px-2 pt-3">
+            <div>
               {visibleConversationEntries.map(({ client, msgs }) => {
                 const lastMsg = msgs[msgs.length - 1]
                 if (!lastMsg) return null
@@ -346,22 +334,21 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
                       setView('chat')
                       void markConversationRead(client.id)
                     }}
-                    className="w-full flex items-center gap-3 bg-white rounded-2xl px-4 py-3.5 text-left"
-                    style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                    className="w-full flex items-center gap-3 rounded-2xl px-3 py-3 text-left active:bg-white">
                     <div className="relative flex-shrink-0">
-                      <TwemojiAvatar avatarId={client.avatar_icon || 'ghost'} size={46} />
-                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
+                      <TwemojiAvatar avatarId={client.avatar_icon || 'ghost'} size={52} />
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
                         style={{ backgroundColor: client.social_mode === 'receptif' ? '#10B981' : '#F59E0B' }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <p className={`text-sm truncate ${unread > 0 ? 'font-black text-gray-900' : 'font-semibold text-gray-800'}`}>
+                      <div className="flex items-center justify-between">
+                        <p className={`text-[15px] truncate ${unread > 0 ? 'font-black text-gray-950' : 'font-bold text-gray-900'}`}>
                           {client.pseudo}
                         </p>
                         <p className="text-xs text-gray-400 flex-shrink-0 ml-2">{formatTimeAgo(lastMsg.created_at)}</p>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <p className={`text-xs truncate max-w-[200px] ${unread > 0 ? 'text-gray-700 font-medium' : 'text-gray-400'}`}>
+                      <div className="mt-0.5 flex items-center justify-between">
+                        <p className={`text-sm truncate max-w-[230px] ${unread > 0 ? 'text-gray-800 font-semibold' : 'text-gray-500'}`}>
                           {lastMsg.sender_session_id === session?.id ? 'Vous : ' : ''}{lastMsg.message}
                         </p>
                         {unread > 0 && (
@@ -377,17 +364,35 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
           </div>
         )}
 
-        {/* Vide */}
-        {filteredClients.length === 0 && !hasConversations && (
+        {hasDiscovery && (
+          <div className="px-4 pt-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">En salle</p>
+            <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+              {discoveryClients.map((client, i) => (
+                <motion.button key={client.id}
+                  initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: i * 0.04 }} whileTap={{ scale: 0.92 }}
+                  onClick={() => { setSelectedClient(client); setView('chat') }}
+                  className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                  <div className="relative">
+                    <TwemojiAvatar avatarId={client.avatar_icon || ''} size={54} />
+                    <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
+                      style={{ backgroundColor: client.social_mode === 'receptif' ? '#10B981' : '#F59E0B' }} />
+                  </div>
+                  <p className="text-xs font-bold text-gray-700 max-w-[58px] truncate">{client.pseudo}</p>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!hasDiscovery && !hasConversations && (
           <div className="flex flex-col items-center justify-center py-24 text-center px-6">
             <div className="w-20 h-20 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
               <Moon size={40} className="text-gray-300" />
             </div>
             <p className="font-black text-gray-900 text-lg mb-1">
-              {normalizedSearch ? 'Aucun profil' : 'Espace calme'}
-            </p>
-            <p className="text-gray-400 text-sm">
-              {normalizedSearch ? 'Aucun client présent ne correspond à cette recherche.' : 'Personne d&apos;autre pour l&apos;instant.'}
+              {normalizedSearch ? 'Aucun profil' : 'Aucun message'}
             </p>
           </div>
         )}
@@ -475,9 +480,14 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
       <div className="bg-white px-4 py-3 flex-shrink-0"
         style={{ borderTop: '1px solid #F0F0F0', paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         <div className="flex items-center gap-2">
-          <TwemojiAvatar avatarId={session?.avatar_icon || ''} size={32} className="flex-shrink-0" />
-          <div className="flex-1 flex items-center rounded-3xl px-4 py-2.5 gap-2" style={{ backgroundColor: '#F5F5F5' }}>
-            <input type="text" placeholder="Message..."
+          <button
+            type="button"
+            className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ backgroundColor: '#F0F2F5' }}>
+            <Plus size={18} className="text-gray-500" />
+          </button>
+          <div className="flex-1 flex items-center rounded-full px-4 h-10 gap-2" style={{ backgroundColor: '#F0F2F5' }}>
+            <input type="text" placeholder="Aa"
               value={newMsg} onChange={e => setNewMsg(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
               className="flex-1 bg-transparent text-sm outline-none text-gray-900 placeholder-gray-400"
@@ -485,9 +495,9 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
           </div>
           <motion.button whileTap={{ scale: 0.88 }} onClick={sendMessage}
             disabled={!newMsg.trim() || sending}
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white flex-shrink-0 disabled:opacity-40 transition-all"
-            style={{ backgroundColor: newMsg.trim() ? p : '#D1D5DB', boxShadow: newMsg.trim() ? `0 4px 12px ${p}50` : 'none' }}>
-            <Send size={16} strokeWidth={2.5} />
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0 disabled:opacity-35 transition-all"
+            style={{ backgroundColor: newMsg.trim() ? p : '#9CA3AF' }}>
+            <Send size={15} strokeWidth={2.7} />
           </motion.button>
         </div>
       </div>

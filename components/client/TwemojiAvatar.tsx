@@ -1,5 +1,4 @@
 'use client'
-import { useEffect, useRef } from 'react'
 
 // Convertit un emoji en URL Twemoji CDN
 function emojiToTwemojiUrl(emoji: string): string {
@@ -65,10 +64,11 @@ export default function TwemojiAvatar({ avatarId, size = 40, className = '' }: P
 
   return (
     <div className={`rounded-2xl flex items-center justify-center flex-shrink-0 ${className}`}
+      aria-label={av.label}
       style={{ width: size, height: size, backgroundColor: av.bg }}>
       <img
         src={url}
-        alt={av.label}
+        alt=""
         width={imgSize}
         height={imgSize}
         style={{ width: imgSize, height: imgSize, objectFit: 'contain' }}

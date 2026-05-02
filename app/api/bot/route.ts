@@ -16,6 +16,54 @@ interface BotBody {
 
 const TRANSFER_RE = /\b(personnel|serveur|serveuse|responsable|manager|humain|quelqu'un|quelqu’un|appelle|appelez|aide|probl[eè]me|plainte|retard|eau|addition|modifier|annuler)\b/i
 
+function pickAiProvider() {
+  const requested = (process.env.AI_PROVIDER || process.env.LLM_PROVIDER || '').toLowerCase()
+  const xaiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY
+  const groqKey = process.env.GROQ_API_KEY
+  const groqKeyLooksLikeXai = Boolean(groqKey?.startsWith('xai-') || groqKey?.startsWith('xai_'))
+
+  if (requested === 'xai' || requested === 'grok') {
+    const apiKey = xaiKey || groqKey
+    if (!apiKey) return null
+    return {
+      provider: 'xAI/Grok',
+      apiKey,
+      endpoint: 'https://api.x.ai/v1/chat/completions',
+      model: process.env.XAI_MODEL || process.env.GROK_MODEL || 'grok-4-fast-non-reasoning',
+    }
+  }
+
+  if (requested === 'groq') {
+    if (!groqKey) return null
+    return {
+      provider: 'Groq',
+      apiKey: groqKey,
+      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+      model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+    }
+  }
+
+  if (xaiKey || groqKeyLooksLikeXai) {
+    return {
+      provider: 'xAI/Grok',
+      apiKey: xaiKey || groqKey!,
+      endpoint: 'https://api.x.ai/v1/chat/completions',
+      model: process.env.XAI_MODEL || process.env.GROK_MODEL || 'grok-4-fast-non-reasoning',
+    }
+  }
+
+  if (groqKey) {
+    return {
+      provider: 'Groq',
+      apiKey: groqKey,
+      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+      model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+    }
+  }
+
+  return null
+}
+
 function menuLine(item: {
   name: string
   description?: string | null
@@ -142,26 +190,21 @@ export async function POST(req: NextRequest) {
       `Menu actuel:\n${menuText}`,
     ].filter(Boolean).join('\n')
 
-    const apiKey = process.env.GROQ_API_KEY || process.env.GROK_API_KEY || process.env.XAI_API_KEY
-    if (!apiKey) {
+    const ai = pickAiProvider()
+    if (!ai) {
       return NextResponse.json({ error: 'Clé IA manquante' }, { status: 500 })
     }
-
-    const endpoint = process.env.XAI_API_KEY && !process.env.GROQ_API_KEY
-      ? 'https://api.x.ai/v1/chat/completions'
-      : 'https://api.groq.com/openai/v1/chat/completions'
-
-    const model = process.env.GROQ_MODEL || (endpoint.includes('x.ai') ? 'grok-3-mini' : 'llama-3.1-8b-instant')
     const history = (body.history || []).slice(-6).filter(m => m.content?.trim())
 
-    const response = await fetch(endpoint, {
+    const response = await fetch(ai.endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${ai.apiKey}`,
+        ...(body.session_id && ai.provider === 'xAI/Grok' ? { 'x-grok-conv-id': body.session_id } : {}),
       },
       body: JSON.stringify({
-        model,
+        model: ai.model,
         temperature: 0.4,
         max_tokens: 260,
         messages: [
@@ -186,7 +229,10 @@ ${restaurantContext}`)
 
     if (!response.ok) {
       const errText = await response.text()
-      return NextResponse.json({ error: errText || 'Erreur IA' }, { status: 502 })
+      const hint = ai.provider === 'xAI/Grok'
+        ? 'Vérifie que la clé est bien XAI_API_KEY ou GROK_API_KEY, et que le modèle XAI_MODEL/GROK_MODEL est accessible.'
+        : 'Vérifie que la clé est bien une clé Groq dans GROQ_API_KEY.'
+      return NextResponse.json({ error: errText || 'Erreur IA', provider: ai.provider, hint }, { status: 502 })
     }
 
     const data = await response.json()

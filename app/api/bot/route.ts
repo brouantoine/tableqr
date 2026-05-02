@@ -18,12 +18,26 @@ const TRANSFER_RE = /\b(personnel|serveur|serveuse|responsable|manager|humain|qu
 
 function pickAiProvider() {
   const requested = (process.env.AI_PROVIDER || process.env.LLM_PROVIDER || '').toLowerCase()
-  const xaiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY
+  const rawXaiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY
+  const xaiKeyLooksLikeGroq = Boolean(rawXaiKey?.startsWith('gsk_') || rawXaiKey?.startsWith('gsk-') || rawXaiKey?.startsWith('gs'))
+  const xaiKey = xaiKeyLooksLikeGroq ? undefined : rawXaiKey
   const groqKey = process.env.GROQ_API_KEY
   const groqKeyLooksLikeXai = Boolean(groqKey?.startsWith('xai-') || groqKey?.startsWith('xai_'))
+  const groqKeyLooksLikeGroq = Boolean(groqKey?.startsWith('gsk_') || groqKey?.startsWith('gsk-') || groqKey?.startsWith('gs'))
+
+  // Si une vraie clé Groq est présente dans GROQ_API_KEY, elle gagne.
+  // Ça évite qu'une ancienne variable AI_PROVIDER=xai envoie par erreur gsk... chez xAI.
+  if (groqKey && groqKeyLooksLikeGroq) {
+    return {
+      provider: 'Groq',
+      apiKey: groqKey,
+      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+      model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+    }
+  }
 
   if (requested === 'xai' || requested === 'grok') {
-    const apiKey = xaiKey || groqKey
+    const apiKey = xaiKey || (groqKeyLooksLikeXai ? groqKey : undefined)
     if (!apiKey) return null
     return {
       provider: 'xAI/Grok',
@@ -34,10 +48,11 @@ function pickAiProvider() {
   }
 
   if (requested === 'groq') {
-    if (!groqKey) return null
+    const apiKey = groqKey || (xaiKeyLooksLikeGroq ? rawXaiKey : undefined)
+    if (!apiKey) return null
     return {
       provider: 'Groq',
-      apiKey: groqKey,
+      apiKey,
       endpoint: 'https://api.groq.com/openai/v1/chat/completions',
       model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
     }
@@ -54,7 +69,7 @@ function pickAiProvider() {
 
   if (groqKey) {
     return {
-      provider: 'Groq',
+      provider: groqKeyLooksLikeGroq ? 'Groq' : 'Groq',
       apiKey: groqKey,
       endpoint: 'https://api.groq.com/openai/v1/chat/completions',
       model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
@@ -192,7 +207,10 @@ export async function POST(req: NextRequest) {
 
     const ai = pickAiProvider()
     if (!ai) {
-      return NextResponse.json({ error: 'Clé IA manquante' }, { status: 500 })
+      return NextResponse.json({
+        error: 'Clé IA manquante ou incompatible',
+        hint: 'Pour Grok/xAI: mets AI_PROVIDER=xai avec XAI_API_KEY. Pour Groq: mets AI_PROVIDER=groq avec GROQ_API_KEY.',
+      }, { status: 500 })
     }
     const history = (body.history || []).slice(-6).filter(m => m.content?.trim())
 

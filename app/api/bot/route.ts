@@ -17,7 +17,12 @@ interface BotBody {
 const TRANSFER_RE = /\b(personnel|serveur|serveuse|responsable|manager|humain|quelqu'un|quelqu’un|appelle|appelez|aide|probl[eè]me|plainte|retard|eau|addition|modifier|annuler)\b/i
 
 function cleanEnv(value?: string) {
-  return value?.trim().replace(/^['"]|['"]$/g, '') || undefined
+  if (!value) return undefined
+  let out = value.trim().replace(/^['"]|['"]$/g, '').trim()
+  out = out.replace(/^Bearer\s+/i, '').trim()
+  out = out.replace(/^(GROQ_API_KEY|GROK_API_KEY|XAI_API_KEY)\s*=\s*/i, '').trim()
+  out = out.replace(/^['"]|['"]$/g, '').trim()
+  return out || undefined
 }
 
 function pickAiProvider() {
@@ -243,8 +248,13 @@ ${restaurantContext}`)
       const errText = await response.text()
       const hint = ai.provider === 'xAI/Grok'
         ? 'Vérifie que la clé est bien XAI_API_KEY ou GROK_API_KEY, et que le modèle XAI_MODEL/GROK_MODEL est accessible.'
-        : 'Vérifie que la clé est bien une clé Groq dans GROQ_API_KEY.'
-      return NextResponse.json({ error: errText || 'Erreur IA', provider: ai.provider, hint }, { status: 502 })
+        : 'Vérifie dans Vercel que GROQ_API_KEY contient uniquement la clé brute, sans "Bearer", sans "GROQ_API_KEY=", sans guillemets, et qu’elle est définie en Production.'
+      return NextResponse.json({
+        error: errText || 'Erreur IA',
+        provider: ai.provider,
+        model: ai.model,
+        hint,
+      }, { status: 502 })
     }
 
     const data = await response.json()

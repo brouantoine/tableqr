@@ -2044,3 +2044,1023 @@
 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 ❯  
 ────────────
+
+
+
+    139 +    open: { label: 'Nouveau', color: '#EF4444' },
+    140 +    pending: { label: 'En cours', color: '#F59E0B' },
+    141 +    resolved: { label: 'Résolu', color: '#10B981' },
+    142 +  }
+    143 +
+    144 +  return (
+    145 +    <div className="min-h-screen bg-gray-50">
+    146 +      <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-4">
+    147 +        <div className="max-w-7xl mx-auto flex items-center gap-3">
+    148 +          <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ backgroundColor: `${p}15` }}>
+    149 +            <Headset size={20} style={{ color: p }} />
+    150 +          </div>
+    151 +          <div>
+    152 +            <h2 className="font-black text-xl text-gray-900">Assistance clients</h2>
+    153 +            <p className="text-sm text-gray-400 mt-0.5">Messages envoyés au personnel du restaurant</p>
+    154 +          </div>
+    155 +        </div>
+    156 +      </div>
+    157 +
+    158 +      <div className="max-w-7xl mx-auto p-4 sm:p-6 pb-24 grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4">
+    159 +        <div className={`${selected ? 'hidden lg:block' : 'block'} bg-white rounded-2xl border border-gray-100 shadow-sm ov
+         erflow-hidden`}>
+    160 +          <div className="p-3 border-b border-gray-100">
+    161 +            <div className="relative">
+    162 +              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+    163 +              <input
+    164 +                value={search}
+    165 +                onChange={e => setSearch(e.target.value)}
+    166 +                placeholder="Rechercher table ou client..."
+    167 +                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-gray-100 text-sm outline-none text-gray-900"
+    168 +              />
+    169 +            </div>
+    170 +          </div>
+    171 +
+    172 +          {loading ? (
+    173 +            <div className="py-16 flex justify-center"><Loader2 size={22} className="animate-spin text-gray-400" /></div>
+    174 +          ) : filtered.length === 0 ? (
+    175 +            <div className="py-16 px-6 text-center">
+    176 +              <Headset size={38} className="text-gray-300 mx-auto mb-3" />
+    177 +              <p className="font-black text-gray-900 text-sm">Aucune demande</p>
+    178 +              <p className="text-xs text-gray-400 mt-1">Les messages clients apparaîtront ici.</p>
+    179 +            </div>
+    180 +          ) : (
+    181 +            <div className="divide-y divide-gray-50">
+    182 +              {filtered.map(conv => {
+    183 +                const cfg = statusConfig[conv.status] || statusConfig.open
+    184 +                const active = selected?.id === conv.id
+    185 +                return (
+    186 +                  <button key={conv.id}
+    187 +                    onClick={() => setSelected(conv)}
+    188 +                    className={`w-full p-4 text-left flex items-center gap-3 transition-colors ${active ? 'bg-orange-50' :
+         'hover:bg-gray-50'}`}>
+    189 +                    <div className="w-11 h-11 rounded-2xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+    190 +                      <UserRound size={19} className="text-gray-500" />
+    191 +                    </div>
+    192 +                    <div className="flex-1 min-w-0">
+    193 +                      <div className="flex items-center gap-2">
+    194 +                        <p className="font-black text-sm text-gray-900 truncate">{conv.session?.pseudo || 'Client'}</p>
+    195 +                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: cfg.color }} />
+    196 +                      </div>
+    197 +                      <p className="text-xs text-gray-400 truncate">
+    198 +                        {conv.session?.table?.table_number ? `Table ${conv.session.table.table_number}` : 'Sans table'} · {
+         formatTimeAgo(conv.last_message_at)}
+    199 +                      </p>
+    200 +                    </div>
+    201 +                  </button>
+    202 +                )
+    203 +              })}
+    204 +            </div>
+    205 +          )}
+    206 +        </div>
+    207 +
+    208 +        <div className={`${selected ? 'flex' : 'hidden lg:flex'} bg-white rounded-2xl border border-gray-100 shadow-sm over
+         flow-hidden min-h-[70vh] flex-col`}>
+    209 +          {selected ? (
+    210 +            <>
+    211 +              <div className="p-4 border-b border-gray-100 flex items-center gap-3">
+    212 +                <button onClick={() => setSelected(null)} className="lg:hidden w-9 h-9 rounded-xl bg-gray-100 flex items-ce
+         nter justify-center">
+    213 +                  <ChevronLeft size={18} className="text-gray-600" />
+    214 +                </button>
+    215 +                <div className="w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center">
+    216 +                  <UserRound size={18} className="text-gray-500" />
+    217 +                </div>
+    218 +                <div className="flex-1 min-w-0">
+    219 +                  <p className="font-black text-gray-900 text-sm truncate">{selected.session?.pseudo || 'Client'}</p>
+    220 +                  <p className="text-xs text-gray-400">
+    221 +                    {selected.session?.table?.table_number ? `Table ${selected.session.table.table_number}` : 'Table non li
+         ée'}
+    222 +                  </p>
+    223 +                </div>
+    224 +                <div className="flex gap-1">
+    225 +                  {(['open', 'pending', 'resolved'] as const).map(status => {
+    226 +                    const cfg = statusConfig[status]
+    227 +                    return (
+    228 +                      <button key={status} onClick={() => updateStatus(status)}
+    229 +                        className="px-2.5 py-1.5 rounded-xl text-xs font-black"
+    230 +                        style={selected.status === status
+    231 +                          ? { backgroundColor: `${cfg.color}18`, color: cfg.color }
+    232 +                          : { backgroundColor: '#F3F4F6', color: '#9CA3AF' }}>
+    233 +                        {status === 'resolved' ? <CheckCircle2 size={13} /> : status === 'pending' ? <Clock3 size={13} /> :
+          cfg.label}
+    234 +                      </button>
+    235 +                    )
+    236 +                  })}
+    237 +                </div>
+    238 +              </div>
+    239 +
+    240 +              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+    241 +                {messages.map(msg => {
+    242 +                  const isStaff = msg.sender_type === 'staff'
+    243 +                  return (
+    244 +                    <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+    245 +                      className={`flex ${isStaff ? 'justify-end' : 'justify-start'}`}>
+    246 +                      <div className={`max-w-[78%] rounded-3xl px-4 py-2.5 text-sm leading-relaxed ${
+    247 +                        isStaff ? 'rounded-br-lg text-white' : 'rounded-bl-lg bg-white text-gray-900 shadow-sm'
+    248 +                      }`} style={isStaff ? { backgroundColor: p } : undefined}>
+    249 +                        {msg.sender_type === 'bot' && (
+    250 +                          <span className="block text-[10px] font-black uppercase tracking-wider mb-1 opacity-60">Tantie</s
+         pan>
+    251 +                        )}
+    252 +                        {msg.message}
+    253 +                      </div>
+    254 +                    </motion.div>
+    255 +                  )
+    256 +                })}
+    257 +              </div>
+    258 +
+    259 +              <div className="p-4 border-t border-gray-100">
+    260 +                <div className="flex items-center gap-2">
+    261 +                  <input
+    262 +                    value={input}
+    263 +                    onChange={e => setInput(e.target.value)}
+    264 +                    onKeyDown={e => e.key === 'Enter' && sendMessage()}
+    265 +                    placeholder="Répondre au client..."
+    266 +                    className="flex-1 h-11 rounded-full bg-gray-100 px-4 text-sm outline-none text-gray-900"
+    267 +                  />
+    268 +                  <motion.button whileTap={{ scale: 0.9 }}
+    269 +                    onClick={sendMessage}
+    270 +                    disabled={!input.trim() || sending}
+    271 +                    className="w-11 h-11 rounded-full text-white flex items-center justify-center disabled:opacity-40"
+    272 +                    style={{ backgroundColor: p }}>
+    273 +                    {sending ? <Loader2 size={17} className="animate-spin" /> : <Send size={16} strokeWidth={2.7} />}
+    274 +                  </motion.button>
+    275 +                </div>
+    276 +              </div>
+    277 +            </>
+    278 +          ) : (
+    279 +            <div className="flex-1 flex items-center justify-center text-center p-8">
+    280 +              <div>
+    281 +                <Headset size={44} className="text-gray-300 mx-auto mb-3" />
+    282 +                <p className="font-black text-gray-900">Sélectionnez une demande</p>
+    283 +              </div>
+    284 +            </div>
+    285 +          )}
+    286 +        </div>
+    287 +      </div>
+    288 +    </div>
+    289 +  )
+    290 +}
+
+• Added app/admin/assistance/page.tsx (+35 -0)
+     1 +'use client'
+     2 +import { useEffect, useState } from 'react'
+     3 +import { supabase } from '@/lib/supabase/client'
+     4 +import AdminShell from '@/components/admin/AdminShell'
+     5 +import AssistancePage from '@/components/admin/AssistancePage'
+     6 +
+     7 +export default function AdminAssistanceRoute() {
+     8 +  const [restaurant, setRestaurant] = useState<any>(null)
+     9 +  const [loading, setLoading] = useState(true)
+    10 +
+    11 +  useEffect(() => {
+    12 +    async function load() {
+    13 +      const { data: { session } } = await supabase.auth.getSession()
+    14 +      if (!session?.user) { window.location.href = '/admin/login'; return }
+    15 +      const email = session.user.email!.toLowerCase()
+    16 +      const { data: resto } = await supabase.from('restaurants').select('*').eq('admin_email', email).maybeSingle()
+    17 +      if (!resto) { window.location.href = '/admin/login'; return }
+    18 +      setRestaurant(resto)
+    19 +      setLoading(false)
+    20 +    }
+    21 +    load()
+    22 +  }, [])
+    23 +
+    24 +  if (loading) return (
+    25 +    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    26 +      <div className="w-8 h-8 rounded-full border-2 border-t-transparent border-orange-500 animate-spin" />
+    27 +    </div>
+    28 +  )
+    29 +
+    30 +  return (
+    31 +    <AdminShell restaurantName={restaurant.name} primaryColor={restaurant.primary_color}>
+    32 +      <AssistancePage restaurant={restaurant} />
+    33 +    </AdminShell>
+    34 +  )
+    35 +}
+
+• Edited components/admin/AdminShell.tsx (+2 -1)
+     4  import Link from 'next/link'
+     5 -import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut, ChefHat } from 'lucide-react'
+     5 +import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut, ChefHat, Headset } from 'lucide-re
+        act'
+     6  import { supabase } from '@/lib/supabase/client'
+       ⋮
+    10    { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Caisse' },
+    11 +  { href: '/admin/assistance', icon: Headset, label: 'Aide' },
+    12    { href: '/admin/menu', icon: UtensilsCrossed, label: 'Menu' },
+
+• Edited components/admin/ActivitesPage.tsx (+22 -0)
+     3  import { motion, AnimatePresence } from 'framer-motion'
+     4 +import { Bot, Headset, Save, Sparkles } from 'lucide-react'
+     5  import { supabase } from '@/lib/supabase/client'
+       ⋮
+    26    const [tab, setTab] = useState<'modules' | 'jeux' | 'bot'>('modules')
+    27 +  const [botForm, setBotForm] = useState({
+    28 +    bot_enabled: restaurant.bot_enabled !== false,
+    29 +    bot_name: restaurant.bot_name || 'Tantie',
+    30 +    bot_personality: restaurant.bot_personality || 'chaleureux',
+    31 +    bot_context: restaurant.bot_context || '',
+    32 +    bot_transfer_enabled: restaurant.bot_transfer_enabled !== false,
+    33 +  })
+    34    const p = restaurant.primary_color
+       ⋮
+    48
+    49 +  async function saveBotConfig() {
+    50 +    setSaving('bot')
+    51 +    const payload = {
+    52 +      bot_enabled: botForm.bot_enabled,
+    53 +      bot_name: botForm.bot_name.trim() || 'Tantie',
+    54 +      bot_personality: botForm.bot_personality.trim() || 'chaleureux',
+    55 +      bot_context: botForm.bot_context.trim() || null,
+    56 +      bot_transfer_enabled: botForm.bot_transfer_enabled,
+    57 +    }
+    58 +    await supabase.from('restaurants').update(payload).eq('id', restaurant.id)
+    59 +    setRestaurant(prev => ({ ...prev, ...payload }))
+    60 +    setSaving(null)
+    61 +  }
+    62 +
+    63    return (
+
+• Edited components/admin/ActivitesPage.tsx (+68 -10)
+    164                <div className="flex items-center gap-4 mb-5">
+    165 -                <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl"
+    166 -                  style={{ backgroundColor: p + '15' }}>🤖</div>
+    165 +                <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+    166 +                  style={{ backgroundColor: p + '15' }}>
+    167 +                  <Bot size={28} style={{ color: p }} />
+    168 +                </div>
+    169                  <div>
+    168 -                  <p className="font-black text-gray-900">{restaurant.bot_name}</p>
+    169 -                  <p className="text-xs text-gray-400">Votre assistant virtuel</p>
+    170 +                  <p className="font-black text-gray-900">{botForm.bot_name || 'Tantie'}</p>
+    171 +                  <p className="text-xs text-gray-400">Assistant IA visible côté client</p>
+    172                  </div>
+    173 +                <button onClick={() => setBotForm(prev => ({ ...prev, bot_enabled: !prev.bot_enabled }))}
+    174 +                  className="ml-auto w-12 h-6 rounded-full transition-all relative flex-shrink-0"
+    175 +                  style={{ backgroundColor: botForm.bot_enabled ? p : '#E5E7EB' }}>
+    176 +                  <motion.span animate={{ left: botForm.bot_enabled ? '1.5rem' : '0.25rem' }}
+    177 +                    className="absolute top-1 w-4 h-4 rounded-full bg-white shadow"
+    178 +                    style={{ position: 'absolute' }} />
+    179 +                </button>
+    180 +              </div>
+    181 +
+    182 +              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    183 +                <div>
+    184 +                  <label className="text-xs font-bold text-gray-500 block mb-1.5">Nom du bot</label>
+    185 +                  <input type="text" value={botForm.bot_name}
+    186 +                    onChange={e => setBotForm(prev => ({ ...prev, bot_name: e.target.value }))}
+    187 +                    className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none border border-gray-100 focus:bo
+         rder-orange-300" />
+    188 +                </div>
+    189 +                <div>
+    190 +                  <label className="text-xs font-bold text-gray-500 block mb-1.5">Ton</label>
+    191 +                  <select value={botForm.bot_personality}
+    192 +                    onChange={e => setBotForm(prev => ({ ...prev, bot_personality: e.target.value }))}
+    193 +                    className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none border border-gray-100">
+    194 +                    <option value="chaleureux">Chaleureux</option>
+    195 +                    <option value="professionnel">Professionnel</option>
+    196 +                    <option value="drôle et léger">Drôle et léger</option>
+    197 +                    <option value="très ivoirien et familier">Très ivoirien et familier</option>
+    198 +                  </select>
+    199 +                </div>
+    200 +              </div>
+    201 +
+    202 +              <div className="mt-4">
+    203 +                <label className="text-xs font-bold text-gray-500 block mb-1.5">Contexte restaurant</label>
+    204 +                <textarea value={botForm.bot_context}
+    205 +                  onChange={e => setBotForm(prev => ({ ...prev, bot_context: e.target.value }))}
+    206 +                  rows={6}
+    207 +                  placeholder="Ex: spécialités, ambiance, horaires, consignes allergènes, moyens de paiement, contact Whats
+         App, politique réservation..."
+    208 +                  className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none border border-gray-100 focus:bord
+         er-orange-300 resize-none" />
+    209                </div>
+    172 -              <label className="text-xs font-bold text-gray-500 block mb-1.5">Nom du bot</label>
+    173 -              <input type="text" defaultValue={restaurant.bot_name}
+    174 -                onBlur={e => saveBotName(e.target.value)}
+    175 -                className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none border border-gray-100 focus:border
+         -orange-300" />
+    176 -              <p className="text-xs text-gray-400 mt-1.5">Cliquez ailleurs pour sauvegarder</p>
+    210 +
+    211 +              <button onClick={() => setBotForm(prev => ({ ...prev, bot_transfer_enabled: !prev.bot_transfer_enabled }))}
+    212 +                className="w-full mt-3 p-3 rounded-2xl bg-gray-50 border border-gray-100 flex items-center gap-3 text-left"
+         >
+    213 +                <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+    214 +                  style={{ backgroundColor: botForm.bot_transfer_enabled ? p + '15' : '#F3F4F6' }}>
+    215 +                  <Headset size={16} style={{ color: botForm.bot_transfer_enabled ? p : '#9CA3AF' }} />
+    216 +                </div>
+    217 +                <div className="flex-1 min-w-0">
+    218 +                  <p className="font-black text-sm text-gray-900">Transfert vers le personnel</p>
+    219 +                  <p className="text-xs text-gray-400">Si le client demande un humain, Tantie ouvre l’assistance.</p>
+    220 +                </div>
+    221 +                <span className="text-xs font-black" style={{ color: botForm.bot_transfer_enabled ? p : '#9CA3AF' }}>
+    222 +                  {botForm.bot_transfer_enabled ? 'Actif' : 'Inactif'}
+    223 +                </span>
+    224 +              </button>
+    225 +
+    226 +              <motion.button whileTap={{ scale: 0.97 }} onClick={saveBotConfig}
+    227 +                disabled={saving === 'bot'}
+    228 +                className="w-full mt-4 py-3 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-
+         2 disabled:opacity-60"
+    229 +                style={{ backgroundColor: p }}>
+    230 +                {saving === 'bot' ? 'Sauvegarde...' : <><Save size={15} /> Sauvegarder Tantie</>}
+    231 +              </motion.button>
+    232              </div>
+    233              <div className="bg-blue-50 border border-blue-100 rounded-3xl p-5">
+    179 -              <p className="font-bold text-blue-800 text-sm mb-2">💡 Le bot répond aux questions clients</p>
+    234 +              <p className="font-bold text-blue-800 text-sm mb-2 flex items-center gap-2">
+    235 +                <Sparkles size={15} />
+    236 +                <span>Le bot répond aux questions clients</span>
+    237 +              </p>
+    238                <div className="space-y-1.5">
+
+• Edited components/admin/ActivitesPage.tsx (+0 -5)
+    43
+    44 -  async function saveBotName(name: string) {
+    45 -    await supabase.from('restaurants').update({ bot_name: name }).eq('id', restaurant.id)
+    46 -    setRestaurant(prev => ({ ...prev, bot_name: name }))
+    47 -  }
+    44    async function saveBotConfig() {
+
+• Updated Plan
+  └ ✔ Ajouter migration/types pour Tantie et Assistance
+    ✔ Renforcer API bot avec contexte restaurant/menu + transfert assistance
+    ✔ Ajouter widget flottant Tantie côté client
+    ✔ Ajouter conversation fixe Assistance dans Social
+    ✔ Ajouter page admin Assistance clients
+    □ Vérifier type-check, lint, build
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• Le périmètre fonctionnel est codé. Je lance maintenant TypeScript/ESLint sur les fichiers touchés, puis je corrige ce qui remonte
+  avant le build.
+
+components/admin/AssistancePage.tsx components/admin/AdminShell.tsx components/admin/ActivitesPage.tsx app/admin/assistance/page.tsx
+lib/support.ts types/index.ts 2>&1 | head -160
+
+• Ran npx tsc --noEmit 2>&1 | head -120 && echo "---ESLINT---" && npx eslint app/api/bot/route.ts app/api/support/conversations/
+  │ route.ts app/api/support/messages/route.ts components/client/TantieWidget.tsx components/client/ClientLayout.tsx components/
+  │ client/SocialPage.tsx components/client/BottomNav.tsx components/client/GlobalClientNotifier.tsx components/admin/
+  │ … +2 lines
+  └ app/api/bot/route.ts(126,57): error TS2345: Argument of type '{ name: any; description: any; price: any; is_vegetarian: any;
+    is_vegan: any; is_halal: any; is_spicy: any; spicy_level: any; allergens: any; category: { name: any; }[]; }' is not assignable
+    … +29 lines (ctrl + t to view transcript)
+    ✖ 5 problems (4 errors, 1 warning)
+
+
+• Explored
+  └ Read ActivitesPage.tsx, page.tsx, route.ts
+
+• Edited types/index.ts (+1 -1)
+    21    bot_enabled?: boolean
+    22 -  bot_context?: string
+    22 +  bot_context?: string | null
+    23    bot_transfer_enabled?: boolean
+
+• Edited app/api/bot/route.ts (+3 -2)
+    28    allergens?: string[] | null
+    29 -  category?: { name?: string | null } | null
+    29 +  category?: { name?: string | null } | { name?: string | null }[] | null
+    30  }, currency: string) {
+    31 +  const category = Array.isArray(item.category) ? item.category[0] : item.category
+    32    const tags = [
+       ⋮
+    39
+    39 -  return `- ${item.category?.name ? `[${item.category.name}] ` : ''}${item.name} (${item.price} ${currency})${item.descripti
+        on ? `: ${item.description}` : ''}${tags.length ? ` (${tags.join(', ')})` : ''}`
+    40 +  return `- ${category?.name ? `[${category.name}] ` : ''}${item.name} (${item.price} ${currency})${item.description ? `: ${
+        item.description}` : ''}${tags.length ? ` (${tags.join(', ')})` : ''}`
+    41  }
+
+• Edited components/admin/ActivitesPage.tsx (+10 -7)
+     7
+     8 +type ModuleKey = 'module_social' | 'module_games' | 'module_birthday' | 'module_loyalty' | 'module_delivery'
+     9 +type TabKey = 'modules' | 'jeux' | 'bot'
+    10 +
+    11  const MODULES = [
+       ⋮
+    16    { key: 'module_delivery', label: 'Livraison', icon: '🛵', desc: 'Commande à distance, vue ambiance', color: '#10B981', bg:
+         '#ECFDF5' },
+    14 -]
+    17 +] satisfies Array<{ key: ModuleKey; label: string; icon: string; desc: string; color: string; bg: string }>
+    18
+       ⋮
+    28    const [saving, setSaving] = useState<string | null>(null)
+    26 -  const [tab, setTab] = useState<'modules' | 'jeux' | 'bot'>('modules')
+    29 +  const [tab, setTab] = useState<TabKey>('modules')
+    30    const [botForm, setBotForm] = useState({
+       ⋮
+    38
+    36 -  async function toggleModule(key: string) {
+    39 +  async function toggleModule(key: ModuleKey) {
+    40      setSaving(key)
+       ⋮
+    77              { key: 'bot', label: '🤖 Bot' },
+    75 -          ].map(t => (
+    76 -            <button key={t.key} onClick={() => setTab(t.key as any)}
+    78 +          ] satisfies Array<{ key: TabKey; label: string }>).map(t => (
+    79 +            <button key={t.key} onClick={() => setTab(t.key)}
+    80                className="px-4 py-2 rounded-xl text-sm font-bold transition-all"
+       ⋮
+    94                {MODULES.map((mod, i) => {
+    92 -                const active = (restaurant as any)[mod.key]
+    95 +                const active = restaurant[mod.key]
+    96                  return (
+
+• Explored
+  └ Read ActivitesPage.tsx
+
+• Edited components/admin/ActivitesPage.tsx (+1 -1)
+    73          <div className="flex gap-1 max-w-7xl mx-auto py-2">
+    74 -          {[
+    74 +          {([
+    75              { key: 'modules', label: '⚡ Modules' },
+
+• Edited app/admin/assistance/page.tsx (+3 -2)
+     5  import AssistancePage from '@/components/admin/AssistancePage'
+     6 +import type { Restaurant } from '@/types'
+     7
+     8  export default function AdminAssistanceRoute() {
+     8 -  const [restaurant, setRestaurant] = useState<any>(null)
+     9 +  const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
+    10    const [loading, setLoading] = useState(true)
+       ⋮
+    24
+    24 -  if (loading) return (
+    25 +  if (loading || !restaurant) return (
+    26      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+
+• Edited components/admin/AssistancePage.tsx (+7 -7)
+      1  'use client'
+      2 -import { useEffect, useMemo, useState } from 'react'
+      2 +import { useCallback, useEffect, useMemo, useState } from 'react'
+      3  import { motion } from 'framer-motion'
+        ⋮
+     43
+     44 -  async function loadConversations() {
+     44 +  const loadConversations = useCallback(async () => {
+     45      const { data } = await supabase
+        ⋮
+     57      setLoading(false)
+     58 -  }
+     58 +  }, [restaurant.id])
+     59
+     60 -  async function loadMessages(conversationId: string) {
+     60 +  const loadMessages = useCallback(async (conversationId: string) => {
+     61      const res = await fetch(`/api/support/messages?conversation_id=${conversationId}`)
+        ⋮
+     68      })
+     69 -  }
+     69 +  }, [])
+     70
+        ⋮
+    131      }
+    132 -  }, [restaurant.id, selected?.id])
+    132 +  }, [restaurant.id, selected?.id, loadConversations])
+    133
+        ⋮
+    135      if (selected?.id) void loadMessages(selected.id)
+    136 -  }, [selected?.id])
+    136 +  }, [selected?.id, loadMessages])
+    137
+
+• Waited for background terminal
+
+• Waited for background terminal · npx tsc --noEmit 2>&1 | head -120 && echo "---ESLINT---" && npx eslint app/api/bot/route.ts app/
+api/support/conversations/route.ts app/api/support/messages/route.ts components/client/TantieWidget.tsx components/client/
+ClientLayout.tsx components/client/SocialPage.tsx components/client/BottomNav.tsx components/client/GlobalClientNotifier.tsx
+lib/support.ts types/index.ts 2>&1 | head -160
+
+• Ran npx tsc --noEmit 2>&1 | head -120 && echo "---ESLINT---" && npx eslint app/api/bot/route.ts app/api/support/conversations/
+  │ route.ts app/api/support/messages/route.ts components/client/TantieWidget.tsx components/client/ClientLayout.tsx components/
+  │ client/SocialPage.tsx components/client/BottomNav.tsx components/client/GlobalClientNotifier.tsx components/admin/
+  │ … +2 lines
+  └ ---ESLINT---
+
+    … +36 lines (ctrl + t to view transcript)
+
+        at ignore-listed frames
+
+✔ You approved codex to run npm run build 2>&1 | tail -90 this time
+
+• Waited for background terminal
+
+• Waited for background terminal
+
+• Ran npm run build 2>&1 | tail -90
+  └
+    > tableqr_final@0.1.0 build
+    … +71 lines (ctrl + t to view transcript)
+    ƒ  (Dynamic)  server-rendered on demand
+
+
+• Updated Plan
+  └ ✔ Ajouter migration/types pour Tantie et Assistance
+    ✔ Renforcer API bot avec contexte restaurant/menu + transfert assistance
+    ✔ Ajouter widget flottant Tantie côté client
+    ✔ Ajouter conversation fixe Assistance dans Social
+    ✔ Ajouter page admin Assistance clients
+    … +11 lines (ctrl + t to view transcript)
+    ?? lib/support.ts
+    ?? migration_tantie_support.sql
+
+• Ran git diff --stat
+  └  app/api/bot/route.ts                       | 234 +++++++++++++++++++++------
+     components/admin/ActivitesPage.tsx         | 120 +++++++++++---
+    … +6 lines (ctrl + t to view transcript)
+     types/index.ts                             |  43 ++++-
+     9 files changed, 647 insertions(+), 76 deletions(-)
+
+• Waited for background terminal
+
+• Explored
+  └ Search TantieWidget|support_conversations|support_messages|bot_enabled|bot_context|/api/support|/api/bot|open_support|Personnel
+du
+           restaurant in app
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• Le build complet passe après accès réseau pour les polices Next. Je vais démarrer un serveur local pour que tu puisses tester le
+    Error: listen EPERM: operation not permitted 127.0.0.1:3003
+    … +6 lines (ctrl + t to view transcript)
+    }
+
+
+✔ You approved codex to run npm run dev -- --hostname 127.0.0.1 --port 3003 this time
+
+• Ran npm run dev -- --hostname 127.0.0.1 --port 3003
+  └ ▲ Next.js 16.2.2 (Turbopack)
+    - Local:         http://127.0.0.1:3003
+    … +9 lines (ctrl + t to view transcript)
+
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• C’est intégré en MVP complet.
+
+  Ce qui a été ajouté :
+
+  - Tantie flottant sur toutes les pages client via components/client/TantieWidget.tsx:29.
+  - /api/bot renforcé : menu live, contexte admin, réponses questionnaire, règles anti-invention, transfert vers personnel si besoin
+    dans app/api/bot/route.ts:80.
+  - Conversation permanente Personnel du restaurant dans Social, avec unread + chat séparé dans components/client/
+    SocialPage.tsx:626.
+  - Page admin /admin/assistance + nav admin Aide, pour répondre aux clients.
+  - Routes support : /api/support/conversations et /api/support/messages.
+  - Config admin dans Activités > Bot : activer/désactiver Tantie, nom, ton, contexte, transfert personnel.
+
+  À exécuter dans Supabase avant test prod :
+  migration_tantie_support.sql:1
+
+  - npx tsc --noEmit OK
+  - ESLint ciblé OK
+  - npm run build OK
+  - Serveur local lancé : http://127.0.0.1:3003
+
+  Note : le build affiche encore le warning existant sur les multiples lockfiles, mais il compile bien.
+
+is empty.
+
+
+› j'ai cette erreur {"error":{"message":"Invalid API Key","type":"invalid_request_error","code":"invalid_api_key"}}
+• L’erreur vient très probablement d’une confusion entre Groq et Grok/xAI. Le code actuel peut envoyer une clé Grok vers
+  api.groq.com, ce qui donne exactement Invalid API Key. Je vérifie les noms de variables d’environnement sans afficher les valeurs,
+  puis je corrige la sélection d’endpoint.
+
+• Ran rg -n "^(GROQ_API_KEY|GROK_API_KEY|XAI_API_KEY|GROQ_MODEL|XAI_MODEL|GROK_MODEL)=" .env.local .env 2>/dev/null
+  └ (no output)
+
+• Explored
+  └ Read route.ts, .env.local
+
+• Searching the web
+
+• Searched site:docs.x.ai API chat completions model grok-3-mini
+
+• Searching the web
+
+• Searched site:docs.x.ai/developers models grok-4.20 grok-4-fast xAI model IDs
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• J’ai confirmé dans la doc officielle xAI que Grok utilise https://api.x.ai/v1 avec XAI_API_KEY, alors que le code tombait sur
+  https://api.groq.com. Je corrige pour privilégier xAI/Grok, et garder Groq seulement si tu utilises vraiment une clé Groq (gsk_..
+  .).
+
+• Edited app/api/bot/route.ts (+58 -12)
+     18
+     19 +function pickAiProvider() {
+     20 +  const requested = (process.env.AI_PROVIDER || process.env.LLM_PROVIDER || '').toLowerCase()
+     21 +  const xaiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY
+     22 +  const groqKey = process.env.GROQ_API_KEY
+     23 +  const groqKeyLooksLikeXai = Boolean(groqKey?.startsWith('xai-') || groqKey?.startsWith('xai_'))
+     24 +
+     25 +  if (requested === 'xai' || requested === 'grok') {
+     26 +    const apiKey = xaiKey || groqKey
+     27 +    if (!apiKey) return null
+     28 +    return {
+     29 +      provider: 'xAI/Grok',
+     30 +      apiKey,
+     31 +      endpoint: 'https://api.x.ai/v1/chat/completions',
+     32 +      model: process.env.XAI_MODEL || process.env.GROK_MODEL || 'grok-4-fast-non-reasoning',
+     33 +    }
+     34 +  }
+     35 +
+     36 +  if (requested === 'groq') {
+     37 +    if (!groqKey) return null
+     38 +    return {
+     39 +      provider: 'Groq',
+     40 +      apiKey: groqKey,
+     41 +      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+     42 +      model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+     43 +    }
+     44 +  }
+     45 +
+     46 +  if (xaiKey || groqKeyLooksLikeXai) {
+     47 +    return {
+     48 +      provider: 'xAI/Grok',
+     49 +      apiKey: xaiKey || groqKey!,
+     50 +      endpoint: 'https://api.x.ai/v1/chat/completions',
+     51 +      model: process.env.XAI_MODEL || process.env.GROK_MODEL || 'grok-4-fast-non-reasoning',
+     52 +    }
+     53 +  }
+     54 +
+     55 +  if (groqKey) {
+     56 +    return {
+     57 +      provider: 'Groq',
+     58 +      apiKey: groqKey,
+     59 +      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+     60 +      model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+     61 +    }
+     62 +  }
+     63 +
+     64 +  return null
+     65 +}
+     66 +
+     67  function menuLine(item: {
+        ⋮
+    192
+    145 -    const apiKey = process.env.GROQ_API_KEY || process.env.GROK_API_KEY || process.env.XAI_API_KEY
+    146 -    if (!apiKey) {
+    193 +    const ai = pickAiProvider()
+    194 +    if (!ai) {
+    195        return NextResponse.json({ error: 'Clé IA manquante' }, { status: 500 })
+    196      }
+    149 -
+    150 -    const endpoint = process.env.XAI_API_KEY && !process.env.GROQ_API_KEY
+    151 -      ? 'https://api.x.ai/v1/chat/completions'
+    152 -      : 'https://api.groq.com/openai/v1/chat/completions'
+    153 -
+    154 -    const model = process.env.GROQ_MODEL || (endpoint.includes('x.ai') ? 'grok-3-mini' : 'llama-3.1-8b-instant')
+    197      const history = (body.history || []).slice(-6).filter(m => m.content?.trim())
+    198
+    157 -    const response = await fetch(endpoint, {
+    199 +    const response = await fetch(ai.endpoint, {
+    200        method: 'POST',
+        ⋮
+    202          'Content-Type': 'application/json',
+    161 -        Authorization: `Bearer ${apiKey}`,
+    203 +        Authorization: `Bearer ${ai.apiKey}`,
+    204 +        ...(body.session_id && ai.provider === 'xAI/Grok' ? { 'x-grok-conv-id': body.session_id } : {}),
+    205        },
+    206        body: JSON.stringify({
+    164 -        model,
+    208          temperature: 0.4,
+        ⋮
+    231        const errText = await response.text()
+    189 -      return NextResponse.json({ error: errText || 'Erreur IA' }, { status: 502 })
+    232 +      const hint = ai.provider === 'xAI/Grok'
+    233 +        ? 'Vérifie que la clé est bien XAI_API_KEY ou GROK_API_KEY, et que le modèle XAI_MODEL/GROK_MODEL est accessible.'
+    234 +        : 'Vérifie que la clé est bien une clé Groq dans GROQ_API_KEY.'
+    236      }
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• La sélection provider est corrigée. Je lance TypeScript/ESLint sur la route bot, puis un build rapide pour vérifier que rien ne
+  casse.
+
+• Waited for background terminal · npx tsc --noEmit 2>&1 | head -80 && echo "---ESLINT---" && npx eslint app/api/bot/route.ts 2>&1 |
+    … +36 lines (ctrl + t to view transcript)
+
+        at ignore-listed frames
+
+✔ You approved codex to run npm run build 2>&1 | tail -60 this time
+
+• Waited for background terminal
+
+• Waited for background terminal
+
+• Ran npm run build 2>&1 | tail -60
+  └ ✓ Compiled successfully in 4.8s
+      Running TypeScript ...
+    … +56 lines (ctrl + t to view transcript)
+    ƒ  (Dynamic)  server-rendered on demand
+
+
+• Waited for background terminal
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• Corrigé. La cause : le code pouvait envoyer une clé Grok/xAI vers l’endpoint Groq (api.groq.com), ce qui donne Invalid API Key.
+
+  J’ai modifié app/api/bot/route.ts:16 pour :
+
+  - privilégier XAI_API_KEY ou GROK_API_KEY vers https://api.x.ai/v1/chat/completions
+  - garder GROQ_API_KEY uniquement pour Groq
+  - détecter une clé xai-... mise par erreur dans GROQ_API_KEY
+  - utiliser par défaut grok-4-fast-non-reasoning pour xAI/Grok
+  - retourner un message d’aide clair si la clé/modèle est mauvais
+
+  À mettre dans Vercel :
+
+  AI_PROVIDER=xai
+  XAI_MODEL=grok-4-fast-non-reasoning
+
+  Si tu avais mis ta clé Grok dans GROQ_API_KEY, renomme-la en XAI_API_KEY. Ensuite redéploie, parce que là c’est une variable
+  Vérifs passées :
+
+  - npx tsc --noEmit OK
+  - ESLint route bot OK
+  - npm run build OK
+
+  Source utilisée : docs officielles xAI indiquant base URL https://api.x.ai et auth Authorization: Bearer <xAI API key> :
+  https://docs.x.ai/docs/api-reference
+
+─ Worked for 3m 07s ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+› toujours la meme erreur {"code":"Client specified an invalid argument","error":"Incorrect API key provided: gs***9u. You can obt
+  ain an API key from https://console.x.ai."}
+
+
+⚠ Heads up, you have less than 25% of your 5h limit left. Run /status for a breakdown.
+
+• Là c’est clair : gs***9u ressemble à une clé Groq (gsk...), mais elle est envoyée chez xAI/Grok. Je vais verrouiller le code pour
+  ne plus jamais envoyer une clé gsk... à api.x.ai, et te donner exactement quelle variable mettre selon ton cas.
+
+• Edited app/api/bot/route.ts (+9 -5)
+    20    const requested = (process.env.AI_PROVIDER || process.env.LLM_PROVIDER || '').toLowerCase()
+    21 -  const xaiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY
+    21 +  const rawXaiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY
+    22 +  const xaiKeyLooksLikeGroq = Boolean(rawXaiKey?.startsWith('gsk_') || rawXaiKey?.startsWith('gsk-') || rawXaiKey?.startsWit
+        h('gs'))
+    23 +  const xaiKey = xaiKeyLooksLikeGroq ? undefined : rawXaiKey
+    24    const groqKey = process.env.GROQ_API_KEY
+    25    const groqKeyLooksLikeXai = Boolean(groqKey?.startsWith('xai-') || groqKey?.startsWith('xai_'))
+    26 +  const groqKeyLooksLikeGroq = Boolean(groqKey?.startsWith('gsk_') || groqKey?.startsWith('gsk-') || groqKey?.startsWith('gs
+        '))
+    27
+    28    if (requested === 'xai' || requested === 'grok') {
+    26 -    const apiKey = xaiKey || groqKey
+    29 +    const apiKey = xaiKey || (groqKeyLooksLikeXai ? groqKey : undefined)
+    30      if (!apiKey) return null
+       ⋮
+    39    if (requested === 'groq') {
+    37 -    if (!groqKey) return null
+    40 +    const apiKey = groqKey || (xaiKeyLooksLikeGroq ? rawXaiKey : undefined)
+    41 +    if (!apiKey) return null
+    42      return {
+    43        provider: 'Groq',
+    40 -      apiKey: groqKey,
+    44 +      apiKey,
+    45        endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+       ⋮
+    60      return {
+    57 -      provider: 'Groq',
+    61 +      provider: groqKeyLooksLikeGroq ? 'Groq' : 'Groq',
+
+• Edited app/api/bot/route.ts (+4 -1)
+    198      if (!ai) {
+    199 -      return NextResponse.json({ error: 'Clé IA manquante' }, { status: 500 })
+    199 +      return NextResponse.json({
+• Waited for background terminal · npx tsc --noEmit 2>&1 | head -80 && echo "---ESLINT---" && npx eslint app/api/bot/route.ts 2>&1 |
+head -80
+
+• Ran npx tsc --noEmit 2>&1 | head -80 && echo "---ESLINT---" && npx eslint app/api/bot/route.ts 2>&1 | head -80
+  └ ---ESLINT---
+
+✔ You approved codex to run npm run build 2>&1 | tail -50 this time
+
+• Waited for background terminal
+
+• Ran npm run build 2>&1 | tail -50
+  └
+    Route (app)
+    … +46 lines (ctrl + t to view transcript)
+    ƒ  (Dynamic)  server-rendered on demand
+
+
+• Waited for background terminal
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• L’erreur dit tout : gs***9u est une clé Groq (gsk...), pas une clé Grok/xAI. Tu l’envoies encore à xAI, donc xAI répond : clé
+  invalide.
+
+  J’ai corrigé le code pour ne plus envoyer une clé gsk... vers api.x.ai.
+
+  Dans Vercel, choisis UNE option :
+
+  Option A — tu veux vraiment Grok/xAI
+
+  AI_PROVIDER=xai
+  XAI_API_KEY=ta_vraie_cle_xai_depuis_console.x.ai
+  XAI_MODEL=grok-4-fast-non-reasoning
+
+  Et supprime/ignore :
+
+  GROQ_API_KEY
+  GROK_API_KEY
+
+  Option B — tu veux utiliser ta clé actuelle gsk...
+
+  AI_PROVIDER=groq
+  GROQ_API_KEY=gsk...
+  GROQ_MODEL=llama-3.1-8b-instant
+
+  Important : après changement des variables Vercel, il faut redéployer. En local, si tu changes .env.local, il faut redémarrer npm
+  run dev.
+
+  Vérifs passées :
+
+  - npx tsc --noEmit OK
+  - ESLint route bot OK
+  - build OK
+
+─ Worked for 8m 50s ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+› voila ce que j'utilise dans mes autres app et ca marche bien avec la meme api GROQ_API_KEY
+
+
+• D’accord, donc on doit traiter ton intégration comme Groq, pas xAI/Grok. Je vais rendre le code plus pragmatique : si GROQ_API_KEY
+  existe et ressemble à une clé Groq (gsk...), on force l’endpoint Groq, même si une vieille variable AI_PROVIDER=xai traîne dans
+  Vercel.
+
+• Edited app/api/bot/route.ts (+11 -0)
+    27
+    28 +  // Si une vraie clé Groq est présente dans GROQ_API_KEY, elle gagne.
+    30 +  if (groqKey && groqKeyLooksLikeGroq) {
+    31 +    return {
+    32 +      provider: 'Groq',
+    33 +      apiKey: groqKey,
+    34 +      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+• Waited for background terminal · npx tsc --noEmit 2>&1 | head -80 && echo "---ESLINT---" && npx eslint app/api/bot/route.ts 2>&1 |
+head -80
+
+• Ran npx tsc --noEmit 2>&1 | head -80 && echo "---ESLINT---" && npx eslint app/api/bot/route.ts 2>&1 | head -80
+  └ ---ESLINT---
+
+✔ You approved codex to run npm run build 2>&1 | tail -50 this time
+
+• Waited for background terminal
+
+• Ran npm run build 2>&1 | tail -50
+  └
+    Route (app)
+    … +46 lines (ctrl + t to view transcript)
+    ƒ  (Dynamic)  server-rendered on demand
+
+
+• Waited for background terminal
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• OK, alors on part sur Groq avec GROQ_API_KEY.
+
+  J’ai modifié le code : si GROQ_API_KEY existe et ressemble à une clé Groq (gsk...), l’app utilise toujours :
+
+  https://api.groq.com/openai/v1/chat/completions
+
+  même si une vieille variable AI_PROVIDER=xai traîne dans Vercel. Ça évite d’envoyer ta clé gsk... chez xAI.
+
+  Dans Vercel, mets simplement :
+
+  GROQ_API_KEY=gsk...
+  GROQ_MODEL=llama-3.1-8b-instant
+
+  XAI_API_KEY
+  GROK_API_KEY
+  XAI_MODEL
+  GROK_MODEL
+
+  Vérifs passées :
+
+  - TypeScript OK
+  - ESLint route bot OK
+  - build OK.
+
+─ Worked for 1m 35s ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+› Que me conseilles-tu ?
+  Clé IA manquante ou incompatible
+  Quels plats sont halal ?
+  Clé IA manquante ou incompatible
+
+
+⚠ Heads up, you have less than 10% of your 5h limit left. Run /status for a breakdown.
+
+• Cette erreur ne vient plus d’une clé rejetée par Groq : elle vient de notre garde qui ne trouve pas une clé utilisable au runtime.
+  Je vais simplifier franchement : si GROQ_API_KEY existe, on utilise Groq sans essayer de deviner le préfixe, avec trim des
+  espaces/guillemets.
+
+• Edited app/api/bot/route.ts (+10 -7)
+    18
+    19 +function cleanEnv(value?: string) {
+    20 +  return value?.trim().replace(/^['"]|['"]$/g, '') || undefined
+    21 +}
+    22 +
+    23  function pickAiProvider() {
+    20 -  const requested = (process.env.AI_PROVIDER || process.env.LLM_PROVIDER || '').toLowerCase()
+    21 -  const rawXaiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY
+    24 +  const requested = (cleanEnv(process.env.AI_PROVIDER) || cleanEnv(process.env.LLM_PROVIDER) || '').toLowerCase()
+    25 +  const rawXaiKey = cleanEnv(process.env.XAI_API_KEY) || cleanEnv(process.env.GROK_API_KEY)
+    26    const xaiKeyLooksLikeGroq = Boolean(rawXaiKey?.startsWith('gsk_') || rawXaiKey?.startsWith('gsk-') || rawXaiKey?.startsWit
+        h('gs'))
+    27    const xaiKey = xaiKeyLooksLikeGroq ? undefined : rawXaiKey
+    24 -  const groqKey = process.env.GROQ_API_KEY
+    28 +  const groqKey = cleanEnv(process.env.GROQ_API_KEY)
+    29    const groqKeyLooksLikeXai = Boolean(groqKey?.startsWith('xai-') || groqKey?.startsWith('xai_'))
+        '))
+    30
+    28 -  // Si une vraie clé Groq est présente dans GROQ_API_KEY, elle gagne.
+    29 -  // Ça évite qu'une ancienne variable AI_PROVIDER=xai envoie par erreur gsk... chez xAI.
+    30 -  if (groqKey && groqKeyLooksLikeGroq) {
+    31 +  // Si GROQ_API_KEY est renseignée, elle gagne. On évite toute heuristique fragile
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• Le code accepte maintenant GROQ_API_KEY dès qu’elle est présente, même s’il y a des espaces ou des guillemets autour de la valeur.
+  Je lance les vérifications.
+
+• Waited for background terminal · npx tsc --noEmit 2>&1 | head -80 && echo "---ESLINT---" && npx eslint app/api/bot/route.ts 2>&1 |
+head -80
+
+• Ran npx tsc --noEmit 2>&1 | head -80 && echo "---ESLINT---" && npx eslint app/api/bot/route.ts 2>&1 | head -80
+  └ app/api/bot/route.ts(75,17): error TS2552: Cannot find name 'groqKeyLooksLikeGroq'. Did you mean 'xaiKeyLooksLikeGroq'?
+    ---ESLINT---
+
+• Explored
+  └ Read route.ts
+
+
+• Ran npx tsc --noEmit 2>&1 | head -80 && echo "---ESLINT---" && npx eslint app/api/bot/route.ts 2>&1 | head -80
+  └ ---ESLINT---
+
+✔ You approved codex to run npm run build 2>&1 | tail -50 this time
+
+• Waited for background terminal
+
+• Waited for background terminal
+
+• Ran npm run build 2>&1 | tail -50
+  └
+    Route (app)
+    … +46 lines (ctrl + t to view transcript)
+    ƒ  (Dynamic)  server-rendered on demand
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• OK, j’ai corrigé le code pour ton cas exact : si GROQ_API_KEY existe, on utilise Groq directement, sans vérifier le préfixe et
+  sans tenir compte d’un éventuel AI_PROVIDER=xai.
+
+  Donc dans Vercel, tu gardes juste :
+
+  GROQ_API_KEY=ta_cle_groq
+
+  Optionnel :
+
+  GROQ_MODEL=llama-3.1-8b-instant
+
+  Tu peux supprimer :
+
+  AI_PROVIDER
+  XAI_API_KEY
+  GROK_API_KEY
+
+  Important : redéploie après ce changement de code. Si après redéploiement tu vois encore Clé IA manquante ou incompatible, ça veut
+  dire que GROQ_API_KEY n’est pas disponible dans l’environnement Vercel du projet ou pas dans l’environnement Production.
+
+  Vérifs passées :
+
+  - TypeScript OK
+  - ESLint route bot OK
+  - build OK.
+
+─ Worked for 1m 56s ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+› {"error":{"message":"Invalid API Key","type":"invalid_request_error","code":"invalid_api_key"}}
+
+
+• Working (9s • esc to interrupt)

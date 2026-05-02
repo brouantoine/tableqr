@@ -5,6 +5,7 @@ import {
   Plus, Search, Store, Users, TrendingUp, X, Check, LogOut, QrCode, Eye,
   AlertTriangle, Printer, Key, Globe, Phone, Mail, Settings, Rocket,
   CreditCard, Clock, ChevronRight, ImageIcon, Upload, Trash2,
+  Download, Loader2,
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
@@ -21,6 +22,24 @@ const MONTHLY_PRICE = 15000
 
 function getAppUrl(): string {
   return typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
+}
+
+function downloadFilename(res: Response, fallback: string) {
+  const disposition = res.headers.get('content-disposition') || ''
+  const match = disposition.match(/filename="([^"]+)"/)
+  return match?.[1] || fallback
+}
+
+async function downloadResponseFile(res: Response, fallback: string) {
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = downloadFilename(res, fallback)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
 function isEphemeralVercelUrl(url: string): boolean {
@@ -659,6 +678,7 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
   const [batchName, setBatchName] = useState('')
   const [count, setCount] = useState(25)
   const [loading, setLoading] = useState(false)
+  const [exportingKit, setExportingKit] = useState(false)
   const [generated, setGenerated] = useState<{ code: string }[]>([])
 
   async function generate() {
@@ -682,6 +702,32 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
     const url = URL.createObjectURL(blob)
     const win = window.open(url, '_blank')
     if (win) setTimeout(() => URL.revokeObjectURL(url), 5000)
+  }
+
+  async function exportDesignerKit() {
+    if (!generated.length || exportingKit) return
+    setExportingKit(true)
+    try {
+      const res = await fetch('/api/qr-codes/design-kit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          codes: generated.map(qr => ({ code: qr.code })),
+          batch_name: batchName || 'lot-qr',
+          app_url: getAppUrl(),
+        }),
+      })
+      if (!res.ok) {
+        const result = await res.json().catch(() => null)
+        alert(result?.error || 'Export impossible')
+        return
+      }
+      await downloadResponseFile(res, `${batchName || 'lot-qr'}.zip`)
+    } catch {
+      alert('Erreur réseau')
+    } finally {
+      setExportingKit(false)
+    }
   }
 
   return (
@@ -735,13 +781,21 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
           ) : (
             <div>
               <PrintUrlCheck />
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <p className="font-black text-gray-900">{generated.length} codes générés</p>
-                <button onClick={printBatch}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold"
-                  style={{ backgroundColor: '#F26522' }}>
-                  <Printer size={14} /> Imprimer
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button onClick={exportDesignerKit} disabled={exportingKit}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-60"
+                    style={{ backgroundColor: '#ECFDF5', color: '#047857' }}>
+                    {exportingKit ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                    Kit designer
+                  </button>
+                  <button onClick={printBatch}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold"
+                    style={{ backgroundColor: '#F26522' }}>
+                    <Printer size={14} /> Imprimer
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-4">
                 {generated.slice(0, 20).map(qr => (

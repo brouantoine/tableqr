@@ -15,6 +15,24 @@ function getAppUrl(): string {
 
 const TABLES_PER_TERRACE = 20
 
+function downloadFilename(res: Response, fallback: string) {
+  const disposition = res.headers.get('content-disposition') || ''
+  const match = disposition.match(/filename="([^"]+)"/)
+  return match?.[1] || fallback
+}
+
+async function downloadResponseFile(res: Response, fallback: string) {
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = downloadFilename(res, fallback)
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 export default function TablesAdminPage({ restaurant, initialTables }: {
   restaurant: Restaurant
   initialTables: RestaurantTable[]
@@ -24,6 +42,7 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
   const [showLinkModal, setShowLinkModal] = useState(false)
   const [creatingTerrace, setCreatingTerrace] = useState(false)
   const [migrating, setMigrating] = useState(false)
+  const [exportingDesignerKit, setExportingDesignerKit] = useState(false)
   const p = restaurant.primary_color
 
   const zones = useMemo(() => {
@@ -143,6 +162,32 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
     win?.document.write(html); win?.document.close()
   }
 
+  async function exportDesignerKit() {
+    if (!qrCodes.length || exportingDesignerKit) return
+    setExportingDesignerKit(true)
+    try {
+      const res = await fetch('/api/qr-codes/design-kit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurant_id: restaurant.id,
+          batch_name: `kit-designer-${restaurant.name}`,
+          app_url: getAppUrl(),
+        }),
+      })
+      if (!res.ok) {
+        const result = await res.json().catch(() => null)
+        alert(result?.error || 'Export impossible')
+        return
+      }
+      await downloadResponseFile(res, `kit-designer-${restaurant.name}.zip`)
+    } catch {
+      alert('Erreur réseau')
+    } finally {
+      setExportingDesignerKit(false)
+    }
+  }
+
   const totalActive = tables.filter(t => t.is_active).length + qrCodes.length
 
   return (
@@ -249,17 +294,24 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
 
         {qrCodes.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
               <div className="flex items-center gap-2">
                 <QrCode size={16} className="text-blue-500" />
                 <p className="font-black text-gray-900">QR Codes physiques</p>
                 <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{qrCodes.length}</span>
               </div>
-              <button onClick={printPhysicalQRCodes}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
-                <Printer size={13} />
-                Imprimer
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button onClick={exportDesignerKit} disabled={exportingDesignerKit}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-60 transition-colors">
+                  {exportingDesignerKit ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                  Kit designer
+                </button>
+                <button onClick={printPhysicalQRCodes}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
+                  <Printer size={13} />
+                  Imprimer
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

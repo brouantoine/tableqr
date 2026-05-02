@@ -5,6 +5,7 @@ import { Plus, QrCode, Download, ToggleLeft, ToggleRight, Link, X, Check, Trash2
 import { supabase } from '@/lib/supabase/client'
 import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { RestaurantTable, Restaurant, QRCode } from '@/types'
+import DesignerKitQuantityModal from '@/components/DesignerKitQuantityModal'
 import QRScannerModal from './QRScannerModal'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -40,6 +41,7 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
   const [tables, setTables] = useState(initialTables)
   const [qrCodes, setQrCodes] = useState<QRCode[]>([])
   const [showLinkModal, setShowLinkModal] = useState(false)
+  const [showDesignerKitModal, setShowDesignerKitModal] = useState(false)
   const [creatingTerrace, setCreatingTerrace] = useState(false)
   const [migrating, setMigrating] = useState(false)
   const [exportingDesignerKit, setExportingDesignerKit] = useState(false)
@@ -162,27 +164,30 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
     win?.document.write(html); win?.document.close()
   }
 
-  async function exportDesignerKit() {
-    if (!qrCodes.length || exportingDesignerKit) return
+  async function exportDesignerKit(count: number): Promise<boolean> {
+    if (exportingDesignerKit) return false
     setExportingDesignerKit(true)
     try {
       const res = await fetch('/api/qr-codes/design-kit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          restaurant_id: restaurant.id,
+          count,
           batch_name: `kit-designer-${restaurant.name}`,
           app_url: getAppUrl(),
+          include_png: false,
         }),
       })
       if (!res.ok) {
         const result = await res.json().catch(() => null)
         alert(result?.error || 'Export impossible')
-        return
+        return false
       }
       await downloadResponseFile(res, `kit-designer-${restaurant.name}.zip`)
+      return true
     } catch {
       alert('Erreur réseau')
+      return false
     } finally {
       setExportingDesignerKit(false)
     }
@@ -194,12 +199,21 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
     <div className="min-h-screen bg-gray-50">
 
       <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2 className="font-black text-xl text-gray-900">Tables & Sections</h2>
             <p className="text-sm text-gray-400 mt-0.5">{totalActive} table{totalActive > 1 ? 's' : ''} active{totalActive > 1 ? 's' : ''}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <motion.button whileTap={{ scale: 0.95 }} onClick={() => setShowDesignerKitModal(true)}
+              disabled={exportingDesignerKit}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-black disabled:opacity-60"
+              style={{ backgroundColor: '#ECFDF5', color: '#047857' }}>
+              {exportingDesignerKit
+                ? <Loader2 size={15} className="animate-spin" />
+                : <Download size={15} strokeWidth={2.5} />}
+              Kit designer
+            </motion.button>
             <motion.button whileTap={{ scale: 0.95 }} onClick={handleAddTerrace}
               disabled={creatingTerrace}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-black disabled:opacity-60"
@@ -301,7 +315,7 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
                 <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{qrCodes.length}</span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <button onClick={exportDesignerKit} disabled={exportingDesignerKit}
+                <button onClick={() => setShowDesignerKitModal(true)} disabled={exportingDesignerKit}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-60 transition-colors">
                   {exportingDesignerKit ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
                   Kit designer
@@ -364,6 +378,18 @@ export default function TablesAdminPage({ restaurant, initialTables }: {
             primaryColor={p}
             onClose={() => setShowLinkModal(false)}
             onLinked={(qr) => setQrCodes(prev => [qr, ...prev.filter(q => q.code !== qr.code)])}
+          />
+        )}
+        {showDesignerKitModal && (
+          <DesignerKitQuantityModal
+            defaultCount={Math.min(500, Math.max(200, qrCodes.length || tables.length))}
+            loading={exportingDesignerKit}
+            primaryColor={p}
+            onClose={() => setShowDesignerKitModal(false)}
+            onConfirm={async (count) => {
+              const ok = await exportDesignerKit(count)
+              if (ok) setShowDesignerKitModal(false)
+            }}
           />
         )}
       </AnimatePresence>

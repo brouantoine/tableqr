@@ -11,6 +11,7 @@ import { formatPrice } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
 import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { Restaurant } from '@/types'
+import DesignerKitQuantityModal from '@/components/DesignerKitQuantityModal'
 import RestaurantAnalyticsPanel from './RestaurantAnalyticsPanel'
 import AbonnementsTab from './AbonnementsTab'
 
@@ -679,6 +680,7 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
   const [count, setCount] = useState(25)
   const [loading, setLoading] = useState(false)
   const [exportingKit, setExportingKit] = useState(false)
+  const [showDesignerKitModal, setShowDesignerKitModal] = useState(false)
   const [generated, setGenerated] = useState<{ code: string }[]>([])
 
   async function generate() {
@@ -704,27 +706,33 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
     if (win) setTimeout(() => URL.revokeObjectURL(url), 5000)
   }
 
-  async function exportDesignerKit() {
-    if (!generated.length || exportingKit) return
+  async function exportDesignerKit(requestedCount: number): Promise<boolean> {
+    if (exportingKit) return false
     setExportingKit(true)
     try {
+      const useGeneratedCodes = generated.length > 0 && requestedCount === generated.length
       const res = await fetch('/api/qr-codes/design-kit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          codes: generated.map(qr => ({ code: qr.code })),
+          ...(useGeneratedCodes
+            ? { codes: generated.map(qr => ({ code: qr.code })) }
+            : { count: requestedCount }),
           batch_name: batchName || 'lot-qr',
           app_url: getAppUrl(),
+          include_png: false,
         }),
       })
       if (!res.ok) {
         const result = await res.json().catch(() => null)
         alert(result?.error || 'Export impossible')
-        return
+        return false
       }
       await downloadResponseFile(res, `${batchName || 'lot-qr'}.zip`)
+      return true
     } catch {
       alert('Erreur réseau')
+      return false
     } finally {
       setExportingKit(false)
     }
@@ -772,11 +780,19 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
                   ))}
                 </div>
               </div>
-              <motion.button whileTap={{ scale: 0.97 }} onClick={generate} disabled={loading || !batchName.trim()}
-                className="w-full py-3.5 rounded-xl font-black text-white disabled:opacity-40 flex items-center justify-center gap-2"
-                style={{ backgroundColor: '#F26522' }}>
-                {loading ? 'Génération...' : <><Printer size={16} /> Générer {count} codes</>}
-              </motion.button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <motion.button whileTap={{ scale: 0.97 }} onClick={generate} disabled={loading || !batchName.trim()}
+                  className="py-3.5 rounded-xl font-black text-white disabled:opacity-40 flex items-center justify-center gap-2"
+                  style={{ backgroundColor: '#F26522' }}>
+                  {loading ? 'Génération...' : <><Printer size={16} /> Générer {count} codes</>}
+                </motion.button>
+                <motion.button whileTap={{ scale: 0.97 }} onClick={() => setShowDesignerKitModal(true)} disabled={exportingKit || !batchName.trim()}
+                  className="py-3.5 rounded-xl font-black disabled:opacity-40 flex items-center justify-center gap-2"
+                  style={{ backgroundColor: '#ECFDF5', color: '#047857' }}>
+                  {exportingKit ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                  Kit designer
+                </motion.button>
+              </div>
             </div>
           ) : (
             <div>
@@ -784,7 +800,7 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <p className="font-black text-gray-900">{generated.length} codes générés</p>
                 <div className="flex flex-wrap items-center gap-2">
-                  <button onClick={exportDesignerKit} disabled={exportingKit}
+                  <button onClick={() => setShowDesignerKitModal(true)} disabled={exportingKit}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-60"
                     style={{ backgroundColor: '#ECFDF5', color: '#047857' }}>
                     {exportingKit ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
@@ -814,6 +830,21 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
             </div>
           )}
         </div>
+
+        <AnimatePresence>
+          {showDesignerKitModal && (
+            <DesignerKitQuantityModal
+              defaultCount={generated.length || count || 200}
+              loading={exportingKit}
+              primaryColor="#F26522"
+              onClose={() => setShowDesignerKitModal(false)}
+              onConfirm={async (nextCount) => {
+                const ok = await exportDesignerKit(nextCount)
+                if (ok) setShowDesignerKitModal(false)
+              }}
+            />
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   )

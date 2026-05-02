@@ -18,6 +18,7 @@ type KitRequest = {
   batch_name?: string
   app_url?: string
   include_png?: boolean
+  count?: number
 }
 
 type TableRow = {
@@ -40,11 +41,14 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as KitRequest
     const appUrl = normalizeUrl(body.app_url) || normalizeUrl(process.env.NEXT_PUBLIC_APP_URL) || req.nextUrl.origin
-    const includePng = body.include_png !== false
+    const includePng = body.include_png === true
+    const requestedCount = normalizeRequestedCount(body.count)
 
-    const { items, defaultName } = body.restaurant_id
-      ? await loadRestaurantItems(body.restaurant_id)
-      : { items: normalizeItems(body.codes || []), defaultName: 'qr-designer-kit' }
+    const { items, defaultName } = requestedCount
+      ? await generateKitItems(requestedCount, body.batch_name)
+      : body.restaurant_id
+        ? await loadRestaurantItems(body.restaurant_id)
+        : { items: normalizeItems(body.codes || []), defaultName: 'qr-designer-kit' }
 
     if (!items.length) {
       return NextResponse.json({ error: 'Aucun QR code a exporter' }, { status: 400 })
@@ -53,11 +57,11 @@ export async function POST(req: NextRequest) {
     const kitName = safeFilename(body.batch_name || defaultName || 'qr-designer-kit')
     const entries: ZipEntry[] = []
     const csvRows = [
-      ['code', 'label', 'url', 'svg_file', 'png_file'],
+      includePng ? ['code', 'label', 'url', 'svg_file', 'png_file'] : ['code', 'label', 'url', 'svg_file'],
     ]
 
     const assetSets = await mapLimit(items.slice(0, MAX_CODES), 6, async (item) => {
-      const qrUrl = `${appUrl}/t/${item.code}`
+      const qrUrl = buildDenseQrUrl(appUrl, item.code)
       const svgName = `svg/QR-${item.code}.svg`
       const pngName = `png-1000px/QR-${item.code}.png`
       const [svg, png] = await Promise.all([
@@ -70,13 +74,9 @@ export async function POST(req: NextRequest) {
 
       return {
         files,
-        csvRow: [
-        item.code,
-        item.label || '',
-        qrUrl,
-        svgName,
-        includePng ? pngName : '',
-        ],
+        csvRow: includePng
+          ? [item.code, item.label || '', qrUrl, svgName, pngName]
+          : [item.code, item.label || '', qrUrl, svgName],
       }
     })
 
@@ -147,6 +147,49 @@ async function loadRestaurantItems(restaurantId: string) {
   }
 }
 
+async function generateKitItems(count: number, batchName?: string) {
+  const admin = getSupabaseAdmin()
+  const codes = await generateUniqueCodes(count)
+  const rows = codes.map(code => ({ code, batch_name: batchName || 'kit-designer-dense' }))
+  const { data, error } = await admin.from('qr_codes').insert(rows).select('code')
+
+  if (error) throw new Error(error.message)
+
+  return {
+    items: ((data || []) as { code: string }[]).map((row, index) => ({
+      code: row.code,
+      label: `QR ${String(index + 1).padStart(3, '0')}`,
+    })),
+    defaultName: batchName || 'kit-designer-dense',
+  }
+}
+
+async function generateUniqueCodes(count: number): Promise<string[]> {
+  const admin = getSupabaseAdmin()
+  const codes = new Set<string>()
+
+  while (codes.size < count) {
+    while (codes.size < count) codes.add(generateCode())
+
+    const { data, error } = await admin
+      .from('qr_codes')
+      .select('code')
+      .in('code', Array.from(codes))
+
+    if (error) throw new Error(error.message)
+    ;((data || []) as { code: string }[]).forEach(row => codes.delete(row.code))
+  }
+
+  return Array.from(codes).slice(0, count)
+}
+
+function generateCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let code = ''
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)]
+  return code
+}
+
 function normalizeItems(items: KitItem[]): KitItem[] {
   const seen = new Set<string>()
   const result: KitItem[] = []
@@ -178,6 +221,13 @@ async function mapLimit<T, R>(items: T[], limit: number, mapper: (item: T) => Pr
   return results
 }
 
+function normalizeRequestedCount(count?: number): number | null {
+  if (count === undefined || count === null) return null
+  const parsed = Math.floor(Number(count))
+  if (!Number.isFinite(parsed) || parsed < 1) throw new Error('Nombre de QR invalide')
+  return Math.min(parsed, MAX_CODES)
+}
+
 function cleanQrCode(code: string): string {
   return String(code || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 32)
 }
@@ -192,12 +242,25 @@ function normalizeUrl(url?: string): string {
   }
 }
 
+function buildDenseQrUrl(appUrl: string, code: string): string {
+  const url = new URL(`/t/${code}`, appUrl)
+  url.searchParams.set('model', 'dense-svg')
+  url.searchParams.set('v', '1')
+  url.searchParams.set('d', buildDensePayload(code))
+  return url.toString()
+}
+
+function buildDensePayload(code: string): string {
+  const block = `${code}-TABLEQR-DESIGNER-KIT-CLASSIC-DENSE-VECTOR-PRINT`
+  return Array.from({ length: 4 }, (_, index) => `${block}-${index + 1}`).join('-')
+}
+
 async function fetchQrAsset(qrUrl: string, format: 'svg' | 'png'): Promise<Buffer> {
   const url = new URL('https://api.qrserver.com/v1/create-qr-code/')
   url.searchParams.set('data', qrUrl)
   url.searchParams.set('size', format === 'png' ? '1000x1000' : '2000x2000')
   url.searchParams.set('format', format)
-  url.searchParams.set('ecc', 'M')
+  url.searchParams.set('ecc', 'H')
   url.searchParams.set('qzone', '4')
   url.searchParams.set('color', '000000')
   url.searchParams.set('bgcolor', 'FFFFFF')
@@ -217,11 +280,10 @@ function buildReadme({ appUrl, count }: { appUrl: string; count: number }) {
     'TABLEQR - Kit designer QR',
     '',
     `Nombre de QR: ${Math.min(count, MAX_CODES)}`,
-    `URL de base encodee: ${appUrl}/t/CODE`,
+    `URL de base: ${appUrl}/t/CODE`,
     '',
     'Contenu du ZIP:',
-    '- svg/: QR vectoriels, a utiliser en priorite dans Illustrator, InDesign, Canva ou Figma.',
-    '- png-1000px/: PNG haute resolution, utile seulement si le logiciel refuse le SVG.',
+    '- svg/: modele unique QR classique dense, vectoriel, a utiliser dans Illustrator, InDesign, Canva ou Figma.',
     '- mapping.csv: correspondance code, libelle, URL et fichiers.',
     '',
     'Regles impression:',
@@ -231,8 +293,9 @@ function buildReadme({ appUrl, count }: { appUrl: string; count: number }) {
     '- Eviter les finitions trop brillantes sur la zone QR.',
     '- Tester un BAT imprime avec plusieurs telephones avant production.',
     '',
-    'Les QR sont generes avec une quiet zone de 4 modules et une correction M.',
-    'Le SVG reste le format imprimeur recommande; le PNG 1000 px sert de secours.',
+    'Les QR sont generes en noir/blanc, avec une quiet zone de 4 modules et une correction H.',
+    'Les URL contiennent un parametre dense sans effet metier, uniquement pour obtenir un QR plus riche visuellement.',
+    'Le SVG est le format imprimeur recommande: il ne se degrade pas quand il est agrandi.',
     '',
   ].join('\n')
 }

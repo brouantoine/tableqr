@@ -41,7 +41,6 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json() as KitRequest
     const appUrl = normalizeUrl(body.app_url) || normalizeUrl(process.env.NEXT_PUBLIC_APP_URL) || req.nextUrl.origin
-    const includePng = body.include_png === true
     const requestedCount = normalizeRequestedCount(body.count)
 
     const { items, defaultName } = requestedCount
@@ -57,26 +56,20 @@ export async function POST(req: NextRequest) {
     const kitName = safeFilename(body.batch_name || defaultName || 'qr-designer-kit')
     const entries: ZipEntry[] = []
     const csvRows = [
-      includePng ? ['code', 'label', 'url', 'svg_file', 'png_file'] : ['code', 'label', 'url', 'svg_file'],
+      ['number', 'code', 'label', 'url', 'svg_file'],
     ]
 
-    const assetSets = await mapLimit(items.slice(0, MAX_CODES), 6, async (item) => {
+    const assetSets = await mapLimit(items.slice(0, MAX_CODES), 6, async (item, index) => {
+      const qrNumber = index + 1
       const qrUrl = buildDenseQrUrl(appUrl, item.code)
       const svgName = `svg/QR-${item.code}.svg`
-      const pngName = `png-1000px/QR-${item.code}.png`
-      const [svg, png] = await Promise.all([
-        fetchQrAsset(qrUrl, 'svg'),
-        includePng ? fetchQrAsset(qrUrl, 'png') : Promise.resolve(null),
-      ])
+      const svg = addCenterNumberToSvg(await fetchQrAsset(qrUrl, 'svg'), qrNumber)
 
       const files: ZipEntry[] = [{ name: svgName, data: svg }]
-      if (png) files.push({ name: pngName, data: png })
 
       return {
         files,
-        csvRow: includePng
-          ? [item.code, item.label || '', qrUrl, svgName, pngName]
-          : [item.code, item.label || '', qrUrl, svgName],
+        csvRow: [String(qrNumber), item.code, item.label || '', qrUrl, svgName],
       }
     })
 
@@ -204,7 +197,7 @@ function normalizeItems(items: KitItem[]): KitItem[] {
   return result
 }
 
-async function mapLimit<T, R>(items: T[], limit: number, mapper: (item: T) => Promise<R>): Promise<R[]> {
+async function mapLimit<T, R>(items: T[], limit: number, mapper: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const results = new Array<R>(items.length)
   let nextIndex = 0
 
@@ -212,7 +205,7 @@ async function mapLimit<T, R>(items: T[], limit: number, mapper: (item: T) => Pr
     while (nextIndex < items.length) {
       const currentIndex = nextIndex
       nextIndex += 1
-      results[currentIndex] = await mapper(items[currentIndex])
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex)
     }
   }
 
@@ -275,6 +268,31 @@ async function fetchQrAsset(qrUrl: string, format: 'svg' | 'png'): Promise<Buffe
   return Buffer.from(await res.arrayBuffer())
 }
 
+function addCenterNumberToSvg(svgBuffer: Buffer, number: number): Buffer {
+  const svg = svgBuffer.toString('utf8')
+  const width = Number(svg.match(/\bwidth="(\d+(?:\.\d+)?)"/)?.[1] || 2000)
+  const height = Number(svg.match(/\bheight="(\d+(?:\.\d+)?)"/)?.[1] || width)
+  const size = Math.min(width, height)
+  const label = String(number)
+  const badgeWidth = Math.max(128, Math.min(size * 0.13, 82 + label.length * 48))
+  const badgeHeight = Math.max(92, Math.min(size * 0.065, 104))
+  const x = (width - badgeWidth) / 2
+  const y = (height - badgeHeight) / 2
+  const fontSize = Math.max(50, Math.min(badgeHeight * 0.58, 68))
+  const overlay = [
+    '<g id="tableqr-sequence-number">',
+    `<rect x="${roundSvgNumber(x)}" y="${roundSvgNumber(y)}" width="${roundSvgNumber(badgeWidth)}" height="${roundSvgNumber(badgeHeight)}" rx="${roundSvgNumber(badgeHeight / 2)}" fill="#FFFFFF" stroke="#111111" stroke-width="${roundSvgNumber(size * 0.002)}" stroke-opacity="0.18"/>`,
+    `<text x="${roundSvgNumber(width / 2)}" y="${roundSvgNumber(height / 2)}" text-anchor="middle" dominant-baseline="central" font-family="Arial, Helvetica, sans-serif" font-size="${roundSvgNumber(fontSize)}" font-weight="800" fill="#111111">${label}</text>`,
+    '</g>',
+  ].join('')
+
+  return Buffer.from(svg.includes('</svg>') ? svg.replace('</svg>', `${overlay}</svg>`) : svg, 'utf8')
+}
+
+function roundSvgNumber(value: number): string {
+  return Number(value.toFixed(2)).toString()
+}
+
 function buildReadme({ appUrl, count }: { appUrl: string; count: number }) {
   return [
     'TABLEQR - Kit designer QR',
@@ -283,8 +301,8 @@ function buildReadme({ appUrl, count }: { appUrl: string; count: number }) {
     `URL de base: ${appUrl}/t/CODE`,
     '',
     'Contenu du ZIP:',
-    '- svg/: modele unique QR classique dense, vectoriel, a utiliser dans Illustrator, InDesign, Canva ou Figma.',
-    '- mapping.csv: correspondance code, libelle, URL et fichiers.',
+    '- svg/: modele unique QR classique dense, vectoriel, avec numero discret au centre.',
+    '- mapping.csv: correspondance numero, code, libelle, URL et fichiers.',
     '',
     'Regles impression:',
     '- Ne pas rogner la marge blanche autour du QR.',
@@ -295,6 +313,7 @@ function buildReadme({ appUrl, count }: { appUrl: string; count: number }) {
     '',
     'Les QR sont generes en noir/blanc, avec une quiet zone de 4 modules et une correction H.',
     'Les URL contiennent un parametre dense sans effet metier, uniquement pour obtenir un QR plus riche visuellement.',
+    'Le numero central sert au tri physique des QR et reste volontairement petit.',
     'Le SVG est le format imprimeur recommande: il ne se degrade pas quand il est agrandi.',
     '',
   ].join('\n')

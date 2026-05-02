@@ -42,13 +42,9 @@ export default function AssistancePage({ restaurant }: { restaurant: Restaurant 
   }, [conversations, search])
 
   const loadConversations = useCallback(async () => {
-    const { data } = await supabase
-      .from('support_conversations')
-      .select('*, session:client_sessions(id, pseudo, avatar_icon, table:restaurant_tables(table_number))')
-      .eq('restaurant_id', restaurant.id)
-      .order('last_message_at', { ascending: false })
-
-    const rows = (data || []) as ConversationRow[]
+    const res = await fetch(`/api/support/conversations?restaurant_id=${restaurant.id}`, { cache: 'no-store' })
+    const json = await res.json().catch(() => null) as { data?: ConversationRow[] } | null
+    const rows = json?.data || []
     setConversations(rows)
     setSelected(prev => {
       if (prev) return rows.find(row => row.id === prev.id) || rows[0] || null
@@ -70,9 +66,12 @@ export default function AssistancePage({ restaurant }: { restaurant: Restaurant 
 
   async function updateStatus(status: 'open' | 'pending' | 'resolved') {
     if (!selected) return
-    await supabase.from('support_conversations')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', selected.id)
+    const res = await fetch('/api/support/conversations', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: selected.id, status }),
+    })
+    if (!res.ok) return
     setSelected(prev => prev ? { ...prev, status } : prev)
     setConversations(prev => prev.map(c => c.id === selected.id ? { ...c, status } : c))
   }
@@ -125,7 +124,12 @@ export default function AssistancePage({ restaurant }: { restaurant: Restaurant 
       })
       .subscribe()
 
+    const refreshTimer = window.setInterval(() => {
+      void loadConversations()
+    }, 5000)
+
     return () => {
+      window.clearInterval(refreshTimer)
       supabase.removeChannel(convChannel)
       supabase.removeChannel(msgChannel)
     }
@@ -133,6 +137,14 @@ export default function AssistancePage({ restaurant }: { restaurant: Restaurant 
 
   useEffect(() => {
     if (selected?.id) void loadMessages(selected.id)
+  }, [selected?.id, loadMessages])
+
+  useEffect(() => {
+    if (!selected?.id) return
+    const refreshTimer = window.setInterval(() => {
+      void loadMessages(selected.id)
+    }, 4000)
+    return () => window.clearInterval(refreshTimer)
   }, [selected?.id, loadMessages])
 
   const statusConfig = {

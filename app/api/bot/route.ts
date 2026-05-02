@@ -16,18 +16,21 @@ interface BotBody {
 
 const TRANSFER_RE = /\b(personnel|serveur|serveuse|responsable|manager|humain|quelqu'un|quelqu’un|appelle|appelez|aide|probl[eè]me|plainte|retard|eau|addition|modifier|annuler)\b/i
 
+function cleanEnv(value?: string) {
+  return value?.trim().replace(/^['"]|['"]$/g, '') || undefined
+}
+
 function pickAiProvider() {
-  const requested = (process.env.AI_PROVIDER || process.env.LLM_PROVIDER || '').toLowerCase()
-  const rawXaiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY
+  const requested = (cleanEnv(process.env.AI_PROVIDER) || cleanEnv(process.env.LLM_PROVIDER) || '').toLowerCase()
+  const rawXaiKey = cleanEnv(process.env.XAI_API_KEY) || cleanEnv(process.env.GROK_API_KEY)
   const xaiKeyLooksLikeGroq = Boolean(rawXaiKey?.startsWith('gsk_') || rawXaiKey?.startsWith('gsk-') || rawXaiKey?.startsWith('gs'))
   const xaiKey = xaiKeyLooksLikeGroq ? undefined : rawXaiKey
-  const groqKey = process.env.GROQ_API_KEY
+  const groqKey = cleanEnv(process.env.GROQ_API_KEY)
   const groqKeyLooksLikeXai = Boolean(groqKey?.startsWith('xai-') || groqKey?.startsWith('xai_'))
-  const groqKeyLooksLikeGroq = Boolean(groqKey?.startsWith('gsk_') || groqKey?.startsWith('gsk-') || groqKey?.startsWith('gs'))
 
-  // Si une vraie clé Groq est présente dans GROQ_API_KEY, elle gagne.
-  // Ça évite qu'une ancienne variable AI_PROVIDER=xai envoie par erreur gsk... chez xAI.
-  if (groqKey && groqKeyLooksLikeGroq) {
+  // Si GROQ_API_KEY est renseignée, elle gagne. On évite toute heuristique fragile
+  // sur le préfixe, car certains environnements masquent/formatent la clé.
+  if (groqKey && !groqKeyLooksLikeXai) {
     return {
       provider: 'Groq',
       apiKey: groqKey,
@@ -64,15 +67,6 @@ function pickAiProvider() {
       apiKey: xaiKey || groqKey!,
       endpoint: 'https://api.x.ai/v1/chat/completions',
       model: process.env.XAI_MODEL || process.env.GROK_MODEL || 'grok-4-fast-non-reasoning',
-    }
-  }
-
-  if (groqKey) {
-    return {
-      provider: groqKeyLooksLikeGroq ? 'Groq' : 'Groq',
-      apiKey: groqKey,
-      endpoint: 'https://api.groq.com/openai/v1/chat/completions',
-      model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
     }
   }
 

@@ -23,6 +23,9 @@ CREATE TABLE restaurants (
   accent_color TEXT DEFAULT '#C0392B',
   bot_name TEXT DEFAULT 'Tantie',
   bot_personality TEXT DEFAULT 'chaleureux',
+  bot_enabled BOOLEAN DEFAULT true,
+  bot_context TEXT,
+  bot_transfer_enabled BOOLEAN DEFAULT true,
   module_social BOOLEAN DEFAULT true,
   module_games BOOLEAN DEFAULT true,
   module_delivery BOOLEAN DEFAULT true,
@@ -172,6 +175,44 @@ CREATE TABLE social_messages (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- CONTEXTE BOT RESTAURANT
+CREATE TABLE restaurant_bot_answers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE,
+  category TEXT NOT NULL,
+  question_key TEXT NOT NULL,
+  question TEXT NOT NULL,
+  answer TEXT,
+  position INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(restaurant_id, question_key)
+);
+
+-- ASSISTANCE CLIENT ↔ PERSONNEL
+CREATE TABLE support_conversations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE,
+  client_session_id UUID REFERENCES client_sessions(id) ON DELETE CASCADE,
+  status TEXT DEFAULT 'open',
+  source TEXT DEFAULT 'client',
+  last_message_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(restaurant_id, client_session_id)
+);
+
+CREATE TABLE support_messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  conversation_id UUID REFERENCES support_conversations(id) ON DELETE CASCADE,
+  restaurant_id UUID REFERENCES restaurants(id) ON DELETE CASCADE,
+  sender_type TEXT NOT NULL,
+  sender_session_id UUID REFERENCES client_sessions(id) ON DELETE SET NULL,
+  message TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- MATCHS
 CREATE TABLE matches (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -262,6 +303,10 @@ CREATE INDEX idx_sessions_restaurant ON client_sessions(restaurant_id);
 CREATE INDEX idx_sessions_present ON client_sessions(restaurant_id, is_present);
 CREATE INDEX idx_sessions_live_social ON client_sessions(restaurant_id, is_present, is_remote, social_mode, last_seen_at DESC);
 CREATE INDEX idx_messages_receiver ON social_messages(receiver_session_id, is_read);
+CREATE INDEX idx_bot_answers_restaurant ON restaurant_bot_answers(restaurant_id, category, position);
+CREATE INDEX idx_support_conversations_restaurant ON support_conversations(restaurant_id, status, last_message_at DESC);
+CREATE INDEX idx_support_conversations_client ON support_conversations(client_session_id);
+CREATE INDEX idx_support_messages_conversation ON support_messages(conversation_id, created_at ASC);
 CREATE INDEX idx_notifications_session ON notifications(session_id, is_read);
 CREATE INDEX idx_restaurant_slug ON restaurants(slug);
 
@@ -274,6 +319,9 @@ ALTER TABLE client_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE social_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE restaurant_bot_answers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE support_conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE support_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- Trigger updated_at

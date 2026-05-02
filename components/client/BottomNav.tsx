@@ -12,6 +12,7 @@ export default function BottomNav({ slug, primaryColor }: { slug: string; primar
   const { session } = useSessionStore()
   const [notifCount, setNotifCount] = useState(0)
   const [socialUnreadCount, setSocialUnreadCount] = useState(0)
+  const [supportUnreadCount, setSupportUnreadCount] = useState(0)
 
   useEffect(() => {
     router.prefetch(`/${slug}/menu`)
@@ -26,6 +27,7 @@ export default function BottomNav({ slug, primaryColor }: { slug: string; primar
       const resetTimer = window.setTimeout(() => {
         setNotifCount(0)
         setSocialUnreadCount(0)
+        setSupportUnreadCount(0)
       }, 0)
       return () => window.clearTimeout(resetTimer)
     }
@@ -46,8 +48,24 @@ export default function BottomNav({ slug, primaryColor }: { slug: string; primar
       setSocialUnreadCount(count || 0)
     }
 
+    async function loadSupportUnread() {
+      const { data: conv } = await supabase.from('support_conversations')
+        .select('id')
+        .eq('restaurant_id', session!.restaurant_id)
+        .eq('client_session_id', session!.id)
+        .maybeSingle()
+      if (!conv?.id) { setSupportUnreadCount(0); return }
+      const { count } = await supabase.from('support_messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_id', conv.id)
+        .neq('sender_type', 'client')
+        .eq('is_read', false)
+      setSupportUnreadCount(count || 0)
+    }
+
     void loadNotifications()
     void loadSocialUnread()
+    void loadSupportUnread()
 
     const notificationsChannel = supabase.channel(`nav-notif-${session.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `session_id=eq.${session.id}` }, loadNotifications)
@@ -57,15 +75,20 @@ export default function BottomNav({ slug, primaryColor }: { slug: string; primar
       .on('postgres_changes', { event: '*', schema: 'public', table: 'social_messages', filter: `receiver_session_id=eq.${session.id}` }, loadSocialUnread)
       .subscribe()
 
+    const supportChannel = supabase.channel(`nav-support-${session.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_messages', filter: `restaurant_id=eq.${session.restaurant_id}` }, loadSupportUnread)
+      .subscribe()
+
     return () => {
       supabase.removeChannel(notificationsChannel)
       supabase.removeChannel(messagesChannel)
+      supabase.removeChannel(supportChannel)
     }
   }, [session])
 
   const tabs = [
     { href: `/${slug}/menu`,          label: 'Menu',   badge: 0,            Icon: UtensilsCrossed },
-    { href: `/${slug}/social`,         label: 'Social', badge: socialUnreadCount, Icon: MessageCircle },
+    { href: `/${slug}/social`,         label: 'Social', badge: socialUnreadCount + supportUnreadCount, Icon: MessageCircle },
     { href: `/${slug}/games`,          label: 'Jeux',   badge: 0,            Icon: Gamepad2 },
     { href: `/${slug}/notifications`,  label: 'Alertes',badge: notifCount,   Icon: Bell },
   ]

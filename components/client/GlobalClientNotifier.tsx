@@ -35,6 +35,7 @@ const TOAST_CONFIG: Record<string, { icon: LucideIcon; color: string; bg: string
   order_status: { icon: ChefHat,      color: '#F59E0B', bg: '#FFFBEB' },
   message:      { icon: MessageCircle,color: '#3B82F6', bg: '#EFF6FF' },
   coucou:       { icon: Hand,         color: '#F26522', bg: '#FFF7F0' },
+  support:      { icon: MessageCircle,color: '#F26522', bg: '#FFF7F0' },
   match:        { icon: Heart,        color: '#EF4444', bg: '#FEF2F2' },
   anniversaire: { icon: Gift,         color: '#8B5CF6', bg: '#F5F3FF' },
   promo:        { icon: Tag,          color: '#F26522', bg: '#FFF7F0' },
@@ -76,7 +77,8 @@ export default function GlobalClientNotifier({ slug, primaryColor }: { slug: str
 
         addNotification(n)
 
-        const status = (n.data as { status?: string } | null)?.status
+        const notifData = n.data as { status?: string; href?: string } | null
+        const status = notifData?.status
         if (n.type === 'order_ready' || status === 'ready') {
           playRef.current('ready')
         } else if (n.type === 'message') {
@@ -91,6 +93,7 @@ export default function GlobalClientNotifier({ slug, primaryColor }: { slug: str
           body: n.body || undefined,
           type: n.type,
           status,
+          href: notifData?.href?.startsWith('/social') ? `/${slug}${notifData.href}` : notifData?.href,
         })
       })
       .subscribe()

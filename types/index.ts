@@ -18,6 +18,9 @@ export interface Restaurant {
   accent_color: string
   bot_name: string
   bot_personality: string
+  bot_enabled?: boolean
+  bot_context?: string | null
+  bot_transfer_enabled?: boolean
   module_social: boolean
   module_games: boolean
   module_delivery: boolean
@@ -228,7 +231,7 @@ export interface GamePlayer {
   session?: ClientSession
 }
 
-export type NotificationType = 'plat_partage' | 'message' | 'jeu_invite' | 'anniversaire' | 'promo' | 'match' | 'order_ready'
+export type NotificationType = 'plat_partage' | 'message' | 'jeu_invite' | 'anniversaire' | 'promo' | 'match' | 'order_ready' | 'support'
 
 export interface Notification {
   id: string
@@ -238,6 +241,44 @@ export interface Notification {
   title: string
   body?: string
   data: Json
+  is_read: boolean
+  created_at: string
+}
+
+export interface RestaurantBotAnswer {
+  id: string
+  restaurant_id: string
+  category: string
+  question_key: string
+  question: string
+  answer?: string | null
+  position: number
+  created_at: string
+  updated_at?: string
+}
+
+export type SupportConversationStatus = 'open' | 'pending' | 'resolved'
+export type SupportSenderType = 'client' | 'staff' | 'bot'
+
+export interface SupportConversation {
+  id: string
+  restaurant_id: string
+  client_session_id: string
+  status: SupportConversationStatus
+  source: 'client' | 'bot'
+  last_message_at: string
+  created_at: string
+  updated_at: string
+  session?: ClientSession
+}
+
+export interface SupportMessage {
+  id: string
+  conversation_id: string
+  restaurant_id: string
+  sender_type: SupportSenderType
+  sender_session_id?: string | null
+  message: string
   is_read: boolean
   created_at: string
 }

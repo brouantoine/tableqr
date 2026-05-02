@@ -5,6 +5,7 @@ import { useSessionStore } from '@/lib/store'
 import BottomNav from './BottomNav'
 import SplashScreen from './SplashScreen'
 import GlobalClientNotifier from './GlobalClientNotifier'
+import TantieWidget from './TantieWidget'
 import { useClientPresence } from '@/hooks/useClientPresence'
 import type { Restaurant } from '@/types'
 
@@ -43,6 +44,7 @@ export default function ClientLayout({ children, restaurant }: { children: React
         />
       )}
       <GlobalClientNotifier slug={restaurant.slug} primaryColor={restaurant.primary_color} />
+      <TantieWidget restaurant={restaurant} />
       {children}
       {showNav && (
         <BottomNav

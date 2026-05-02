@@ -2,12 +2,13 @@
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut, ChefHat } from 'lucide-react'
+import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut, ChefHat, Headset } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import PushToggle from './PushToggle'
 
 const NAV = [
   { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Caisse' },
+  { href: '/admin/assistance', icon: Headset, label: 'Aide' },
   { href: '/admin/menu', icon: UtensilsCrossed, label: 'Menu' },
   { href: '/admin/tables', icon: QrCode, label: 'Tables' },
   { href: '/admin/activites', icon: Gamepad2, label: 'Activités' },

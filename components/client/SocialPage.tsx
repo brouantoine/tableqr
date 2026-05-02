@@ -7,8 +7,8 @@ import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { getPresenceCutoffIso, getPresenceStamp, isLiveSocialClient } from '@/lib/social/presence'
 import { formatTimeAgo } from '@/lib/utils'
-import { Send, ChevronLeft, Search, Moon, UserRound, Plus, Hand, Check } from 'lucide-react'
-import type { ClientSession, SocialMessage, Restaurant } from '@/types'
+import { Send, ChevronLeft, Search, Moon, UserRound, Plus, Hand, Check, Headset, Loader2 } from 'lucide-react'
+import type { ClientSession, SocialMessage, Restaurant, SupportConversation, SupportMessage } from '@/types'
 
 const COUCOU_DISPLAY_MS = 60_000
 
@@ -46,11 +46,19 @@ function appendMessage(prev: Record<string, SocialMessage[]>, clientId: string, 
   }
 }
 
+function appendSupportMessage(prev: SupportMessage[], msg: SupportMessage) {
+  if (prev.some(item => item.id === msg.id)) return prev
+  return [...prev, msg].sort((a, b) =>
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  )
+}
+
 export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   const { session, setSession } = useSessionStore()
   const searchParams = useSearchParams()
   const chatParam = searchParams.get('chat')
-  const [view, setView] = useState<'list' | 'chat'>('list')
+  const supportParam = searchParams.get('support')
+  const [view, setView] = useState<'list' | 'chat' | 'support'>('list')
   const [clients, setClients] = useState<ClientSession[]>([])
   const [conversationClients, setConversationClients] = useState<Record<string, ClientSession>>({})
   const [conversations, setConversations] = useState<Record<string, SocialMessage[]>>({})
@@ -63,8 +71,12 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   const [coucouBusy, setCoucouBusy] = useState<Record<string, boolean>>({})
   const [coucouFlash, setCoucouFlash] = useState<{ pseudo: string } | null>(null)
   const [modeHint, setModeHint] = useState<SocialMode | null>(null)
+  const [supportConversation, setSupportConversation] = useState<SupportConversation | null>(null)
+  const [supportMessages, setSupportMessages] = useState<SupportMessage[]>([])
+  const [supportInput, setSupportInput] = useState('')
+  const [supportSending, setSupportSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const activeChatRef = useRef<{ view: 'list' | 'chat'; selectedClientId?: string }>({ view: 'list' })
+  const activeChatRef = useRef<{ view: 'list' | 'chat' | 'support'; selectedClientId?: string }>({ view: 'list' })
   const p = restaurant.primary_color
 
   const sessionId = session?.id
@@ -168,6 +180,43 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     }))
   }, [restaurant.id, sessionId, sessionRestaurantId])
 
+  const markSupportRead = useCallback(async (conversationId?: string) => {
+    const id = conversationId || supportConversation?.id
+    if (!id) return
+    await fetch('/api/support/messages', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: id, reader: 'client' }),
+    })
+    setSupportMessages(prev => prev.map(msg =>
+      msg.sender_type !== 'client' ? { ...msg, is_read: true } : msg
+    ))
+  }, [supportConversation?.id])
+
+  const loadSupportMessages = useCallback(async (conversationId: string) => {
+    const res = await fetch(`/api/support/messages?conversation_id=${conversationId}`)
+    const json = await res.json() as { data?: SupportMessage[] }
+    setSupportMessages(json.data || [])
+  }, [])
+
+  const loadSupportConversation = useCallback(async () => {
+    if (!sessionId || sessionRestaurantId !== restaurant.id) return null
+    const res = await fetch('/api/support/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        restaurant_id: restaurant.id,
+        session_id: sessionId,
+        source: 'client',
+      }),
+    })
+    const json = await res.json() as { data?: SupportConversation }
+    if (!json.data) return null
+    setSupportConversation(json.data)
+    await loadSupportMessages(json.data.id)
+    return json.data
+  }, [restaurant.id, sessionId, sessionRestaurantId, loadSupportMessages])
+
   useEffect(() => {
     setSocialMode((session?.social_mode as SocialMode) || 'receptif')
   }, [session?.social_mode])
@@ -180,6 +229,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     if (!hasValidSession || !sessionId) return
     void loadClients()
     void loadAllMessages()
+    void loadSupportConversation()
 
     const messagesChannel = supabase.channel(`social-messages-${sessionId}`)
       .on('postgres_changes', {
@@ -218,11 +268,29 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
       supabase.removeChannel(messagesChannel)
       supabase.removeChannel(presenceChannel)
     }
-  }, [hasValidSession, sessionId, restaurant.id, loadClients, loadAllMessages, markConversationRead, rememberClients])
+  }, [hasValidSession, sessionId, restaurant.id, loadClients, loadAllMessages, loadSupportConversation, markConversationRead, rememberClients])
 
   useEffect(() => {
-    if (view === 'chat') setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
-  }, [view, conversations, selectedClient])
+    if (!supportConversation?.id) return
+    const channel = supabase.channel(`support-client-${supportConversation.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'support_messages',
+        filter: `conversation_id=eq.${supportConversation.id}`,
+      }, (payload) => {
+        const msg = payload.new as SupportMessage
+        setSupportMessages(prev => appendSupportMessage(prev, msg))
+        if (activeChatRef.current.view === 'support') void markSupportRead(supportConversation.id)
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [supportConversation?.id, markSupportRead])
+
+  useEffect(() => {
+    if (view === 'chat' || view === 'support') setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+  }, [view, conversations, selectedClient, supportMessages])
 
   useEffect(() => {
     if (!selectedClientId) return
@@ -275,6 +343,19 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     })()
     return () => { cancelled = true }
   }, [chatParam, sessionId, clients, restaurant.id, rememberClients])
+
+  useEffect(() => {
+    if (supportParam !== '1' || !hasValidSession) return
+    void (async () => {
+      const conversation = supportConversation || await loadSupportConversation()
+      if (!conversation) return
+      setView('support')
+      void markSupportRead(conversation.id)
+      const url = new URL(window.location.href)
+      url.searchParams.delete('support')
+      window.history.replaceState({}, '', url.pathname + (url.search ? `?${url.searchParams}` : ''))
+    })()
+  }, [supportParam, hasValidSession, supportConversation, loadSupportConversation, markSupportRead])
 
   // Nettoyage automatique des coucous expirés (visuel "Coucou ✓")
   useEffect(() => {
@@ -390,7 +471,33 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     }
   }
 
+  async function sendSupportMessage() {
+    if (!sessionId || !supportConversation || !supportInput.trim() || supportSending) return
+    setSupportSending(true)
+    try {
+      const text = supportInput.trim()
+      const res = await fetch('/api/support/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversation_id: supportConversation.id,
+          sender_type: 'client',
+          sender_session_id: sessionId,
+          message: text,
+        }),
+      })
+      const json = await res.json() as { data?: SupportMessage }
+      if (!res.ok || !json.data) return
+      setSupportMessages(prev => appendSupportMessage(prev, json.data as SupportMessage))
+      setSupportInput('')
+    } finally {
+      setSupportSending(false)
+    }
+  }
+
   const currentMessages = selectedClient ? (conversations[selectedClient.id] || []) : []
+  const supportUnread = supportMessages.filter(m => m.sender_type !== 'client' && !m.is_read).length
+  const lastSupportMessage = supportMessages[supportMessages.length - 1]
   const normalizedSearch = search.trim().toLowerCase()
   const filteredClients = clients.filter(c => c.pseudo?.toLowerCase().includes(normalizedSearch))
   const visibleConversationEntries = Object.entries(conversations)
@@ -522,6 +629,40 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
       </div>
 
       <div className="flex-1 overflow-y-auto pb-24">
+        <div className="px-2 pt-3">
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={async () => {
+              const conversation = supportConversation || await loadSupportConversation()
+              if (!conversation) return
+              setView('support')
+              void markSupportRead(conversation.id)
+            }}
+            className="w-full flex items-center gap-3 rounded-2xl px-3 py-3 text-left bg-white border border-orange-100 shadow-sm">
+            <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: `${p}15` }}>
+              <Headset size={22} style={{ color: p }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <p className="text-[15px] font-black text-gray-950 truncate">Personnel du restaurant</p>
+                {lastSupportMessage && (
+                  <p className="text-xs text-gray-400 flex-shrink-0 ml-2">{formatTimeAgo(lastSupportMessage.created_at)}</p>
+                )}
+              </div>
+              <p className={`text-sm truncate mt-0.5 ${supportUnread > 0 ? 'text-gray-800 font-semibold' : 'text-gray-500'}`}>
+                {lastSupportMessage
+                  ? `${lastSupportMessage.sender_type === 'client' ? 'Vous : ' : ''}${lastSupportMessage.message}`
+                  : 'Une question ? Le personnel vous répond ici.'}
+              </p>
+            </div>
+            {supportUnread > 0 && (
+              <span className="w-5 h-5 rounded-full text-white text-xs font-black flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: p }}>{supportUnread}</span>
+            )}
+          </motion.button>
+        </div>
+
         {hasConversations && (
           <div className="px-2 pt-3">
             <div>
@@ -638,6 +779,94 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
             </p>
           </div>
         )}
+      </div>
+    </div>
+  )
+
+  if (view === 'support') return (
+    <div className="fixed inset-0 z-50 mx-auto flex max-w-md flex-col bg-white" style={{ height: '100dvh' }}>
+      <div className="flex items-center gap-3 px-4 py-3 bg-white flex-shrink-0"
+        style={{ borderBottom: '1px solid #F0F0F0', boxShadow: '0 1px 8px rgba(0,0,0,0.05)' }}>
+        <motion.button whileTap={{ scale: 0.9 }} onClick={() => setView('list')}
+          className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: '#F5F5F5' }}>
+          <ChevronLeft size={20} className="text-gray-700" />
+        </motion.button>
+        <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+          style={{ backgroundColor: `${p}15` }}>
+          <Headset size={20} style={{ color: p }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-black text-gray-900 text-sm">Personnel du restaurant</p>
+          <p className="text-xs text-gray-400">Assistance client</p>
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3" style={{ backgroundColor: '#F8F8F8' }}>
+        {supportMessages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-center py-12 px-4">
+            <div className="w-16 h-16 rounded-3xl bg-white shadow-sm flex items-center justify-center mb-4">
+              <Headset size={30} className="text-gray-300" />
+            </div>
+            <p className="font-black text-gray-900 mb-1">Une question au personnel ?</p>
+            <p className="text-sm text-gray-400">Écrivez ici pour demander de l’aide, de l’eau, l’addition ou une précision.</p>
+          </div>
+        )}
+
+        <AnimatePresence>
+          {supportMessages.map((msg, i) => {
+            const isMe = msg.sender_type === 'client'
+            const showTime = i === 0 || (new Date(msg.created_at).getTime() - new Date(supportMessages[i-1].created_at).getTime()) > 5 * 60 * 1000
+            return (
+              <motion.div key={msg.id}
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.18 }}>
+                {showTime && (
+                  <p className="text-center text-xs text-gray-400 my-4 font-medium">{formatTimeAgo(msg.created_at)}</p>
+                )}
+                <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} items-end gap-2`}>
+                  {!isMe && (
+                    <div className="w-7 h-7 rounded-xl bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Headset size={14} style={{ color: p }} />
+                    </div>
+                  )}
+                  <div className={`max-w-[78%] px-4 py-2.5 text-sm leading-relaxed ${isMe ? 'rounded-3xl rounded-br-lg text-white' : 'rounded-3xl rounded-bl-lg bg-white text-gray-900 shadow-sm'}`}
+                    style={isMe ? { backgroundColor: p, boxShadow: `0 2px 8px ${p}40` } : undefined}>
+                    {msg.sender_type === 'bot' && (
+                      <span className="block text-[10px] font-black uppercase tracking-wider mb-1 opacity-60">Tantie</span>
+                    )}
+                    {msg.message}
+                  </div>
+                </div>
+              </motion.div>
+            )
+          })}
+        </AnimatePresence>
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="bg-white px-4 py-3 flex-shrink-0"
+        style={{ borderTop: '1px solid #F0F0F0', paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 flex items-center rounded-full px-4 h-10" style={{ backgroundColor: '#F0F2F5' }}>
+            <input
+              type="text"
+              placeholder="Écrire au personnel..."
+              value={supportInput}
+              onChange={e => setSupportInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendSupportMessage()}
+              className="flex-1 bg-transparent text-sm outline-none text-gray-900 placeholder-gray-400"
+              style={{ fontSize: '16px' }}
+            />
+          </div>
+          <motion.button whileTap={{ scale: 0.88 }} onClick={sendSupportMessage}
+            disabled={!supportInput.trim() || supportSending || !supportConversation}
+            className="w-10 h-10 rounded-full flex items-center justify-center text-white flex-shrink-0 disabled:opacity-35 transition-all"
+            style={{ backgroundColor: supportInput.trim() ? p : '#9CA3AF' }}>
+            {supportSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={15} strokeWidth={2.7} />}
+          </motion.button>
+        </div>
       </div>
     </div>
   )

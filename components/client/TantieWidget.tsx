@@ -16,7 +16,8 @@ interface BotResponse {
   reply?: string
   action?: 'open_support' | 'need_session'
   conversation_id?: string
-  error?: string
+  error?: string | { message?: string; code?: string }
+  hint?: string
 }
 
 const SUGGESTIONS = [
@@ -25,6 +26,21 @@ const SUGGESTIONS = [
   'Je veux un plat pas trop cher',
   'Je veux parler au personnel',
 ]
+
+function readableError(error: BotResponse['error']) {
+  if (!error) return ''
+  if (typeof error !== 'string') {
+    return error.message || 'Tantie est indisponible pour le moment.'
+  }
+
+  try {
+    const parsed = JSON.parse(error) as { error?: { message?: string } | string }
+    if (typeof parsed.error === 'string') return parsed.error
+    return parsed.error?.message || error
+  } catch {
+    return error
+  }
+}
 
 export default function TantieWidget({ restaurant }: { restaurant: Restaurant }) {
   const router = useRouter()
@@ -72,7 +88,9 @@ export default function TantieWidget({ restaurant }: { restaurant: Restaurant })
         }),
       })
       const json = await res.json() as BotResponse
-      const reply = json.reply || json.error || 'Je ne suis pas sûre. Demandez au personnel du restaurant.'
+      const reply = json.reply
+        || readableError(json.error)
+        || 'Je ne suis pas sûre. Demandez au personnel du restaurant.'
       setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'assistant', content: reply }])
 
       if (json.action === 'open_support') {

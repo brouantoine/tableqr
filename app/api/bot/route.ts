@@ -18,11 +18,61 @@ const TRANSFER_RE = /\b(personnel|serveur|serveuse|responsable|manager|humain|qu
 
 function cleanEnv(value?: string) {
   if (!value) return undefined
+
   let out = value.trim().replace(/^['"]|['"]$/g, '').trim()
+  const embeddedGroqKey = out.match(/\b(gsk[_-][A-Za-z0-9_-]{8,})\b/i)
+  if (embeddedGroqKey?.[1]) return embeddedGroqKey[1]
+
+  const embeddedXaiKey = out.match(/\b(xai[_-][A-Za-z0-9_-]{8,})\b/i)
+  if (embeddedXaiKey?.[1]) return embeddedXaiKey[1]
+
+  out = out.replace(/^export\s+/i, '').trim()
   out = out.replace(/^Bearer\s+/i, '').trim()
   out = out.replace(/^(GROQ_API_KEY|GROK_API_KEY|XAI_API_KEY)\s*=\s*/i, '').trim()
   out = out.replace(/^['"]|['"]$/g, '').trim()
   return out || undefined
+}
+
+function cleanModel(value: string | undefined, fallback: string) {
+  return cleanEnv(value) || fallback
+}
+
+function providerErrorMessage(provider: string, errText: string) {
+  let code = ''
+  let message = errText
+
+  try {
+    const parsed = JSON.parse(errText) as { error?: { message?: string; code?: string } | string }
+    if (typeof parsed.error === 'string') {
+      message = parsed.error
+    } else {
+      message = parsed.error?.message || message
+      code = parsed.error?.code || ''
+    }
+  } catch {
+    // Provider returned plain text.
+  }
+
+  const lower = `${code} ${message}`.toLowerCase()
+  if (lower.includes('invalid_api_key') || lower.includes('invalid api key') || lower.includes('incorrect api key')) {
+    return {
+      error: provider === 'Groq'
+        ? 'Clé Groq invalide. La route reçoit bien GROQ_API_KEY, mais Groq la refuse.'
+        : 'Clé xAI/Grok invalide. La route reçoit une clé, mais xAI la refuse.',
+      code: code || 'invalid_api_key',
+      hint: provider === 'Groq'
+        ? 'Dans Vercel, garde GROQ_API_KEY uniquement avec la clé brute gsk_..., sans Bearer, sans GROQ_API_KEY=, sans guillemets. Puis redéploie.'
+        : 'Dans Vercel, garde XAI_API_KEY uniquement avec la clé brute xai_... et redéploie.',
+    }
+  }
+
+  return {
+    error: message || 'Erreur IA',
+    code: code || undefined,
+    hint: provider === 'Groq'
+      ? 'Vérifie GROQ_API_KEY et GROQ_MODEL dans les variables Production Vercel.'
+      : 'Vérifie XAI_API_KEY et XAI_MODEL dans les variables Production Vercel.',
+  }
 }
 
 function pickAiProvider() {
@@ -40,7 +90,7 @@ function pickAiProvider() {
       provider: 'Groq',
       apiKey: groqKey,
       endpoint: 'https://api.groq.com/openai/v1/chat/completions',
-      model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+      model: cleanModel(process.env.GROQ_MODEL, 'llama-3.1-8b-instant'),
     }
   }
 
@@ -51,7 +101,7 @@ function pickAiProvider() {
       provider: 'xAI/Grok',
       apiKey,
       endpoint: 'https://api.x.ai/v1/chat/completions',
-      model: process.env.XAI_MODEL || process.env.GROK_MODEL || 'grok-4-fast-non-reasoning',
+      model: cleanModel(process.env.XAI_MODEL || process.env.GROK_MODEL, 'grok-4-fast-non-reasoning'),
     }
   }
 
@@ -62,7 +112,7 @@ function pickAiProvider() {
       provider: 'Groq',
       apiKey,
       endpoint: 'https://api.groq.com/openai/v1/chat/completions',
-      model: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
+      model: cleanModel(process.env.GROQ_MODEL, 'llama-3.1-8b-instant'),
     }
   }
 
@@ -71,7 +121,7 @@ function pickAiProvider() {
       provider: 'xAI/Grok',
       apiKey: xaiKey || groqKey!,
       endpoint: 'https://api.x.ai/v1/chat/completions',
-      model: process.env.XAI_MODEL || process.env.GROK_MODEL || 'grok-4-fast-non-reasoning',
+      model: cleanModel(process.env.XAI_MODEL || process.env.GROK_MODEL, 'grok-4-fast-non-reasoning'),
     }
   }
 
@@ -246,14 +296,20 @@ ${restaurantContext}`)
 
     if (!response.ok) {
       const errText = await response.text()
-      const hint = ai.provider === 'xAI/Grok'
-        ? 'Vérifie que la clé est bien XAI_API_KEY ou GROK_API_KEY, et que le modèle XAI_MODEL/GROK_MODEL est accessible.'
-        : 'Vérifie dans Vercel que GROQ_API_KEY contient uniquement la clé brute, sans "Bearer", sans "GROQ_API_KEY=", sans guillemets, et qu’elle est définie en Production.'
-      return NextResponse.json({
-        error: errText || 'Erreur IA',
+      const formatted = providerErrorMessage(ai.provider, errText)
+      console.error('[bot] AI provider error', {
         provider: ai.provider,
         model: ai.model,
-        hint,
+        status: response.status,
+        code: formatted.code,
+        message: formatted.error,
+      })
+      return NextResponse.json({
+        error: formatted.error,
+        provider: ai.provider,
+        model: ai.model,
+        code: formatted.code,
+        hint: formatted.hint,
       }, { status: 502 })
     }
 

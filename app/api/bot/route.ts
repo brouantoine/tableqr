@@ -37,6 +37,12 @@ function cleanModel(value: string | undefined, fallback: string) {
   return cleanEnv(value) || fallback
 }
 
+function maskSecret(value?: string) {
+  if (!value) return 'missing'
+  if (value.length <= 10) return `${value.slice(0, 2)}...(${value.length})`
+  return `${value.slice(0, 4)}...${value.slice(-4)} (${value.length})`
+}
+
 function providerErrorMessage(provider: string, errText: string) {
   let code = ''
   let message = errText
@@ -303,6 +309,7 @@ ${restaurantContext}`)
         status: response.status,
         code: formatted.code,
         message: formatted.error,
+        key: maskSecret(ai.apiKey),
       })
       return NextResponse.json({
         error: formatted.error,

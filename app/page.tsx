@@ -31,12 +31,12 @@ const TESTIMONIALS = [
 ]
 
 const FOOD_IMAGES = [
-  { url: 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&q=80', label: 'Poulet grillé' },
-  { url: 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=400&q=80', label: 'Poisson braisé' },
-  { url: 'https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=400&q=80', label: 'Riz sauté' },
-  { url: 'https://images.unsplash.com/photo-1529042410759-befb1204b468?w=400&q=80', label: 'Banane plantain' },
-  { url: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&q=80', label: 'Brochettes' },
-  { url: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=80', label: 'Soupe locale' },
+  { url: 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&q=80', label: 'Pommes de terre sautées' },
+  { url: 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=400&q=80', label: 'Filet de poisson à la sauce crémeuse' },
+  { url: 'https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=400&q=80', label: 'Spaghetti aux crevettes' },
+  { url: 'https://images.unsplash.com/photo-1529042410759-befb1204b468?w=400&q=80', label: 'Boulettes de viande' },
+  { url: 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?w=400&q=80', label: 'Grillades mixtes / brochettes mixtes' },
+  { url: 'https://images.unsplash.com/photo-1547592180-85f173990554?w=400&q=80', label: 'Bol de riz aux légumes / salade bowl' },
 ]
 
 export default function LandingPage() {

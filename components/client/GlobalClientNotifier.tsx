@@ -125,6 +125,8 @@ export default function GlobalClientNotifier({ slug, primaryColor }: { slug: str
           title: sender?.pseudo || 'Nouveau message',
           body: isCoucou
             ? 'vous a envoyé un coucou'
+            : msg.attachment_url
+              ? (msg.message ? `Photo : ${msg.message}` : 'vous a envoyé une photo')
             : msg.message.length > 70 ? msg.message.slice(0, 70) + '...' : msg.message,
           type: isCoucou ? 'coucou' : 'message',
           href: `/${slug}/social?chat=${msg.sender_session_id}`,

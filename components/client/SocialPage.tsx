@@ -7,10 +7,11 @@ import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { getPresenceCutoffIso, getPresenceStamp, isLiveSocialClient } from '@/lib/social/presence'
 import { formatTimeAgo } from '@/lib/utils'
-import { Send, ChevronLeft, Search, Moon, UserRound, Plus, Hand, Check, Headset, Loader2 } from 'lucide-react'
+import { Send, ChevronLeft, Search, Moon, UserRound, Plus, Hand, Check, Headset, Loader2, ImagePlus, X } from 'lucide-react'
 import type { ClientSession, SocialMessage, Restaurant, SupportConversation, SupportMessage } from '@/types'
 
 const COUCOU_DISPLAY_MS = 60_000
+const MAX_CHAT_IMAGE_SIZE = 6 * 1024 * 1024
 
 const MODE_INFO: Record<SocialMode, { label: string; short: string; long: string; color: string }> = {
   receptif:  {
@@ -34,6 +35,12 @@ const MODE_INFO: Record<SocialMode, { label: string; short: string; long: string
 }
 
 type SocialMode = 'receptif' | 'discret' | 'invisible'
+type TypingPayload = {
+  restaurant_id?: string
+  sender_session_id?: string
+  receiver_session_id?: string
+  is_typing?: boolean
+}
 
 function appendMessage(prev: Record<string, SocialMessage[]>, clientId: string, msg: SocialMessage) {
   const current = prev[clientId] || []
@@ -65,7 +72,11 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   const [selectedClient, setSelectedClient] = useState<ClientSession | null>(null)
   const [socialMode, setSocialMode] = useState<SocialMode>((session?.social_mode as SocialMode) || 'receptif')
   const [newMsg, setNewMsg] = useState('')
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState('')
+  const [imageError, setImageError] = useState('')
   const [sending, setSending] = useState(false)
+  const [peerTyping, setPeerTyping] = useState(false)
   const [search, setSearch] = useState('')
   const [outgoingCoucous, setOutgoingCoucous] = useState<Record<string, number>>({})
   const [coucouBusy, setCoucouBusy] = useState<Record<string, boolean>>({})
@@ -76,6 +87,10 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   const [supportInput, setSupportInput] = useState('')
   const [supportSending, setSupportSending] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const typingThrottleRef = useRef(0)
+  const peerTypingTimerRef = useRef<number | null>(null)
   const activeChatRef = useRef<{ view: 'list' | 'chat' | 'support'; selectedClientId?: string }>({ view: 'list' })
   const p = restaurant.primary_color
 
@@ -86,6 +101,24 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   const sessionPseudo = session?.pseudo
   const selectedClientId = selectedClient?.id
   const hasValidSession = Boolean(sessionId && sessionRestaurantId === restaurant.id)
+
+  function emitTyping(isTyping: boolean) {
+    if (!sessionId || !selectedClientId || !typingChannelRef.current) return
+    const now = Date.now()
+    if (isTyping && now - typingThrottleRef.current < 900) return
+    typingThrottleRef.current = now
+
+    void typingChannelRef.current.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: {
+        restaurant_id: restaurant.id,
+        sender_session_id: sessionId,
+        receiver_session_id: selectedClientId,
+        is_typing: isTyping,
+      },
+    })
+  }
 
   const rememberClients = useCallback((items: ClientSession[]) => {
     setConversationClients(prev => {
@@ -224,6 +257,49 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
   useEffect(() => {
     activeChatRef.current = { view, selectedClientId }
   }, [view, selectedClientId])
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview)
+    }
+  }, [imagePreview])
+
+  useEffect(() => {
+    if (view !== 'chat' || !sessionId || !selectedClientId) {
+      setPeerTyping(false)
+      return
+    }
+
+    const pairKey = [sessionId, selectedClientId].sort().join('-')
+    const channel = supabase.channel(`social-typing-${restaurant.id}-${pairKey}`)
+      .on('broadcast', { event: 'typing' }, ({ payload }) => {
+        const data = payload as TypingPayload
+        if (
+          data.restaurant_id !== restaurant.id ||
+          data.sender_session_id !== selectedClientId ||
+          data.receiver_session_id !== sessionId
+        ) return
+
+        if (peerTypingTimerRef.current) window.clearTimeout(peerTypingTimerRef.current)
+
+        if (data.is_typing) {
+          setPeerTyping(true)
+          peerTypingTimerRef.current = window.setTimeout(() => setPeerTyping(false), 2500)
+        } else {
+          setPeerTyping(false)
+        }
+      })
+      .subscribe()
+
+    typingChannelRef.current = channel
+
+    return () => {
+      typingChannelRef.current = null
+      if (peerTypingTimerRef.current) window.clearTimeout(peerTypingTimerRef.current)
+      setPeerTyping(false)
+      supabase.removeChannel(channel)
+    }
+  }, [restaurant.id, sessionId, selectedClientId, view])
 
   useEffect(() => {
     if (!hasValidSession || !sessionId) return
@@ -420,11 +496,35 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     void loadClients()
   }
 
+  function clearSelectedImage() {
+    setSelectedImage(null)
+    setImagePreview('')
+    setImageError('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  function handleImageSelect(file?: File) {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setImageError('Choisissez une photo valide.')
+      return
+    }
+    if (file.size > MAX_CHAT_IMAGE_SIZE) {
+      setImageError('Photo trop lourde. Maximum 6 Mo.')
+      return
+    }
+
+    setSelectedImage(file)
+    setImagePreview(URL.createObjectURL(file))
+    setImageError('')
+  }
+
   async function sendMessage() {
-    if (!sessionId || !selectedClient || !newMsg.trim() || sending) return
+    if (!sessionId || !selectedClient || sending) return
+    const message = newMsg.trim()
+    if (!message && !selectedImage) return
     setSending(true)
     try {
-      const message = newMsg.trim()
       const { data: receiver } = await supabase.from('client_sessions')
         .select('*')
         .eq('id', selectedClient.id)
@@ -444,16 +544,29 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
 
       const liveReceiver = receiver as ClientSession
       setSelectedClient(liveReceiver)
-      const res = await fetch('/api/social/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          restaurant_id: restaurant.id,
-          sender_session_id: sessionId,
-          receiver_session_id: liveReceiver.id,
-          message,
-        }),
-      })
+      const res = selectedImage
+        ? await fetch('/api/social/messages', {
+            method: 'POST',
+            body: (() => {
+              const formData = new FormData()
+              formData.append('restaurant_id', restaurant.id)
+              formData.append('sender_session_id', sessionId)
+              formData.append('receiver_session_id', liveReceiver.id)
+              formData.append('message', message)
+              formData.append('attachment', selectedImage)
+              return formData
+            })(),
+          })
+        : await fetch('/api/social/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              restaurant_id: restaurant.id,
+              sender_session_id: sessionId,
+              receiver_session_id: liveReceiver.id,
+              message,
+            }),
+          })
       const json = await res.json() as { data?: SocialMessage; error?: string }
       if (!res.ok || !json.data) {
         if (res.status === 409) {
@@ -466,6 +579,8 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
 
       setConversations(prev => appendMessage(prev, liveReceiver.id, json.data as SocialMessage))
       setNewMsg('')
+      clearSelectedImage()
+      emitTyping(false)
     } finally {
       setSending(false)
     }
@@ -699,6 +814,11 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
                                 {lastMsg.sender_session_id === session?.id ? 'Vous avez envoyé un coucou' : 'Vous a envoyé un coucou'}
                               </span>
                             </span>
+                          ) : lastMsg.attachment_url ? (
+                            <span className="inline-flex items-center gap-1">
+                              <ImagePlus size={13} />
+                              <span>{lastMsg.sender_session_id === session?.id ? 'Vous : ' : ''}Photo</span>
+                            </span>
                           ) : (
                             <>{lastMsg.sender_session_id === session?.id ? 'Vous : ' : ''}{lastMsg.message}</>
                           )}
@@ -893,8 +1013,8 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
 
         <div className="flex-1 min-w-0">
           <p className="font-black text-gray-900 text-sm">{selectedClient?.pseudo}</p>
-          <p className="text-xs" style={{ color: selectedClient?.social_mode === 'receptif' ? '#10B981' : '#9CA3AF' }}>
-            {selectedClient?.social_mode === 'receptif' ? 'En ligne' : 'Absent'}
+          <p className="text-xs" style={{ color: peerTyping ? p : selectedClient?.social_mode === 'receptif' ? '#10B981' : '#9CA3AF' }}>
+            {peerTyping ? 'écrit...' : selectedClient?.social_mode === 'receptif' ? 'En ligne' : 'Absent'}
           </p>
         </div>
 
@@ -930,7 +1050,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
                       {showAvatar && <TwemojiAvatar avatarId={selectedClient?.avatar_icon || ''} size={28} />}
                     </div>
                   )}
-                  <div className={`max-w-[72%] px-4 py-2.5 text-sm leading-relaxed ${isMe ? 'rounded-3xl rounded-br-lg' : 'rounded-3xl rounded-bl-lg'}`}
+                  <div className={`max-w-[78%] overflow-hidden text-sm leading-relaxed ${msg.attachment_url ? 'p-1.5' : 'px-4 py-2.5'} ${isMe ? 'rounded-3xl rounded-br-lg' : 'rounded-3xl rounded-bl-lg'}`}
                     style={isMe
                       ? { backgroundColor: p, color: '#fff', boxShadow: `0 2px 8px ${p}40` }
                       : isCoucou
@@ -941,6 +1061,21 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
                         <Hand size={14} strokeWidth={2.6} />
                         <span>Coucou</span>
                       </span>
+                    ) : msg.attachment_url ? (
+                      <div className="space-y-2">
+                        <a href={msg.attachment_url} target="_blank" rel="noreferrer"
+                          className="block overflow-hidden rounded-2xl bg-black/5">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={msg.attachment_url}
+                            alt={msg.attachment_name || 'Photo envoyée'}
+                            className="max-h-64 w-full min-w-[180px] object-cover"
+                          />
+                        </a>
+                        {msg.message.trim() && (
+                          <p className={`px-2 pb-1 ${isMe ? 'text-white' : 'text-gray-900'}`}>{msg.message}</p>
+                        )}
+                      </div>
                     ) : msg.message}
                   </div>
                   {isMe && (
@@ -953,31 +1088,82 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
             )
           })}
         </AnimatePresence>
+        <AnimatePresence>
+          {peerTyping && selectedClient && (
+            <motion.div
+              key="peer-typing"
+              initial={{ opacity: 0, y: 8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.96 }}
+              className="flex items-end gap-2">
+              <div style={{ width: 30, flexShrink: 0 }}>
+                <TwemojiAvatar avatarId={selectedClient.avatar_icon || ''} size={28} />
+              </div>
+              <div className="flex items-center gap-1 rounded-3xl rounded-bl-lg bg-white px-4 py-3 shadow-sm">
+                {[0, 1, 2].map(i => (
+                  <span key={i} className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-bounce"
+                    style={{ animationDelay: `${i * 120}ms` }} />
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
       <div className="bg-white px-4 py-3 flex-shrink-0"
         style={{ borderTop: '1px solid #F0F0F0', paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
+        {imagePreview && (
+          <div className="mb-2 flex items-center gap-3 rounded-2xl bg-gray-50 p-2">
+            <div className="relative h-14 w-14 overflow-hidden rounded-xl bg-gray-200 flex-shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={imagePreview} alt="Photo sélectionnée" className="h-full w-full object-cover" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-black text-gray-900">{selectedImage?.name || 'Photo'}</p>
+              <p className="text-[11px] font-medium text-gray-400">Prête à envoyer</p>
+            </div>
+            <button type="button" onClick={clearSelectedImage}
+              className="h-8 w-8 rounded-full bg-white text-gray-500 flex items-center justify-center shadow-sm">
+              <X size={16} />
+            </button>
+          </div>
+        )}
+        {imageError && (
+          <p className="mb-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-600">{imageError}</p>
+        )}
         <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={e => handleImageSelect(e.target.files?.[0])}
+          />
           <button
             type="button"
+            onClick={() => fileInputRef.current?.click()}
             className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: '#F0F2F5' }}>
-            <Plus size={18} className="text-gray-500" />
+            style={{ backgroundColor: selectedImage ? `${p}15` : '#F0F2F5' }}>
+            {selectedImage ? <ImagePlus size={18} style={{ color: p }} /> : <Plus size={18} className="text-gray-500" />}
           </button>
           <div className="flex-1 flex items-center rounded-full px-4 h-10 gap-2" style={{ backgroundColor: '#F0F2F5' }}>
             <input type="text" placeholder="Aa"
-              value={newMsg} onChange={e => setNewMsg(e.target.value)}
+              value={newMsg} onChange={e => {
+                setNewMsg(e.target.value)
+                emitTyping(Boolean(e.target.value.trim()))
+              }}
+              onBlur={() => emitTyping(false)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
               className="flex-1 bg-transparent text-sm outline-none text-gray-900 placeholder-gray-400"
               style={{ fontSize: '16px' }} />
           </div>
           <motion.button whileTap={{ scale: 0.88 }} onClick={sendMessage}
-            disabled={!newMsg.trim() || sending}
+            disabled={(!newMsg.trim() && !selectedImage) || sending}
             className="w-9 h-9 rounded-full flex items-center justify-center text-white flex-shrink-0 disabled:opacity-35 transition-all"
-            style={{ backgroundColor: newMsg.trim() ? p : '#9CA3AF' }}>
-            <Send size={15} strokeWidth={2.7} />
+            style={{ backgroundColor: newMsg.trim() || selectedImage ? p : '#9CA3AF' }}>
+            {sending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} strokeWidth={2.7} />}
           </motion.button>
         </div>
       </div>

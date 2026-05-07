@@ -110,14 +110,14 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-gray-950">
+    <div className="min-h-screen overflow-x-hidden bg-white text-gray-950">
       <nav className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-gray-950/80 text-white backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-2.5">
+          <div className="flex min-w-0 items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg text-white shadow-sm" style={{ backgroundColor: ORANGE }}>
               <QrCode size={19} strokeWidth={2.6} />
             </span>
-            <span className="text-lg font-black tracking-normal">
+            <span className="truncate text-lg font-black tracking-normal">
               TABLE<span style={{ color: ORANGE }}>QR</span>
             </span>
           </div>
@@ -138,7 +138,7 @@ export default function LandingPage() {
             </Link>
             <a
               href="#contact"
-              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-black text-white shadow-lg shadow-orange-950/30 transition-transform hover:-translate-y-0.5"
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-black text-white shadow-lg shadow-orange-950/30 transition-transform hover:-translate-y-0.5 sm:px-4"
               style={{ backgroundColor: ORANGE }}
             >
               <Phone size={14} />
@@ -166,17 +166,17 @@ export default function LandingPage() {
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-6 inline-flex max-w-full items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/85 backdrop-blur"
+                className="mb-6 inline-flex max-w-full items-start gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold leading-5 text-white/85 backdrop-blur sm:items-center"
               >
-                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: ORANGE }} />
-                Disponible en Côte d&apos;Ivoire, Sénégal, Cameroun
+                <span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full sm:mt-0" style={{ backgroundColor: ORANGE }} />
+                <span>Disponible en Côte d&apos;Ivoire, Sénégal, Cameroun</span>
               </motion.div>
 
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 }}
-                className="max-w-3xl text-4xl font-black leading-[1.02] text-white sm:text-5xl lg:text-6xl"
+                className="max-w-3xl text-[2.45rem] font-black leading-[1.02] text-white sm:text-5xl lg:text-6xl"
               >
                 TableQR pour restaurants
               </motion.h1>
@@ -185,7 +185,7 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="mt-5 max-w-xl text-base leading-8 text-white/78 sm:text-lg"
+                className="mt-5 max-w-xl break-words text-base leading-8 text-white/78 sm:text-lg"
               >
                 Menu digital, commandes QR, caisse intégrée et expérience client interactive. Votre salle se modernise en 24h, sans matériel compliqué.
               </motion.p>
@@ -198,24 +198,24 @@ export default function LandingPage() {
               >
                 <a
                   href="#contact"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg px-6 py-4 text-sm font-black text-white shadow-xl shadow-orange-950/30 transition-transform hover:-translate-y-0.5"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg px-5 py-3.5 text-center text-sm font-black text-white shadow-xl shadow-orange-950/30 transition-transform hover:-translate-y-0.5 sm:px-6 sm:py-4"
                   style={{ backgroundColor: ORANGE }}
                 >
-                  <Phone size={16} />
-                  Demander une démo
+                  <Phone size={16} className="shrink-0" />
+                  <span>Demander une démo</span>
                 </a>
                 <Link
                   href="/admin/login"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-6 py-4 text-sm font-bold text-white backdrop-blur transition-colors hover:bg-white/16"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-white/20 bg-white/10 px-5 py-3.5 text-center text-sm font-bold text-white backdrop-blur transition-colors hover:bg-white/16 sm:px-6 sm:py-4"
                 >
-                  Accéder à mon restaurant
-                  <ArrowRight size={16} />
+                  <span>Accéder à mon restaurant</span>
+                  <ArrowRight size={16} className="shrink-0" />
                 </Link>
               </motion.div>
 
-              <div className="mt-8 flex flex-wrap gap-3">
+              <div className="mt-8 grid max-w-full grid-cols-1 gap-2 min-[390px]:grid-cols-2 sm:flex sm:flex-wrap sm:gap-3">
                 {TRUST_ITEMS.map((item) => (
-                  <span key={item} className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-3 py-2 text-xs font-bold text-white/82 backdrop-blur">
+                  <span key={item} className="inline-flex max-w-full items-center gap-2 rounded-full border border-white/12 bg-white/10 px-3 py-2 text-xs font-bold text-white/82 backdrop-blur">
                     <Check size={13} style={{ color: ORANGE }} strokeWidth={3} />
                     {item}
                   </span>
@@ -279,8 +279,8 @@ export default function LandingPage() {
         </section>
 
         <section className="border-y border-gray-100 bg-white px-4 py-7 sm:px-6">
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-9 gap-y-3">
-            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Présent dans</p>
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-5 gap-y-3 sm:gap-x-9">
+            <p className="w-full text-center text-xs font-bold uppercase tracking-widest text-gray-400 sm:w-auto">Présent dans</p>
             {CITIES.map((city) => (
               <span key={city} className="text-sm font-black text-gray-600">{city}</span>
             ))}
@@ -291,7 +291,7 @@ export default function LandingPage() {
           <div className="mx-auto max-w-6xl">
             <div className="mx-auto mb-10 max-w-2xl text-center">
               <p className="mb-3 text-xs font-black uppercase tracking-widest" style={{ color: ORANGE }}>Aperçu client</p>
-              <h2 className="text-3xl font-black text-gray-950 sm:text-4xl">Ce que voient vos clients</h2>
+              <h2 className="text-2xl font-black leading-tight text-gray-950 sm:text-4xl">Ce que voient vos clients</h2>
               <p className="mt-3 text-sm leading-7 text-gray-500 sm:text-base">Après le scan du QR code, vos plats s&apos;affichent avec photos, prix et bouton commander.</p>
             </div>
 
@@ -335,7 +335,7 @@ export default function LandingPage() {
           <div className="mx-auto max-w-6xl">
             <div className="mx-auto mb-10 max-w-2xl text-center">
               <p className="mb-3 text-xs font-black uppercase tracking-widest" style={{ color: ORANGE }}>Fonctionnalités</p>
-              <h2 className="text-3xl font-black text-gray-950 sm:text-4xl">Tout ce dont vous avez besoin</h2>
+              <h2 className="text-2xl font-black leading-tight text-gray-950 sm:text-4xl">Tout ce dont vous avez besoin</h2>
               <p className="mt-3 text-sm leading-7 text-gray-500 sm:text-base">Une seule application pour gérer commandes, caisse et expérience client.</p>
             </div>
 
@@ -371,7 +371,7 @@ export default function LandingPage() {
                 transition={{ delay: index * 0.06 }}
                 className="rounded-lg border border-white/8 bg-white/5 px-4 py-5"
               >
-                <p className="text-3xl font-black sm:text-4xl" style={{ color: ORANGE }}>{stat.value}</p>
+                <p className="text-2xl font-black sm:text-4xl" style={{ color: ORANGE }}>{stat.value}</p>
                 <p className="mt-1 text-xs font-semibold text-white/55 sm:text-sm">{stat.label}</p>
               </motion.div>
             ))}
@@ -382,7 +382,7 @@ export default function LandingPage() {
           <div className="mx-auto max-w-5xl">
             <div className="mx-auto mb-10 max-w-2xl text-center">
               <p className="mb-3 text-xs font-black uppercase tracking-widest" style={{ color: ORANGE }}>Tarif</p>
-              <h2 className="text-3xl font-black text-gray-950 sm:text-4xl">Un seul abonnement</h2>
+              <h2 className="text-2xl font-black leading-tight text-gray-950 sm:text-4xl">Un seul abonnement</h2>
               <p className="mt-3 text-sm leading-7 text-gray-500 sm:text-base">Tout inclus. Aucune surprise. Résiliable à tout moment.</p>
             </div>
 
@@ -396,7 +396,7 @@ export default function LandingPage() {
                 <div>
                   <p className="text-xs font-black uppercase tracking-widest text-white/48">Abonnement mensuel</p>
                   <div className="mt-5 flex flex-wrap items-end gap-x-2 gap-y-1">
-                    <span className="text-5xl font-black leading-none">15 000</span>
+                    <span className="text-4xl font-black leading-none sm:text-5xl">15 000</span>
                     <span className="pb-1 text-base font-bold text-white/60">FCFA / mois</span>
                   </div>
                   <p className="mt-3 text-sm font-medium text-white/55">Pas d&apos;engagement. Activation en 24h.</p>
@@ -432,7 +432,7 @@ export default function LandingPage() {
           <div className="mx-auto max-w-6xl">
             <div className="mx-auto mb-10 max-w-2xl text-center">
               <p className="mb-3 text-xs font-black uppercase tracking-widest" style={{ color: ORANGE }}>Témoignages</p>
-              <h2 className="text-3xl font-black text-gray-950 sm:text-4xl">Ils nous font confiance</h2>
+              <h2 className="text-2xl font-black leading-tight text-gray-950 sm:text-4xl">Ils nous font confiance</h2>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -470,13 +470,13 @@ export default function LandingPage() {
           <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
             <div>
               <p className="mb-3 text-xs font-black uppercase tracking-widest" style={{ color: ORANGE }}>Contact</p>
-              <h2 className="text-3xl font-black text-gray-950 sm:text-4xl">Parlons de votre restaurant</h2>
+              <h2 className="text-2xl font-black leading-tight text-gray-950 sm:text-4xl">Parlons de votre restaurant</h2>
               <p className="mt-4 max-w-md text-sm leading-7 text-gray-500 sm:text-base">Laissez vos coordonnées, on vous rappelle dans les 24h ouvrées avec une démo adaptée à votre salle.</p>
 
               <div className="mt-8 space-y-3">
                 <a href="tel:+2250788339882" className="flex items-center gap-3 text-sm font-bold text-gray-700 transition-colors hover:text-gray-950">
                   <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-gray-900 shadow-sm">
-                    <Phone size={16} />
+                    <Phone size={16} className="shrink-0" />
                   </span>
                   +225 07 88 33 98 82
                 </a>
@@ -511,7 +511,7 @@ export default function LandingPage() {
                         required={field.required}
                         value={form[field.key]}
                         onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                        className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-orange-300 focus:bg-white"
+                        className="w-full min-w-0 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-orange-300 focus:bg-white"
                       />
                     </div>
                   ))}
@@ -519,7 +519,7 @@ export default function LandingPage() {
                   <motion.button
                     whileTap={{ scale: 0.98 }}
                     type="submit"
-                    className="flex w-full items-center justify-center gap-2 rounded-lg px-5 py-4 text-base font-black text-white shadow-lg shadow-orange-100"
+                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg px-5 py-3.5 text-center text-base font-black text-white shadow-lg shadow-orange-100 sm:py-4"
                     style={{ backgroundColor: ORANGE }}
                   >
                     <Phone size={16} />
@@ -542,12 +542,12 @@ export default function LandingPage() {
               TABLE<span style={{ color: ORANGE }}>QR</span>
             </span>
           </div>
-          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-semibold">
+          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-center text-sm font-semibold sm:gap-x-6">
             <Link href="/legal/cgu" className="transition-colors hover:text-white">CGU</Link>
             <Link href="/legal/privacy" className="transition-colors hover:text-white">Confidentialité</Link>
             <Link href="/admin/login" className="transition-colors hover:text-white">Espace restaurateur</Link>
           </div>
-          <p className="text-center text-xs text-gray-500">© 2025 TableQR. Fait en Afrique de l&apos;Ouest.</p>
+          <p className="text-center text-xs text-gray-500">© 2025 TableQR. Fait par Zenova Tech.</p>
         </div>
       </footer>
     </div>

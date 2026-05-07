@@ -184,6 +184,10 @@ export interface SocialMessage {
   sender_session_id: string
   receiver_session_id: string
   message: string
+  attachment_url?: string | null
+  attachment_type?: string | null
+  attachment_name?: string | null
+  attachment_size?: number | null
   is_anonymous: boolean
   is_read: boolean
   trigger_type?: 'plat_partage' | 'libre' | 'jeu' | 'coucou'

@@ -39,8 +39,6 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
 
   useEffect(() => {
     async function check() {
-      // Mode "upgrade invité" : on ne court-circuite pas même si la session existe,
-      // car on veut que l'utilisateur la personnalise (pseudo/avatar/profil).
       if (isGuestUpgrade) { setChecking(false); return }
 
       const fingerprint = generateDeviceFingerprint()
@@ -66,7 +64,6 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
     check()
   }, [])
 
-  // Avatars pris par les autres clients encore présents (avec auto-bascule)
   useEffect(() => {
     let cancelled = false
     async function loadTaken() {
@@ -116,7 +113,6 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
       last_seen_at: now,
       left_at: null,
     }
-    // Mode upgrade invité : on met à jour la session existante au lieu d'en créer une nouvelle
     let data: ClientSession | null = null
     if (isGuestUpgrade && session?.id) {
       const res = await supabase.from('client_sessions').update(sessionData).eq('id', session.id).select().single()
@@ -127,7 +123,6 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
     }
     if (data) {
       setSession(data)
-      // Petit délai pour laisser l'animation de "validation" se voir
       await new Promise(r => setTimeout(r, 350))
       if (onDone) onDone()
       else router.push(`/${restaurant.slug}/menu?table=${table.id}`)
@@ -146,7 +141,6 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#0D0D0D' }}>
 
-      {/* Header */}
       <div className="px-5 pt-10 pb-6">
         <div className="flex items-center gap-2 mb-8">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
@@ -180,7 +174,6 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
         </AnimatePresence>
       </div>
 
-      {/* Progress */}
       <div className="px-5 mb-8 flex gap-2">
         {['avatar', 'profile'].map((s, i) => (
           <div key={s} className="flex-1 h-1 rounded-full transition-all duration-400"
@@ -188,14 +181,11 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
         ))}
       </div>
 
-      {/* Content */}
       <div className="flex-1 px-5">
         <AnimatePresence mode="wait">
 
-          {/* STEP 1 — Avatar */}
           {step === 'avatar' && (
             <motion.div key="avatars" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              {/* Pseudo */}
               <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-2xl"
                 style={{ backgroundColor: '#1A1A1A' }}>
                 <LucideAvatar avatarId={selectedAvatar.id} size={48} />
@@ -205,7 +195,6 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
                 </div>
               </div>
 
-              {/* Grid avatars */}
               <div className="grid grid-cols-4 gap-3">
                 {AVATARS.map((av, i) => {
                   const isMine = av.id === ownAvatarId
@@ -244,7 +233,6 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
             </motion.div>
           )}
 
-          {/* STEP 2 — Profile */}
           {step === 'profile' && (
             <motion.div key="profiles" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="space-y-3">
@@ -280,7 +268,6 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
         </AnimatePresence>
       </div>
 
-      {/* CTA */}
       <div className="px-5 py-6 pb-10">
         {step === 'avatar' ? (
           <motion.button whileTap={{ scale: 0.97 }}

@@ -55,7 +55,6 @@ export default function GamesPage({ restaurant }: { restaurant: Restaurant }) {
 async function joinGame(gameId: string) {
   if (!session) return
 
-  // Vérifier si déjà dans la partie
   const { data: existing } = await supabase
     .from('game_players')
     .select('id')
@@ -68,11 +67,9 @@ async function joinGame(gameId: string) {
     return
   }
 
-  // Vérifier si c'est le créateur
   const game = activeSessions.find(g => g.id === gameId)
   if (!game) return
 
-  // Ajouter le joueur
   await supabase.from('game_players').insert({
     game_session_id: gameId,
     session_id: session.id,
@@ -81,12 +78,10 @@ async function joinGame(gameId: string) {
 
   const newCount = game.current_players + 1
 
-  // Mettre à jour le nombre de joueurs
   await supabase.from('game_sessions')
     .update({ current_players: newCount })
     .eq('id', gameId)
 
-  // Si assez de joueurs → lancer le jeu
   if (newCount >= 2) {
     await supabase.from('game_sessions')
       .update({ status: 'playing' })
@@ -111,7 +106,6 @@ async function joinGame(gameId: string) {
         <p className="text-sm text-gray-500">Jouez avec d&apos;autres clients du restaurant</p>
       </div>
 
-      {/* Parties en attente */}
       {activeSessions.length > 0 && (
         <div className="px-4 pt-4">
           <p className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wide flex items-center gap-1.5">
@@ -143,7 +137,6 @@ async function joinGame(gameId: string) {
         </div>
       )}
 
-      {/* Créer une partie */}
       <div className="px-4 pt-5">
         <p className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wide">Créer une partie</p>
         <div className="grid grid-cols-2 gap-3">
@@ -163,7 +156,6 @@ async function joinGame(gameId: string) {
         </div>
       </div>
 
-      {/* Modal jeu actif */}
       {activeGame && (
         <div className="fixed inset-0 z-50 flex items-end">
           <div className="absolute inset-0 bg-black/50" onClick={() => setActiveGame(null)} />

@@ -57,7 +57,6 @@ export default function AbonnementsTab({ restaurants }: { restaurants: Restauran
   return (
     <div className="px-4 py-5 space-y-4 pb-12 max-w-2xl mx-auto">
 
-      {/* MRR hero */}
       <div className="rounded-3xl p-5 text-white relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #F26522 0%, #e0501a 100%)' }}>
         <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/10" />
@@ -75,7 +74,6 @@ export default function AbonnementsTab({ restaurants }: { restaurants: Restauran
         </div>
       </div>
 
-      {/* Stats grid */}
       <div className="grid grid-cols-3 gap-2">
         {[
           { label: 'Abonnés', value: subscribed.length, color: '#10B981', Icon: CheckCircle, sub: 'actifs' },
@@ -94,7 +92,6 @@ export default function AbonnementsTab({ restaurants }: { restaurants: Restauran
         ))}
       </div>
 
-      {/* Revenue projector */}
       <div className="bg-white rounded-3xl p-5 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
@@ -161,7 +158,6 @@ export default function AbonnementsTab({ restaurants }: { restaurants: Restauran
         </p>
       </div>
 
-      {/* Growth chart */}
       {since.length > 0 && (
         <div className="bg-white rounded-3xl p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-4">
@@ -187,7 +183,6 @@ export default function AbonnementsTab({ restaurants }: { restaurants: Restauran
         </div>
       )}
 
-      {/* Subscribed list */}
       {subscribed.length > 0 && (
         <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
@@ -216,7 +211,6 @@ export default function AbonnementsTab({ restaurants }: { restaurants: Restauran
         </div>
       )}
 
-      {/* Trials list */}
       {trials.length > 0 && (
         <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
@@ -254,7 +248,6 @@ export default function AbonnementsTab({ restaurants }: { restaurants: Restauran
         </div>
       )}
 
-      {/* Potential revenue banner */}
       {trials.length > 0 && (
         <div className="rounded-2xl p-4 border border-amber-200 bg-amber-50">
           <div className="flex items-start gap-3">

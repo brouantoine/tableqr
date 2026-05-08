@@ -35,9 +35,6 @@ export const useSessionStore = create<SessionStore>()(
       session: null, restaurant: null, cart: emptyCart, notifications: [], unread_count: 0,
       setSession: (session) => set({ session }),
       setRestaurant: (restaurant) => {
-        // Si on change de restaurant, on wipe TOUT ce qui appartenait au précédent
-        // (panier, session, notifications) pour éviter qu'un client qui scanne
-        // le resto B voie le panier laissé sur le resto A.
         const prev = get().restaurant
         if (prev && prev.id !== restaurant.id) {
           set({ restaurant, cart: emptyCart, session: null, notifications: [], unread_count: 0 })

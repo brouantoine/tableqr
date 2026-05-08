@@ -26,7 +26,6 @@ export default function AdminLoginPage() {
       return
     }
 
-    // Vérifier que cet email est bien un admin d'un restaurant
     const { data: restaurant } = await supabase
       .from('restaurants')
       .select('id, slug')
@@ -41,7 +40,6 @@ export default function AdminLoginPage() {
       return
     }
 
-    // Première connexion → onboarding, sinon dashboard
     const onboardingDone = localStorage.getItem('onboarding_done')
     const dest = onboardingDone ? '/admin/dashboard' : '/admin/onboarding'
     window.location.href = dest
@@ -52,7 +50,6 @@ export default function AdminLoginPage() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-sm">
 
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-3xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg"
             style={{ backgroundColor: '#F26522', boxShadow: '0 8px 30px #F2652240' }}>
@@ -62,7 +59,6 @@ export default function AdminLoginPage() {
           <p className="text-gray-400 text-sm mt-1">Espace restaurateur</p>
         </div>
 
-        {/* Card */}
         <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
           <h2 className="font-black text-gray-900 text-lg mb-1">Connexion</h2>
           <p className="text-gray-400 text-sm mb-6">Accédez à votre tableau de bord</p>

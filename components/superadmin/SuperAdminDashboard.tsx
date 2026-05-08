@@ -394,7 +394,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
                 </div>
                 <div>
                   <p className="font-black text-gray-900 text-sm">Démo / Prospection</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Menu auto · QR prêts · juste le nom requis</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Menu prêt · QR prêts · juste le nom requis</p>
                 </div>
                 <ChevronRight size={16} className="text-gray-300 ml-auto" />
               </div>
@@ -426,7 +426,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
               </div>
             </div>
             <div className="bg-white rounded-2xl p-4 border border-amber-100">
-              <p className="text-xs font-bold text-amber-700 mb-2">Créé automatiquement</p>
+              <p className="text-xs font-bold text-amber-700 mb-2">Démo prête</p>
               {['Menu démo · 4 catégories · 17 plats', 'Couleur identité aléatoire', 'QR prêts à lier'].map(t => (
                 <p key={t} className="text-xs text-amber-600 flex items-center gap-1.5 mt-1">
                   <Check size={11} strokeWidth={3} /> {t}
@@ -449,7 +449,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
               <Eye size={28} className="text-amber-600" />
             </motion.div>
             <p className="font-black text-xl text-gray-900 mb-1">Démo créée !</p>
-            <p className="text-gray-400 text-sm mb-6">Menu généré · QR prêts</p>
+            <p className="text-gray-400 text-sm mb-6">Menu prêt · QR prêts</p>
             <button onClick={() => { onClose(); window.location.reload() }}
               className="w-full py-4 rounded-2xl font-black text-white" style={{ backgroundColor: '#EAB308' }}>
               Fermer
@@ -544,7 +544,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-gray-500 block mb-1">Nom du bot assistant</label>
+                    <label className="text-xs font-bold text-gray-500 block mb-1">Nom de Tantie</label>
                     <input type="text" placeholder="Tantie, Chef, Alex..." value={form.bot_name}
                       onChange={e => set('bot_name', e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl bg-white text-sm outline-none border border-gray-200" />
@@ -798,7 +798,7 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
             <div>
               <PrintUrlCheck />
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                <p className="font-black text-gray-900">{generated.length} codes générés</p>
+                <p className="font-black text-gray-900">{generated.length} codes prêts</p>
                 <div className="flex flex-wrap items-center gap-2">
                   <button onClick={() => setShowDesignerKitModal(true)} disabled={exportingKit}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold disabled:opacity-60"

@@ -61,7 +61,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
   const playSoundRef = useRef(playSound)
   useEffect(() => { playSoundRef.current = playSound }, [playSound])
 
-  // Refresh actif — retour d'onglet, focus, réseau, interval 15s
   useRealtimeRefresh(async () => {
     await loadManualSales()
     await loadAllManualSales()
@@ -74,7 +73,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurant.id}` },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            // Fetch complet avec table joinée
             supabase.from('orders')
               .select('*, items:order_items(*), table:restaurant_tables(table_number)')
               .eq('id', payload.new.id)
@@ -147,7 +145,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
     setAllManualSales(prev => prev.filter(s => s.id !== id))
   }
 
-  // ── CALCULS AUJOURD'HUI ──
   const today = new Date().toDateString()
   const todayOrders = orders.filter(o => new Date(o.created_at).toDateString() === today)
   const paidOrders = todayOrders.filter(o => o.payment_status === 'paid')
@@ -157,7 +154,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
   const liveOrders = orders.filter(o => !['served', 'cancelled'].includes(o.status))
   const pendingPayment = orders.filter(o => o.status === 'served' && o.payment_status === 'unpaid')
 
-  // ── byMethod — tous les moyens de paiement ──
   const byMethod: Record<string, number> = {}
   paidOrders.forEach(o => {
     const key = o.payment_method || 'cash'
@@ -168,7 +164,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
     byMethod[key] = (byMethod[key] || 0) + (Number(m.total) || 0)
   })
 
-  // ── HISTORIQUE ──
   const now = new Date()
   const getFilteredOrders = () => {
     return orders.filter(o => {
@@ -190,7 +185,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
   const histOrders = getFilteredOrders()
   const histTotal = histOrders.filter(o => o.payment_status === 'paid').reduce((s, o) => s + (Number(o.total) || 0), 0)
 
-  // Grouper par date pour l'historique
   const histByDate: Record<string, Order[]> = {}
   histOrders.forEach(o => {
     const key = new Date(o.created_at).toDateString()
@@ -201,7 +195,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* Status bar */}
       <div className="px-4 py-2.5 bg-white border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 text-xs font-bold text-green-600">
@@ -211,7 +204,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
         <p className="text-xs font-black text-gray-900">{formatPrice(totalRevenue, restaurant.currency)} <span className="text-gray-400 font-normal">aujourd&apos;hui</span></p>
       </div>
 
-      {/* Stats */}
       <div className="px-4 py-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: 'CA total', value: formatPrice(totalRevenue, restaurant.currency), Icon: TrendingUp, color: '#10B981', bg: '#ECFDF5' },
@@ -230,7 +222,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
         ))}
       </div>
 
-      {/* Tabs */}
       <div className="px-4 mb-4 overflow-x-auto">
         <div className="flex bg-gray-100 rounded-2xl p-1 gap-1 min-w-max">
           {[
@@ -253,7 +244,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
         </div>
       </div>
 
-      {/* ── LIVE ── */}
       {tab === 'live' && (
         <div className="px-4 pb-24">
           {liveOrders.length === 0 ? (
@@ -337,7 +327,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
         </div>
       )}
 
-      {/* ── CAISSE ── */}
       {tab === 'caisse' && (
         <div className="px-4 pb-24">
           {pendingPayment.length === 0 ? (
@@ -381,7 +370,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
         </div>
       )}
 
-      {/* ── VENTES DIRECTES ── */}
       {tab === 'ventes' && (
         <div className="px-4 pb-24">
           <motion.button whileTap={{ scale: 0.97 }} onClick={() => setShowManualForm(true)}
@@ -428,10 +416,8 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
         </div>
       )}
 
-      {/* ── HISTORIQUE ── */}
       {tab === 'historique' && (
         <div className="px-4 pb-24">
-          {/* Filtres */}
           <div className="flex gap-2 mb-4">
             {[
               { key: 'today', label: "Aujourd'hui" },
@@ -448,7 +434,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
             ))}
           </div>
 
-          {/* Total période */}
           <div className="bg-white rounded-2xl px-4 py-3 mb-4 flex justify-between items-center shadow-sm border border-gray-100">
             <div className="flex items-center gap-2">
               <Calendar size={16} className="text-gray-400" />
@@ -534,10 +519,8 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
         </div>
       )}
 
-      {/* ── RÉCAP ── */}
       {tab === 'recap' && (
         <div className="px-4 pb-24 space-y-4">
-          {/* Total journée */}
           <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">Récapitulatif du jour</p>
             <div className="space-y-3">
@@ -562,14 +545,12 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
             </div>
           </div>
 
-          {/* Par moyen de paiement */}
           <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
             <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-4">Par moyen de paiement</p>
             {Object.keys(byMethod).length === 0 ? (
               <p className="text-gray-400 text-sm text-center py-4">Aucun paiement enregistré</p>
             ) : (
               <div className="space-y-3">
-                {/* Afficher tous les moyens ayant un montant > 0 */}
                 {[...PAYMENT_METHODS, ...Object.keys(byMethod)
                   .filter(k => !PAYMENT_METHODS.find(m => m.key === k))
                   .map(k => ({ key: k, label: k, color: '#6B7280', Icon: CreditCard }))
@@ -614,7 +595,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
         </div>
       )}
 
-      {/* ── MODAL VENTE DIRECTE ── */}
       <AnimatePresence>
         {showManualForm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -689,7 +669,6 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
         )}
       </AnimatePresence>
 
-      {/* ── MODAL DÉTAIL COMMANDE ── */}
       <AnimatePresence>
         {selectedOrder && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

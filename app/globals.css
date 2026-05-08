@@ -24,7 +24,6 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Empêche l'apparition d'une bande noire lors de l'overscroll mobile + safe-area iOS */
 html {
   background-color: var(--background);
   min-height: 100%;
@@ -34,11 +33,9 @@ body {
   min-height: 100dvh;
 }
 
-/* Le viewport-fit edge-to-edge (notches iOS) reste cohérent en clair */
 @supports (padding: max(0px)) {
   body { background-color: var(--background); }
 }
 
-/* Hide horizontal scrollbar utility */
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }

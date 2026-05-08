@@ -46,7 +46,6 @@ export default function SplashScreen({ onDone, duration = 2800 }: Props) {
         className="fixed inset-0 z-50 bg-white flex flex-col items-center justify-center"
         style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
-        {/* Cercles déco */}
         <div className="absolute inset-0 overflow-hidden flex items-center justify-center pointer-events-none">
           {[380, 260, 160].map((size, i) => (
             <motion.div key={size}
@@ -57,7 +56,6 @@ export default function SplashScreen({ onDone, duration = 2800 }: Props) {
           ))}
         </div>
 
-        {/* Logo icône */}
         <motion.div
           initial={{ scale: 0.7, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -69,7 +67,6 @@ export default function SplashScreen({ onDone, duration = 2800 }: Props) {
           </div>
         </motion.div>
 
-        {/* Nom */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -80,7 +77,6 @@ export default function SplashScreen({ onDone, duration = 2800 }: Props) {
           </h1>
         </motion.div>
 
-        {/* Sous-titre */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -91,7 +87,6 @@ export default function SplashScreen({ onDone, duration = 2800 }: Props) {
           </p>
         </motion.div>
 
-        {/* Dots */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -106,7 +101,6 @@ export default function SplashScreen({ onDone, duration = 2800 }: Props) {
           ))}
         </motion.div>
 
-        {/* Barre + texte */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}

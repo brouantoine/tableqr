@@ -59,7 +59,6 @@ export default function NotificationsPage({ restaurant }: { restaurant: Restaura
       .limit(50)
     setNotifs(data || [])
     setLoading(false)
-    // Marquer tout comme lu
     await supabase.from('notifications')
       .update({ is_read: true })
       .eq('session_id', session.id)
@@ -86,7 +85,6 @@ export default function NotificationsPage({ restaurant }: { restaurant: Restaura
 
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
-      {/* Header */}
       <div className="bg-white px-4 py-4 border-b flex items-center justify-between">
         <div>
           <h1 className="font-black text-gray-900 text-lg">Notifications</h1>

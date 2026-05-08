@@ -60,7 +60,6 @@ export default function ActivitesPage({ restaurant: init }: { restaurant: Restau
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto">
           <h2 className="font-black text-xl text-gray-900">Activités & Modules</h2>
@@ -68,13 +67,12 @@ export default function ActivitesPage({ restaurant: init }: { restaurant: Restau
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="bg-white border-b border-gray-100 px-4 sm:px-6">
         <div className="flex gap-1 max-w-7xl mx-auto py-2">
           {([
             { key: 'modules', label: 'Modules', Icon: Zap },
             { key: 'jeux', label: 'Jeux', Icon: Gamepad2 },
-            { key: 'bot', label: 'Bot', Icon: Bot },
+            { key: 'bot', label: 'Tantie', Icon: Bot },
           ] satisfies Array<{ key: TabKey; label: string; Icon: LucideIcon }>).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5"
@@ -88,7 +86,6 @@ export default function ActivitesPage({ restaurant: init }: { restaurant: Restau
 
       <div className="px-4 sm:px-6 py-5 max-w-7xl mx-auto pb-24">
 
-        {/* MODULES */}
         {tab === 'modules' && (
           <div className="space-y-3">
             <AnimatePresence>
@@ -125,7 +122,6 @@ export default function ActivitesPage({ restaurant: init }: { restaurant: Restau
           </div>
         )}
 
-        {/* JEUX */}
         {tab === 'jeux' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {GAMES.map((game, i) => (
@@ -159,7 +155,6 @@ export default function ActivitesPage({ restaurant: init }: { restaurant: Restau
           </div>
         )}
 
-        {/* BOT */}
         {tab === 'bot' && (
           <div className="space-y-4">
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
@@ -170,7 +165,7 @@ export default function ActivitesPage({ restaurant: init }: { restaurant: Restau
                 </div>
                 <div>
                   <p className="font-black text-gray-900">{botForm.bot_name || 'Tantie'}</p>
-                  <p className="text-xs text-gray-400">Assistant IA visible côté client</p>
+                  <p className="text-xs text-gray-400">Disponible côté client</p>
                 </div>
                 <button onClick={() => setBotForm(prev => ({ ...prev, bot_enabled: !prev.bot_enabled }))}
                   className="ml-auto w-12 h-6 rounded-full transition-all relative flex-shrink-0"
@@ -183,7 +178,7 @@ export default function ActivitesPage({ restaurant: init }: { restaurant: Restau
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-gray-500 block mb-1.5">Nom du bot</label>
+                  <label className="text-xs font-bold text-gray-500 block mb-1.5">Nom de Tantie</label>
                   <input type="text" value={botForm.bot_name}
                     onChange={e => setBotForm(prev => ({ ...prev, bot_name: e.target.value }))}
                     className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none border border-gray-100 focus:border-orange-300" />
@@ -235,7 +230,7 @@ export default function ActivitesPage({ restaurant: init }: { restaurant: Restau
             <div className="bg-blue-50 border border-blue-100 rounded-3xl p-5">
               <p className="font-bold text-blue-800 text-sm mb-2 flex items-center gap-2">
                 <Sparkles size={15} />
-                <span>Le bot répond aux questions clients</span>
+                <span>Tantie répond aux questions clients</span>
               </p>
               <div className="space-y-1.5">
                 {['"C\'est quoi l\'attiéké ?"', '"Ce plat est-il épicé ?"', '"Options végétariennes ?"'].map(q => (

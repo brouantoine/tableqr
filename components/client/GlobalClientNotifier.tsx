@@ -24,13 +24,11 @@ declare global {
 }
 
 const TOAST_CONFIG: Record<string, { icon: LucideIcon; color: string; bg: string }> = {
-  // statuts de commande
   confirmed:    { icon: CheckCircle,  color: '#3B82F6', bg: '#EFF6FF' },
   preparing:    { icon: ChefHat,      color: '#F59E0B', bg: '#FFFBEB' },
   ready:        { icon: Utensils,     color: '#10B981', bg: '#ECFDF5' },
   served:       { icon: CheckCircle,  color: '#10B981', bg: '#ECFDF5' },
   cancelled:    { icon: X,            color: '#EF4444', bg: '#FEF2F2' },
-  // types génériques
   order_ready:  { icon: Utensils,     color: '#10B981', bg: '#ECFDF5' },
   order_status: { icon: ChefHat,      color: '#F59E0B', bg: '#FFFBEB' },
   message:      { icon: MessageCircle,color: '#3B82F6', bg: '#EFF6FF' },
@@ -108,7 +106,6 @@ export default function GlobalClientNotifier({ slug, primaryColor }: { slug: str
         if (seenRef.current.has(msg.id)) return
         seenRef.current.add(msg.id)
 
-        // Si on est déjà sur la conversation du sender, pas de toast/son
         const activeChat = typeof window !== 'undefined' ? window.__activeSocialChatId : null
         if (activeChat === msg.sender_session_id) return
 
@@ -185,7 +182,6 @@ export default function GlobalClientNotifier({ slug, primaryColor }: { slug: str
                   <X size={11} className="text-gray-500" />
                 </button>
               </div>
-              {/* barre de progression du dismiss auto */}
               <motion.div
                 initial={{ width: '100%' }}
                 animate={{ width: '0%' }}

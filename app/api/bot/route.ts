@@ -56,7 +56,7 @@ function providerErrorMessage(provider: string, errText: string) {
       code = parsed.error?.code || ''
     }
   } catch {
-    // Provider returned plain text.
+    message = errText
   }
 
   const lower = `${code} ${message}`.toLowerCase()
@@ -89,8 +89,6 @@ function pickAiProvider() {
   const groqKey = cleanEnv(process.env.GROQ_API_KEY)
   const groqKeyLooksLikeXai = Boolean(groqKey?.startsWith('xai-') || groqKey?.startsWith('xai_'))
 
-  // Si GROQ_API_KEY est renseignée, elle gagne. On évite toute heuristique fragile
-  // sur le préfixe, car certains environnements masquent/formatent la clé.
   if (groqKey && !groqKeyLooksLikeXai) {
     return {
       provider: 'Groq',

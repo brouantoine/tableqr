@@ -389,7 +389,6 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     return () => { window.__activeSocialChatId = null }
   }, [view, selectedClientId])
 
-  // Ouverture automatique du chat depuis une notification message/coucou
   useEffect(() => {
     if (!chatParam || !sessionId) return
     const local = clients.find(c => c.id === chatParam)
@@ -433,7 +432,6 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     })()
   }, [supportParam, hasValidSession, supportConversation, loadSupportConversation, markSupportRead])
 
-  // Nettoyage automatique des coucous expirés.
   useEffect(() => {
     if (Object.keys(outgoingCoucous).length === 0) return
     const timer = window.setInterval(() => {
@@ -678,7 +676,6 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     </div>
   )
 
-  // ── VUE LISTE ──
   if (view === 'list') return (
     <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 56px)', backgroundColor: '#F8F8F8' }}>
       <AnimatePresence>{flashOverlay}</AnimatePresence>
@@ -991,12 +988,10 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     </div>
   )
 
-  // ── VUE CHAT ──
   return (
     <div className="fixed inset-0 z-50 mx-auto flex max-w-md flex-col bg-white" style={{ height: '100dvh' }}>
       <AnimatePresence>{flashOverlay}</AnimatePresence>
 
-      {/* Header chat style Messenger */}
       <div className="flex items-center gap-3 px-4 py-3 bg-white flex-shrink-0"
         style={{ borderBottom: '1px solid #F0F0F0', boxShadow: '0 1px 8px rgba(0,0,0,0.05)' }}>
         <motion.button whileTap={{ scale: 0.9 }} onClick={() => setView('list')}
@@ -1020,7 +1015,6 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
 
       </div>
 
-      {/* Messages */}
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3" style={{ backgroundColor: '#F8F8F8' }}>
         {currentMessages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
@@ -1111,7 +1105,6 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
       <div className="bg-white px-4 py-3 flex-shrink-0"
         style={{ borderTop: '1px solid #F0F0F0', paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
         {imagePreview && (

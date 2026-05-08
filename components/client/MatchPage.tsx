@@ -20,7 +20,6 @@ export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
 
   const loadConversations = useCallback(async () => {
     if (!sessionId || sessionRestaurantId !== restaurant.id) return
-    // Charger les gens avec qui on a échangé des messages
     const { data } = await supabase.from('social_messages')
       .select('sender_session_id, receiver_session_id')
       .eq('restaurant_id', restaurant.id)
@@ -58,7 +57,6 @@ export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
 
     if (!liked) return
 
-    // Vérifier si match existant
     const { data: existing } = await supabase.from('matches')
       .select('*')
       .eq('restaurant_id', restaurant.id)
@@ -66,17 +64,14 @@ export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
       .single()
 
     if (existing) {
-      // Mettre à jour le vote
       const isA = existing.session_a_id === session.id
       const update: { session_a_voted?: boolean; session_b_voted?: boolean; is_matched?: boolean } =
         isA ? { session_a_voted: true } : { session_b_voted: true }
-      // Vérifier si les deux ont voté oui
       const bothMatch = isA ? existing.session_b_voted === true : existing.session_a_voted === true
       if (bothMatch) update.is_matched = true
       await supabase.from('matches').update(update).eq('id', existing.id)
       if (bothMatch) setMatchResults(prev => ({ ...prev, [targetId]: true }))
     } else {
-      // Créer le match
       await supabase.from('matches').insert({
         restaurant_id: restaurant.id,
         session_a_id: session.id,

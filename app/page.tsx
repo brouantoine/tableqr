@@ -57,7 +57,7 @@ const INCLUDED = [
   'Espace social & mini-jeux',
   'Caisse complète (Wave, OM, Cash)',
   'Statistiques & analytics',
-  'Bot assistant Tantie (IA)',
+  'Tantie pour les questions clients',
   'Support dédié inclus',
 ]
 

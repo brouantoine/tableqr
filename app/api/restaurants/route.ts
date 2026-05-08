@@ -59,7 +59,6 @@ export async function POST(req: NextRequest) {
     const admin = getSupabaseAdmin()
     const body = await req.json()
 
-    // ── MODE PREVIEW ──
     if (body.is_preview) {
       if (!body.name) return NextResponse.json({ error: 'Le nom du restaurant est requis' }, { status: 400 })
 
@@ -99,7 +98,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ data, preview: true })
     }
 
-    // ── MODE NORMAL ──
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!body.email || !emailRegex.test(body.email)) {
       return NextResponse.json({ error: 'Adresse email invalide' }, { status: 400 })

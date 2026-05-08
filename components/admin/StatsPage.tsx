@@ -65,7 +65,6 @@ export default function StatsPage({ restaurant, orders, sessions, messages, matc
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto">
           <h2 className="font-black text-xl text-gray-900">Statistiques</h2>
@@ -75,7 +74,6 @@ export default function StatsPage({ restaurant, orders, sessions, messages, matc
 
       <div className="px-4 sm:px-6 py-5 max-w-7xl mx-auto space-y-6 pb-24">
 
-        {/* Revenus */}
         <div>
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><DollarSign size={12} /> Revenus</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -96,7 +94,6 @@ export default function StatsPage({ restaurant, orders, sessions, messages, matc
           </div>
         </div>
 
-        {/* Social */}
         <div>
           <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1.5"><Users size={12} /> Clients & Social</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -117,10 +114,8 @@ export default function StatsPage({ restaurant, orders, sessions, messages, matc
           </div>
         </div>
 
-        {/* Profils + Top plats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-          {/* Profils */}
           <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
             <p className="font-black text-gray-900 mb-4">Types de clients</p>
             <div className="space-y-3">
@@ -147,7 +142,6 @@ export default function StatsPage({ restaurant, orders, sessions, messages, matc
             </div>
           </div>
 
-          {/* Top plats */}
           <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
             <p className="font-black text-gray-900 mb-4 flex items-center gap-2"><Trophy size={16} className="text-yellow-500" /> Plats populaires</p>
             {stats.topItems.length === 0 ? (

@@ -5,7 +5,6 @@ export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get('code')
   const admin = getSupabaseAdmin()
 
-  // Vérifier si la table existe
   const { data: tableCheck, error: tableError } = await admin
     .from('qr_codes')
     .select('id')

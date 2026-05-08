@@ -580,7 +580,6 @@ function LinkQRModal({ restaurantId, zones, linkedTableIds, primaryColor, onClos
         </p>
       </motion.div>
 
-      {/* Scanner caméra plein écran */}
       <AnimatePresence>
         {showScanner && (
           <QRScannerModal

@@ -26,14 +26,9 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   const [activeOrdersCount, setActiveOrdersCount] = useState(0)
   const [pendingHref, setPendingHref] = useState<string | null>(null)
 
-  // ── Onboarding différé : s'ouvre 3s après l'envoi pour les invités ──
   const [showOnboarding, setShowOnboarding] = useState(false)
-  // Phase de transition vers l'onboarding (le panier se ferme en douceur)
   const [transitioning, setTransitioning] = useState(false)
-  // Drapeau : la session courante a été créée comme "invité" (pseudo générique).
-  // Active l'onboarding non bloquant pour permettre la personnalisation après coup.
   const [isGuestUpgrade, setIsGuestUpgrade] = useState(false)
-  // Timer pour l'auto-redirect vers l'onboarding (annulable)
   const guestRedirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const cancelGuestRedirect = useCallback(() => {
     if (guestRedirectTimer.current) {
@@ -88,7 +83,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   const tableLabel = tableDisplayName || tableId
   const displayLogoUrl = logoPreviewUrl || restaurant.logo_url
 
-  // ── Envoi effectif de la commande ──
   async function sendOrder(sess: typeof session, itemsSnapshot: typeof cart.items, notesSnapshot: Record<string, string>) {
     if (!sess || itemsSnapshot.length === 0) return false
     setOrdering(true)
@@ -110,12 +104,10 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
       if (res.ok) {
         const data = await res.json()
         const orderId = data?.data?.id
-        // Petit délai pour que l'animation de "envoi" se fasse sentir avant le succès
         await new Promise(r => setTimeout(r, 250))
         setNotes({})
         clearCart()
         setShowCart(false)
-        // Laisse la cart-modal se fermer en douceur avant d'afficher la popup succès
         setTimeout(() => setOrderPlaced(true), 250)
         if (orderId) {
           setTimeout(async () => {
@@ -137,11 +129,9 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     }
   }
 
-  // ── Crée une session "invité" pour permettre l'envoi sans onboarding bloquant ──
   async function ensureGuestSession() {
     if (sessionValid && session) return session
     const fingerprint = generateDeviceFingerprint()
-    // Cherche d'abord une session existante pour ce device sur ce resto
     const { data: existing } = await supabase
       .from('client_sessions').select('*')
       .eq('restaurant_id', restaurant.id)
@@ -166,7 +156,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     return null
   }
 
-  // ── Bouton "Confirmer la commande" ──
   async function placeOrder() {
     if (cart.items.length === 0 || ordering || transitioning) return
 
@@ -178,17 +167,14 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
       if (!useSess) { setTransitioning(false); return }
     }
 
-    // Petite pause pour laisser le panier se fermer en douceur
     await new Promise(r => setTimeout(r, 180))
     setShowCart(false)
     await new Promise(r => setTimeout(r, 240))
     setTransitioning(false)
 
-    // Envoi de la commande
     const orderSent = await sendOrder(useSess, cart.items, notes)
     if (!orderSent) return
 
-    // Pour les invités : 3s après le succès, ouvrir l'onboarding (non bloquant)
     if (wasGuest && isAnonymousSession(useSess)) {
       setIsGuestUpgrade(true)
       cancelGuestRedirect()
@@ -199,7 +185,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     }
   }
 
-  // ── Callback OnboardingPage : identification terminée ou skip ──
   function handleOnboardingDone() {
     setShowOnboarding(false)
     setIsGuestUpgrade(false)
@@ -216,7 +201,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   return (
     <div className="min-h-screen pb-32" style={{ backgroundColor: '#F8F8F8' }}>
 
-      {/* ── HEADER COMPACT ── */}
       <div className="px-5 pt-5 pb-3 bg-white border-b border-gray-100">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -268,7 +252,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         </div>
       </div>
 
-      {/* ── RECHERCHE + CATÉGORIES STICKY ── */}
       <div className="sticky top-0 z-30 bg-[#F8F8F8]/95 backdrop-blur-xl border-b border-gray-100 pt-3 pb-3">
         <div className="px-5">
           <div className="relative">
@@ -306,7 +289,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         </div>
       </div>
 
-      {/* ── LES PLUS COMMANDÉS ── */}
       {!search && featured.length > 0 && (
         <section className="mt-5">
           <div className="flex items-center justify-between px-5 mb-3">
@@ -360,7 +342,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         </section>
       )}
 
-      {/* ── LISTE PLATS ── */}
       <section className="px-5 mt-5">
         <div className="flex items-end justify-between gap-4 mb-3">
           <div className="min-w-0">
@@ -479,7 +460,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         </div>
       </section>
 
-      {/* ── PANIER FLOTTANT ── */}
       <AnimatePresence>
         {cart.item_count > 0 && !showCart && (
           <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }}
@@ -501,7 +481,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         )}
       </AnimatePresence>
 
-      {/* ── MODAL DÉTAIL PLAT ── */}
       <AnimatePresence>
         {selectedItem && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -541,7 +520,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         )}
       </AnimatePresence>
 
-      {/* ── POPUP POST-COMMANDE : jeux / loisirs / retour menu ── */}
       <AnimatePresence>
         {orderPlaced && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -584,7 +562,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                       whileTap={{ scale: 0.96 }}
                       onClick={() => {
                         cancelGuestRedirect()
-                        // Ferme d'abord la popup avec son anim, puis navigue en douceur
                         setOrderPlaced(false)
                         setTimeout(() => router.push(f.href), 220)
                       }}
@@ -597,7 +574,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                   ))}
                 </div>
 
-                {/* Retour au menu → annule l'auto-redirect et ferme la popup */}
                 <motion.button
                   whileTap={{ scale: 0.97 }}
                   onClick={() => {
@@ -614,7 +590,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         )}
       </AnimatePresence>
 
-      {/* ── MODAL PANIER ── */}
       <AnimatePresence>
         {showCart && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -709,7 +684,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         )}
       </AnimatePresence>
 
-      {/* ── ONBOARDING OVERLAY (transitions douces, pas de hard-switch) ── */}
       <AnimatePresence>
         {showOnboarding && (
           <motion.div
@@ -731,7 +705,6 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         )}
       </AnimatePresence>
 
-      {/* ── OVERLAY ENVOI DE COMMANDE (post-onboarding, fluide, sans flash) ── */}
       <AnimatePresence>
         {ordering && !showCart && !showOnboarding && (
           <motion.div

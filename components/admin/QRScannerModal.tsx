@@ -10,14 +10,11 @@ interface Props {
   onScanned: (code: string) => void
 }
 
-// Extrait le code 8 caractères depuis une URL `.../t/CODE` ou un texte brut
 function extractCode(raw: string): string | null {
   if (!raw) return null
   const trimmed = raw.trim()
-  // Si URL → on prend le dernier segment
   const m = trimmed.match(/\/t\/([A-Za-z0-9]{4,16})/i)
   if (m) return m[1].toUpperCase()
-  // Sinon, si déjà un code propre
   const clean = trimmed.toUpperCase().replace(/[^A-Z0-9]/g, '')
   if (clean.length >= 4 && clean.length <= 16) return clean
   return null
@@ -38,7 +35,6 @@ export default function QRScannerModal({ primaryColor, onClose, onScanned }: Pro
     setError(null)
     setStarting(true)
     try {
-      // facingMode: environment → caméra arrière sur mobile
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
@@ -97,7 +93,6 @@ export default function QRScannerModal({ primaryColor, onClose, onScanned }: Pro
         lockedRef.current = true
         setDetectedCode(code)
         if ('vibrate' in navigator) navigator.vibrate(80)
-        // Petit délai pour laisser voir le feedback de succès avant de transmettre
         setTimeout(() => {
           stopCamera()
           onScanned(code)
@@ -128,7 +123,6 @@ export default function QRScannerModal({ primaryColor, onClose, onScanned }: Pro
 
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Vidéo plein écran */}
       <video
         ref={videoRef}
         muted
@@ -136,7 +130,6 @@ export default function QRScannerModal({ primaryColor, onClose, onScanned }: Pro
         className="absolute inset-0 w-full h-full object-cover"
       />
 
-      {/* Overlay assombri avec viseur découpé */}
       <div className="absolute inset-0 pointer-events-none"
         style={{
           background:
@@ -144,7 +137,6 @@ export default function QRScannerModal({ primaryColor, onClose, onScanned }: Pro
         }}
       />
 
-      {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-10 px-5 pt-5 pb-4 flex items-center justify-between"
         style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.6), transparent)' }}>
         <div className="flex items-center gap-2">
@@ -162,10 +154,8 @@ export default function QRScannerModal({ primaryColor, onClose, onScanned }: Pro
         </button>
       </div>
 
-      {/* Cadre viseur animé */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="relative" style={{ width: 260, height: 260 }}>
-          {/* Coins du viseur */}
           {[
             { top: 0, left: 0, borderTop: 3, borderLeft: 3 },
             { top: 0, right: 0, borderTop: 3, borderRight: 3 },
@@ -183,7 +173,6 @@ export default function QRScannerModal({ primaryColor, onClose, onScanned }: Pro
             />
           ))}
 
-          {/* Ligne scanner animée */}
           {!detectedCode && !error && !starting && (
             <motion.div
               initial={{ top: 0 }}
@@ -197,7 +186,6 @@ export default function QRScannerModal({ primaryColor, onClose, onScanned }: Pro
             />
           )}
 
-          {/* Pulse de succès */}
           <AnimatePresence>
             {detectedCode && (
               <motion.div
@@ -216,7 +204,6 @@ export default function QRScannerModal({ primaryColor, onClose, onScanned }: Pro
         </div>
       </div>
 
-      {/* Footer */}
       <div className="absolute bottom-0 left-0 right-0 z-10 px-5 pb-8 pt-6"
         style={{ background: 'linear-gradient(0deg, rgba(0,0,0,0.7), transparent)' }}>
         <AnimatePresence mode="wait">

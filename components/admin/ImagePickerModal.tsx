@@ -10,9 +10,7 @@ interface Props {
   restaurantId: string
 }
 
-// Bibliothèque de plats africains/locaux via Unsplash
 const FOOD_LIBRARY = [
-  // Plats africains
   { url: 'https://images.unsplash.com/photo-1604329760661-e71dc83f8f26?w=400&q=80', label: 'Riz sauce' },
   { url: 'https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=400&q=80', label: 'Poulet grillé' },
   { url: 'https://images.unsplash.com/photo-1574484284002-952d92456975?w=400&q=80', label: 'Poisson grillé' },
@@ -29,12 +27,10 @@ const FOOD_LIBRARY = [
   { url: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400&q=80', label: 'Pâtes' },
   { url: 'https://images.unsplash.com/photo-1481931098730-318b6f776db0?w=400&q=80', label: 'Fruit de mer' },
   { url: 'https://images.unsplash.com/photo-1563379926898-05f4575a45d8?w=400&q=80', label: 'Riz frit' },
-  // Boissons
   { url: 'https://images.unsplash.com/photo-1544145945-f90425340c7e?w=400&q=80', label: 'Cocktail' },
   { url: 'https://images.unsplash.com/photo-1437418747212-8d9709afab22?w=400&q=80', label: 'Jus fruits' },
   { url: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&q=80', label: 'Café' },
   { url: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&q=80', label: 'Smoothie' },
-  // Desserts
   { url: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=400&q=80', label: 'Dessert' },
   { url: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&q=80', label: 'Gâteau' },
   { url: 'https://images.unsplash.com/photo-1551024601-bec78de77564?w=400&q=80', label: 'Glace' },
@@ -93,7 +89,6 @@ export default function ImagePickerModal({ onSelect, onClose, restaurantId }: Pr
         className="relative bg-white w-full max-w-md mx-auto rounded-t-[2rem] max-h-[92vh] flex flex-col"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}>
 
-        {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 flex-shrink-0">
           <h2 className="font-black text-lg text-gray-900">Photo du plat</h2>
           <button onClick={onClose} className="w-8 h-8 rounded-2xl bg-gray-100 flex items-center justify-center">
@@ -101,7 +96,6 @@ export default function ImagePickerModal({ onSelect, onClose, restaurantId }: Pr
           </button>
         </div>
 
-        {/* Tabs */}
         <div className="flex gap-2 px-5 pb-3 flex-shrink-0">
           {[
             { key: 'library', label: 'Bibliothèque', Icon: BookOpen },
@@ -117,10 +111,8 @@ export default function ImagePickerModal({ onSelect, onClose, restaurantId }: Pr
           ))}
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto px-5 pb-4">
 
-          {/* BIBLIOTHÈQUE */}
           {tab === 'library' && (
             <div>
               <div className="relative mb-4">
@@ -151,7 +143,6 @@ export default function ImagePickerModal({ onSelect, onClose, restaurantId }: Pr
             </div>
           )}
 
-          {/* UPLOAD */}
           {tab === 'upload' && (
             <div>
               <input ref={fileRef} type="file" accept="image/*" capture="environment"
@@ -211,7 +202,6 @@ export default function ImagePickerModal({ onSelect, onClose, restaurantId }: Pr
             </div>
           )}
 
-          {/* URL */}
           {tab === 'url' && (
             <div>
               <p className="text-sm text-gray-500 mb-3">Collez l&apos;URL d&apos;une image en ligne</p>
@@ -228,7 +218,6 @@ export default function ImagePickerModal({ onSelect, onClose, restaurantId }: Pr
           )}
         </div>
 
-        {/* Bouton confirmer */}
         <div className="px-5 pb-6 pt-2 flex-shrink-0 border-t border-gray-100">
           <motion.button whileTap={{ scale: 0.97 }} onClick={confirm}
             disabled={tab === 'library' || tab === 'upload' ? !selected : !urlInput}

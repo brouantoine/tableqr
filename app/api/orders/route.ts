@@ -28,8 +28,6 @@ export async function POST(req: NextRequest) {
     const { data: cnt } = await admin.from('orders').select('id', { count: 'exact' }).eq('restaurant_id', restaurant_id)
     const order_number = `CMD-${String((cnt?.length || 0) + 1).padStart(4, '0')}`
 
-    // On ne transmet table_id que s'il s'agit d'un UUID valide,
-    // pour éviter un rejet 400 de Supabase quand c'est un nom de table physique (ex: "table")
     const safeTableId = table_id && UUID_REGEX.test(table_id) ? table_id : null
 
     const { data: order, error } = await admin.from('orders')
@@ -42,7 +40,6 @@ export async function POST(req: NextRequest) {
     }
     await admin.from('order_items').insert(lines.map((l: any) => ({ ...l, order_id: order.id })))
 
-    // Push notification aux admins du restaurant (non bloquant)
     try {
       let tableLabel = ''
       if (safeTableId) {

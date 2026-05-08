@@ -42,7 +42,6 @@ export default function SettingsPage({ restaurant: init }: { restaurant: Restaur
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-4">
         <div className="max-w-7xl mx-auto">
           <h2 className="font-black text-xl text-gray-900">Paramètres</h2>
@@ -52,7 +51,6 @@ export default function SettingsPage({ restaurant: init }: { restaurant: Restaur
 
       <div className="px-4 sm:px-6 py-5 max-w-7xl mx-auto pb-32 space-y-4">
 
-        {/* Infos */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: p + '15' }}>
@@ -87,7 +85,6 @@ export default function SettingsPage({ restaurant: init }: { restaurant: Restaur
           </div>
         </div>
 
-        {/* Couleurs */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: p + '15' }}>
@@ -115,7 +112,6 @@ export default function SettingsPage({ restaurant: init }: { restaurant: Restaur
                 </div>
               </div>
             ))}
-            {/* Preview */}
             <div className="rounded-2xl p-4 mt-2" style={{ backgroundColor: restaurant.primary_color + '08' }}>
               <p className="text-xs text-gray-500 mb-2 font-bold">Aperçu</p>
               <div className="flex gap-2">
@@ -130,7 +126,6 @@ export default function SettingsPage({ restaurant: init }: { restaurant: Restaur
           </div>
         </div>
 
-        {/* Devise */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-50">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ backgroundColor: p + '15' }}>
@@ -168,7 +163,6 @@ export default function SettingsPage({ restaurant: init }: { restaurant: Restaur
 
       </div>
 
-      {/* Bouton save fixe */}
       <div className="fixed bottom-16 left-0 right-0 px-4 sm:px-6 max-w-lg mx-auto z-20">
         <motion.button whileTap={{ scale: 0.97 }} onClick={save} disabled={saving}
           className="w-full py-4 rounded-2xl text-white font-black shadow-xl flex items-center justify-center gap-2 transition-all disabled:opacity-60"

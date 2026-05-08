@@ -41,11 +41,6 @@ export function generateQRPrintHTML(
       print-color-adjust: exact;
     }
 
-    /*
-     * Page A4 : 210mm × 297mm
-     * Padding 8mm + grille 3 col × 3 lignes, gap 5mm
-     * → cellule : (210 - 16 - 10) / 3 = 61.3mm × (297 - 16 - 10) / 3 = 90.3mm
-     */
     .page {
       width: 210mm;
       height: 297mm;
@@ -59,7 +54,6 @@ export function generateQRPrintHTML(
       page-break-after: always;
     }
 
-    /* Zone de découpe (pointillés) */
     .label {
       position: relative;
       border: 1.2px dashed #c8c8c8;
@@ -86,7 +80,6 @@ export function generateQRPrintHTML(
       height: 3mm;
     }
 
-    /* ═══ CARTE QR ═══ */
     .qr-card {
       width: 100%;
       flex: 1;
@@ -98,7 +91,6 @@ export function generateQRPrintHTML(
       box-shadow: 0 2mm 4mm rgba(0,0,0,0.18);
     }
 
-    /* HEADER */
     .qr-header {
       text-align: center;
       padding: 4mm 3mm 2mm;
@@ -133,7 +125,6 @@ export function generateQRPrintHTML(
       opacity: 0.95;
     }
 
-    /* ZONE QR */
     .qr-container {
       background: white;
       margin: 2mm auto 3mm;
@@ -149,7 +140,6 @@ export function generateQRPrintHTML(
       display: block;
     }
 
-    /* FOOTER blanc avec coin arrondi en haut-gauche */
     .qr-footer {
       background: white;
       border-top-left-radius: 14mm;
@@ -192,7 +182,6 @@ export function generateQRPrintHTML(
       font-style: italic;
     }
 
-    /* Code discret — sans contour, juste texte gris */
     .code-text {
       margin-top: 2mm;
       font-family: 'Courier New', monospace;

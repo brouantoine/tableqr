@@ -11,7 +11,6 @@ export default function OnboardingPage() {
   const p = '#F26522'
 
   useEffect(() => {
-    // Récupérer le nom du restaurant du proprio connecté
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/admin/login'); return }
       const { data } = await supabase
@@ -33,7 +32,7 @@ export default function OnboardingPage() {
       step: '01',
       icon: QrCode,
       title: 'Créez vos tables',
-      desc: 'Ajoutez chaque table de votre salle. Chaque table génère automatiquement un QR code unique à imprimer et poser.',
+      desc: 'Ajoutez chaque table de votre salle. Chaque table reçoit un QR code unique à imprimer et poser.',
       action: 'Créer mes tables',
       href: '/admin/tables',
       color: '#F26522',
@@ -67,7 +66,6 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* Header */}
       <div className="bg-white border-b border-gray-100 px-5 py-5">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2.5">
@@ -86,7 +84,6 @@ export default function OnboardingPage() {
 
       <div className="max-w-2xl mx-auto px-5 py-8 pb-16">
 
-        {/* Welcome */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           className="mb-8">
           <p className="text-sm font-semibold mb-1 flex items-center gap-1" style={{ color: p }}>
@@ -99,7 +96,6 @@ export default function OnboardingPage() {
           <p className="text-gray-400 text-sm mt-2">3 étapes simples pour être opérationnel en 10 minutes.</p>
         </motion.div>
 
-        {/* Cards */}
         <div className="space-y-4">
           {cards.map((card, i) => (
             <motion.div key={card.step}
@@ -107,7 +103,6 @@ export default function OnboardingPage() {
               transition={{ delay: i * 0.1 }}
               className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
 
-              {/* Top coloré */}
               <div className="px-5 pt-5 pb-4 flex items-start gap-4"
                 style={{ backgroundColor: card.bg }}>
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
@@ -125,7 +120,6 @@ export default function OnboardingPage() {
                 </div>
               </div>
 
-              {/* Contenu */}
               <div className="px-5 py-4">
                 <p className="text-sm text-gray-600 leading-relaxed mb-3">{card.desc}</p>
                 <div className="flex items-center gap-2 mb-4 px-3 py-2 rounded-xl bg-gray-50">
@@ -144,7 +138,6 @@ export default function OnboardingPage() {
           ))}
         </div>
 
-        {/* Footer */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
           className="mt-6 text-center">
           <button onClick={() => goTo('/admin/dashboard')}

@@ -25,7 +25,6 @@ export default function SuperAdminLoginPage() {
         return
       }
 
-      // Vérifier accès super admin — maybeSingle évite l'erreur 0 résultats
       const { data: restaurant } = await supabase
         .from('restaurants')
         .select('id')
@@ -50,7 +49,6 @@ export default function SuperAdminLoginPage() {
   return (
     <div className="min-h-screen flex" style={{ backgroundColor: '#0D1117' }}>
 
-      {/* LEFT — Branding */}
       <div className="hidden lg:flex flex-col justify-between w-1/2 p-12"
         style={{ background: 'linear-gradient(135deg, #0D1117 0%, #161B22 100%)', borderRight: '1px solid #21262D' }}>
         <div className="flex items-center gap-3">
@@ -91,10 +89,8 @@ export default function SuperAdminLoginPage() {
         </div>
       </div>
 
-      {/* RIGHT — Form */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
 
-        {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-3 mb-10">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#F26522' }}>
             <QrCode size={20} color="white" strokeWidth={2.5} />
@@ -105,7 +101,6 @@ export default function SuperAdminLoginPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-sm">
 
-          {/* Badge */}
           <div className="flex items-center gap-2 mb-8">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center"
               style={{ backgroundColor: '#F2652220', border: '1px solid #F2652240' }}>
@@ -118,7 +113,6 @@ export default function SuperAdminLoginPage() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            {/* Email */}
             <div>
               <label className="text-xs font-bold text-gray-400 block mb-1.5 uppercase tracking-wide">
                 Identifiant
@@ -136,7 +130,6 @@ export default function SuperAdminLoginPage() {
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <label className="text-xs font-bold text-gray-400 block mb-1.5 uppercase tracking-wide">
                 Mot de passe
@@ -159,7 +152,6 @@ export default function SuperAdminLoginPage() {
               </div>
             </div>
 
-            {/* Error */}
             {error && (
               <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
                 className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
@@ -169,7 +161,6 @@ export default function SuperAdminLoginPage() {
               </motion.div>
             )}
 
-            {/* Submit */}
             <motion.button whileTap={{ scale: 0.97 }} type="submit" disabled={loading}
               className="w-full py-3.5 rounded-xl font-black text-sm text-white disabled:opacity-50 flex items-center justify-center gap-2 mt-2"
               style={{
@@ -191,7 +182,6 @@ export default function SuperAdminLoginPage() {
             </motion.button>
           </form>
 
-          {/* Footer */}
           <div className="mt-8 pt-6" style={{ borderTop: '1px solid #21262D' }}>
             <div className="flex items-center justify-between text-xs" style={{ color: '#4B5563' }}>
               <span className="font-mono">TableQR Platform v1.0</span>

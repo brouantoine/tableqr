@@ -38,7 +38,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ or
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Notification client à chaque transition de statut significative
   if (body.status && data.session_id && STATUS_NOTIF[body.status]) {
     const cfg = STATUS_NOTIF[body.status]
     await admin.from('notifications').insert({

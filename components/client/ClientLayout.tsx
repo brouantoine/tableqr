@@ -18,7 +18,6 @@ export default function ClientLayout({ children, restaurant }: { children: React
   useClientPresence(restaurant.id)
 
   useEffect(() => {
-    // Splash uniquement au tout premier chargement de la session
     const key = `splash_${restaurant.id}`
     let splashTimer: number | null = null
     if (!sessionStorage.getItem(key)) {

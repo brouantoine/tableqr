@@ -80,11 +80,8 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `session_id=eq.${session.id}` },
         (payload) => {
           setOrders(prev => prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } : o))
-          // Son + vibration quand plat prêt
           if (payload.new.status === 'ready') {
-            // Tenter de jouer le son
             playSoundRef.current('ready')
-            // Notification browser si permission accordée
             if ('Notification' in window && Notification.permission === 'granted') {
               new Notification('Votre plat est prêt !', {
                 body: 'Le serveur arrive vers vous',
@@ -99,8 +96,6 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
 
   async function loadOrders() {
     if (!session) return
-    // Garde-fou : ne charge que les commandes appartenant aussi à ce restaurant.
-    // Si la session vient d'un autre resto (cache pas encore wipé), on n'affiche rien.
     if (session.restaurant_id !== restaurant.id) { setOrders([]); return }
     setLoading(true)
     const { data } = await supabase.from('orders')
@@ -112,7 +107,6 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
     setLoading(false)
   }
 
-  // Demander permission notifications au montage
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
@@ -133,7 +127,6 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
   return (
     <div className="min-h-screen pb-24" style={{ backgroundColor: '#F8F8F8' }}>
 
-      {/* Header */}
       <div className="bg-white border-b border-gray-100 px-5 py-4">
         <h1 className="font-black text-gray-900 text-lg">Mes commandes</h1>
         {session && <p className="text-xs text-gray-400 mt-0.5">{session.pseudo}</p>}
@@ -156,7 +149,6 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
       ) : (
         <div className="p-4 space-y-6">
 
-          {/* Commandes actives */}
           {activeOrders.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -181,10 +173,8 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
                         className="bg-white rounded-3xl overflow-hidden"
                         style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
 
-                        {/* Statut bar */}
                         <div className="h-1 w-full" style={{ backgroundColor: cfg.color }} />
 
-                        {/* Header */}
                         <div className="px-5 pt-4 pb-3 flex items-center gap-3">
                           <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
                             style={{ backgroundColor: cfg.bg }}>
@@ -197,12 +187,10 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
                           <p className="text-xs text-gray-300 flex-shrink-0">{formatTimeAgo(order.created_at)}</p>
                         </div>
 
-                        {/* Timer */}
                         {['pending', 'confirmed'].includes(order.status) && (
                           <OrderTimer order={order} primaryColor={p} />
                         )}
 
-                        {/* Progress steps */}
                         <div className="px-5 py-4 border-b border-gray-50">
                           <div className="flex items-center">
                             {STEPS.map((step, idx) => {
@@ -244,7 +232,6 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
                           </div>
                         </div>
 
-                        {/* Items — cliquable pour déplier */}
                         <button onClick={() => setExpandedId(isExpanded ? null : order.id)}
                           className="w-full px-5 py-3 flex items-center justify-between text-left">
                           <div className="flex items-center gap-2">
@@ -268,7 +255,6 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
                           </div>
                         </button>
 
-                        {/* Items détail */}
                         <AnimatePresence>
                           {isExpanded && (
                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
@@ -300,7 +286,6 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
                           )}
                         </AnimatePresence>
 
-                        {/* Message prête */}
                         {order.status === 'ready' && (
                           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                             className="mx-4 mb-4 px-4 py-3 rounded-2xl flex items-center gap-3"
@@ -320,7 +305,6 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
             </div>
           )}
 
-          {/* Historique */}
           {pastOrders.length > 0 && (
             <div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">

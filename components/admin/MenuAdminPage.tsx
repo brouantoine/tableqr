@@ -71,7 +71,6 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white px-4 py-4 border-b">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-black text-gray-900">Gestion du menu</h2>
@@ -84,7 +83,6 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
             <Plus size={15} /> Ajouter
           </motion.button>
         </div>
-        {/* Search */}
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)}
@@ -92,7 +90,6 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
         </div>
       </div>
 
-      {/* Catégories */}
       {!search && (
         <div className="bg-white border-b">
           <div className="flex gap-2 px-4 py-3 overflow-x-auto scrollbar-hide">
@@ -113,7 +110,6 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
         </div>
       )}
 
-      {/* Liste plats */}
       <div className="p-4 space-y-3">
         <AnimatePresence>
           {activeItems.map((item, i) => (
@@ -167,7 +163,6 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
         )}
       </div>
 
-      {/* MODAL NOUVELLE CATÉGORIE */}
       <AnimatePresence>
         {showCatForm && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -201,7 +196,6 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
         )}
       </AnimatePresence>
 
-      {/* MODAL PLAT */}
       <AnimatePresence>
         {showForm && editItem && (
           <ItemFormModal
@@ -253,7 +247,6 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-4">
-          {/* Catégorie */}
           <div>
             <label className="text-xs font-bold text-gray-500 block mb-1.5">Catégorie</label>
             <select value={form.category_id || ''} onChange={e => set('category_id', e.target.value)}
@@ -261,7 +254,6 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
               {categories.map(c => <option key={c.id} value={c.id}>{getMenuIconOption(c.icon).label} - {c.name}</option>)}
             </select>
           </div>
-          {/* Nom + Prix */}
           {[
             { label: 'Nom du plat *', key: 'name', type: 'text', placeholder: 'Ex: Attiéké Poisson' },
             { label: `Prix (${restaurant.currency}) *`, key: 'price', type: 'number', placeholder: '2500' },
@@ -275,7 +267,6 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
                 className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none" />
             </div>
           ))}
-          {/* Image picker */}
           <div>
             <label className="text-xs font-bold text-gray-500 block mb-1.5">Photo du plat</label>
             {form.image_url ? (
@@ -308,7 +299,6 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
               />
             )}
           </AnimatePresence>
-          {/* Options */}
           <div>
             <label className="text-xs font-bold text-gray-500 block mb-2">Options</label>
             <div className="grid grid-cols-2 gap-2">
@@ -331,7 +321,6 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
               ))}
             </div>
           </div>
-          {/* Disponible */}
           <div className="flex items-center justify-between p-4 rounded-2xl bg-gray-50">
             <div>
               <p className="font-bold text-sm text-gray-900">Disponible</p>

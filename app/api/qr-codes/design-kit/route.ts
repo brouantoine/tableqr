@@ -311,7 +311,7 @@ function buildReadme({ appUrl, count }: { appUrl: string; count: number }) {
     '- Eviter les finitions trop brillantes sur la zone QR.',
     '- Tester un BAT imprime avec plusieurs telephones avant production.',
     '',
-    'Les QR sont generes en noir/blanc, avec une quiet zone de 4 modules et une correction H.',
+    'Les QR sont fournis en noir/blanc, avec une quiet zone de 4 modules et une correction H.',
     'Les URL contiennent un parametre dense sans effet metier, uniquement pour obtenir un QR plus riche visuellement.',
     'Le numero central sert au tri physique des QR et reste volontairement petit.',
     'Le SVG est le format imprimeur recommande: il ne se degrade pas quand il est agrandi.',

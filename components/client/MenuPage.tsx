@@ -1,12 +1,13 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import TwemojiAvatar from './TwemojiAvatar'
+import LucideAvatar from './LucideAvatar'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Heart, UtensilsCrossed, MessageCircle, Gamepad2, Bell, Package, Star, Flame, Leaf, ShieldCheck } from 'lucide-react'
+import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Heart, UtensilsCrossed, MessageCircle, Gamepad2, Bell, Package, Star, Flame, Leaf, ShieldCheck, CheckCircle } from 'lucide-react'
 import { useSessionStore } from '@/lib/store'
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice, generateDeviceFingerprint } from '@/lib/utils'
+import { MenuCategoryIcon } from '@/lib/icons'
 import type { MenuCategory, MenuItem, Restaurant, RestaurantTable } from '@/types'
 import OnboardingPage from './OnboardingPage'
 
@@ -224,7 +225,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                 <img src={displayLogoUrl} alt="" className="w-full h-full object-contain p-1" />
               </div>
             ) : session ? (
-              <TwemojiAvatar avatarId={session.avatar_icon || ''} size={40} className="ring-2 ring-gray-100" />
+              <LucideAvatar avatarId={session.avatar_icon || ''} size={40} className="ring-2 ring-gray-100" />
             ) : (
               <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white flex-shrink-0"
                 style={{ backgroundColor: p }}>
@@ -298,7 +299,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
               style={activeCategory === cat.id
                 ? { backgroundColor: p, color: '#fff', boxShadow: `0 6px 18px ${p}35` }
                 : { backgroundColor: '#fff', color: '#4B5563', border: '1px solid #F0F0F0' }}>
-              <span>{cat.icon || '🍽️'}</span>
+              <MenuCategoryIcon value={cat.icon} size={16} />
               <span>{cat.name}</span>
             </motion.button>
           ))}
@@ -558,9 +559,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                     initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: 'spring', damping: 14, stiffness: 280 }}
                     className="w-16 h-16 rounded-3xl bg-green-100 flex items-center justify-center mb-3">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 6L9 17L4 12" />
-                    </svg>
+                    <CheckCircle size={32} className="text-green-500" strokeWidth={3} />
                   </motion.div>
                   <p className="font-black text-gray-900 text-xl">Commande envoyée !</p>
                   <p className="text-sm text-gray-500 mt-1">Le chef prépare votre plat</p>

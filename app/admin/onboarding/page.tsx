@@ -60,7 +60,7 @@ export default function OnboardingPage() {
       href: '/admin/dashboard',
       color: '#10B981',
       bg: '#ECFDF5',
-      tip: 'Un seul bouton "Servie ✓" à appuyer',
+      tip: 'Un seul bouton "Servie" à appuyer',
     },
   ]
 
@@ -73,9 +73,7 @@ export default function OnboardingPage() {
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-black"
               style={{ backgroundColor: p }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M3 6h18M3 12h18M3 18h18"/>
-              </svg>
+              <QrCode size={18} strokeWidth={2.5} />
             </div>
             <span className="font-black text-gray-900 text-sm">TABLE<span style={{ color: p }}>QR</span></span>
           </div>
@@ -150,8 +148,10 @@ export default function OnboardingPage() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
           className="mt-6 text-center">
           <button onClick={() => goTo('/admin/dashboard')}
-            className="text-sm text-gray-400 hover:text-gray-600 font-medium">
-            J&apos;ai déjà configuré mon restaurant → Accéder au dashboard
+            className="text-sm text-gray-400 hover:text-gray-600 font-medium inline-flex items-center justify-center gap-1">
+            <span>J&apos;ai déjà configuré mon restaurant</span>
+            <ArrowRight size={14} />
+            <span>Accéder au dashboard</span>
           </button>
         </motion.div>
       </div>

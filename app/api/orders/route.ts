@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     const { data: cnt } = await admin.from('orders').select('id', { count: 'exact' }).eq('restaurant_id', restaurant_id)
     const order_number = `CMD-${String((cnt?.length || 0) + 1).padStart(4, '0')}`
 
-    // ✅ FIX : on ne transmet table_id que s'il s'agit d'un UUID valide,
+    // On ne transmet table_id que s'il s'agit d'un UUID valide,
     // pour éviter un rejet 400 de Supabase quand c'est un nom de table physique (ex: "table")
     const safeTableId = table_id && UUID_REGEX.test(table_id) ? table_id : null
 
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       }
       const totalFmt = new Intl.NumberFormat('fr-FR').format(subtotal) + ' FCFA'
       await sendPushToRestaurantAdmins(restaurant_id, {
-        title: `🔔 Nouvelle commande ${order_number}`,
+        title: `Nouvelle commande ${order_number}`,
         body: `${totalFmt}${tableLabel}`,
         url: '/admin/dashboard',
         tag: `order-${order.id}`,

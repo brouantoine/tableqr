@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice, formatTimeAgo } from '@/lib/utils'
 import type { Order, Restaurant } from '@/types'
-import { TrendingUp, ShoppingBag, Clock, CheckCircle, ChefHat, X, CreditCard, Plus, Receipt, Bell, Calendar, ChevronDown, History, FileText, AlertTriangle } from 'lucide-react'
+import { TrendingUp, ShoppingBag, Clock, CheckCircle, ChefHat, X, CreditCard, Plus, Receipt, Bell, Calendar, ChevronDown, History, FileText, AlertTriangle, Banknote, Smartphone, Wallet } from 'lucide-react'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 
@@ -14,20 +14,16 @@ interface ManualSale {
 }
 
 const PAYMENT_METHODS = [
-  { key: 'orange_money', label: 'Orange Money', color: '#FF6600',
-    logo: 'https://imgs.search.brave.com/yhu5dw2JdSz6tV7atsWvA1ov-bK5qbZ1eNt3bKxJPYY/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9sb2dv/cy1tYXJxdWVzLmNv/bS93cC1jb250ZW50/L3VwbG9hZHMvMjAy/MS8wNy9PcmFuZ2Ut/TW9uZXktbG9nby01/MDB4MzM2LnBuZw' },
-  { key: 'wave', label: 'Wave', color: '#0099FF',
-    logo: 'https://imgs.search.brave.com/FqMsgpCwqxweNET_MFtHBy5jIQu8tClIcmiomn8bzlw/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly93d3cu/d2F2ZS5jb20vaW1n/L3Rlcm1zL2xvZ28u/cG5n' },
-  { key: 'card', label: 'Carte', color: '#3B82F6',
-    logo: 'https://imgs.search.brave.com/v18z25-TSYNdCz5re9-ooDLYfztprUyOuKI0K3OOJT8/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pbWcu/ZnJlZXBpay5jb20v/cGhvdG9zLXByZW1p/dW0vbW9kZWxlLWlt/YWdlLWNhcnRlLWJh/bmNhaXJlLXJlbmR1/LWxpZ25lLWJsZXVl/LW5vaXJlXzY4MDQz/Ni0xMDUuanBnP3Nl/bXQ9YWlzX2h5YnJp/ZCZ3PTc0MA' },
-  { key: 'cash', label: 'Espèces', color: '#10B981',
-    logo: 'https://imgs.search.brave.com/6JnzZ6FEe4eiU25it_GV_xQT7TPJcovpowm78LAvXio/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pbWcu/aWNvbnM4LmNvbS9z/dGlja2Vycy8xMjAw/L2Nhc2guanBn' },
+  { key: 'orange_money', label: 'Orange Money', color: '#FF6600', Icon: Smartphone },
+  { key: 'wave', label: 'Wave', color: '#0099FF', Icon: Wallet },
+  { key: 'card', label: 'Carte', color: '#3B82F6', Icon: CreditCard },
+  { key: 'cash', label: 'Espèces', color: '#10B981', Icon: Banknote },
 ]
 
-const STATUS_FLOW: Record<string, { next: string; label: string; color: string }> = {
-  pending:   { next: 'preparing', label: '✓ Reçu',           color: '#F59E0B' },
-  confirmed: { next: 'preparing', label: '✓ Reçu',           color: '#F59E0B' },
-  preparing: { next: 'served',    label: '🔔 Prêt à servir', color: '#10B981' },
+const STATUS_FLOW: Record<string, { next: string; label: string; color: string; Icon: any }> = {
+  pending:   { next: 'preparing', label: 'Reçu',           color: '#F59E0B', Icon: CheckCircle },
+  confirmed: { next: 'preparing', label: 'Reçu',           color: '#F59E0B', Icon: CheckCircle },
+  preparing: { next: 'served',    label: 'Prêt à servir', color: '#10B981', Icon: Bell },
 }
 
 const STATUS_DISPLAY: Record<string, { label: string; color: string; bg: string; Icon: any }> = {
@@ -88,7 +84,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                   setOrders(prev => [data as Order, ...prev])
                   setNewOrderId(data.id)
                   setTimeout(() => setNewOrderId(null), 4000)
-                  playSoundRef.current('order') // 🔔 Son nouvelle commande
+                  playSoundRef.current('order')
                 }
               })
           } else if (payload.eventType === 'UPDATE') {
@@ -325,8 +321,9 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                         {flow && (
                           <motion.button whileTap={{ scale: 0.93 }}
                             onClick={() => updateStatus(order.id, flow.next)}
-                            className="px-4 py-2.5 rounded-xl text-white text-xs font-black shadow-sm"
+                            className="px-4 py-2.5 rounded-xl text-white text-xs font-black shadow-sm flex items-center gap-1.5"
                             style={{ backgroundColor: flow.color, boxShadow: `0 4px 12px ${flow.color}40` }}>
+                            <flow.Icon size={13} />
                             {flow.label}
                           </motion.button>
                         )}
@@ -369,7 +366,9 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                         <motion.button key={m.key} whileTap={{ scale: 0.93 }}
                           onClick={() => markPaid(order.id, m.key)}
                           className="flex items-center gap-3 p-3 rounded-2xl border-2 border-gray-100 hover:bg-gray-50 transition-all">
-                          <img src={m.logo} alt={m.label} className="w-8 h-8 object-contain rounded-lg flex-shrink-0" />
+                          <span className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: m.color + '15' }}>
+                            <m.Icon size={17} style={{ color: m.color }} />
+                          </span>
                           <span className="text-sm font-bold text-gray-700">{m.label}</span>
                         </motion.button>
                       ))}
@@ -405,8 +404,9 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                 return (
                   <motion.div key={sale.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                     className="bg-white rounded-2xl px-4 py-3.5 shadow-sm border border-gray-100 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 bg-gray-50 border border-gray-100">
-                      <img src={method?.logo || ''} alt={method?.label || ''} className="w-7 h-7 object-contain rounded-lg" />
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 border border-gray-100"
+                      style={{ backgroundColor: method ? method.color + '15' : '#F9FAFB' }}>
+                      {method ? <method.Icon size={18} style={{ color: method.color }} /> : <CreditCard size={18} className="text-gray-400" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-sm text-gray-900">{sale.label}</p>
@@ -572,7 +572,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                 {/* Afficher tous les moyens ayant un montant > 0 */}
                 {[...PAYMENT_METHODS, ...Object.keys(byMethod)
                   .filter(k => !PAYMENT_METHODS.find(m => m.key === k))
-                  .map(k => ({ key: k, label: k, color: '#6B7280', logo: '' }))
+                  .map(k => ({ key: k, label: k, color: '#6B7280', Icon: CreditCard }))
                 ].filter(m => byMethod[m.key] > 0).map(method => {
                   const amount = byMethod[method.key] || 0
                   const pct = totalRevenue > 0 ? Math.round((amount / totalRevenue) * 100) : 0
@@ -580,10 +580,9 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                     <div key={method.key}>
                       <div className="flex items-center justify-between mb-1.5">
                         <div className="flex items-center gap-2">
-                          {(method as any).logo
-                            ? <img src={(method as any).logo} alt={method.label} className="w-7 h-7 object-contain rounded-lg" />
-                            : <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500"><CreditCard size={13} strokeWidth={2.2} /></div>
-                          }
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: method.color + '15' }}>
+                            <method.Icon size={13} style={{ color: method.color }} strokeWidth={2.2} />
+                          </div>
                           <span className="text-sm font-medium text-gray-700">{method.label}</span>
                         </div>
                         <div className="text-right">
@@ -670,7 +669,9 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                         style={manualForm.payment_method === m.key
                           ? { borderColor: m.color, backgroundColor: m.color + '10' }
                           : { borderColor: '#E5E7EB' }}>
-                        <img src={m.logo} alt={m.label} className="w-8 h-8 object-contain rounded-lg flex-shrink-0" />
+                        <span className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: m.color + '15' }}>
+                          <m.Icon size={17} style={{ color: m.color }} />
+                        </span>
                         <span className="text-sm font-bold" style={{ color: manualForm.payment_method === m.key ? m.color : '#6B7280' }}>{m.label}</span>
                       </button>
                     ))}
@@ -732,12 +733,18 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
               </div>
               {STATUS_FLOW[selectedOrder.status] && (
                 <div className="px-5 pb-3">
-                  <motion.button whileTap={{ scale: 0.97 }}
-                    onClick={() => { updateStatus(selectedOrder.id, STATUS_FLOW[selectedOrder.status].next); setSelectedOrder(null) }}
-                    className="w-full py-3.5 rounded-2xl text-white font-black text-sm"
-                    style={{ backgroundColor: STATUS_FLOW[selectedOrder.status].color }}>
-                    {STATUS_FLOW[selectedOrder.status].label}
-                  </motion.button>
+                  {(() => {
+                    const flow = STATUS_FLOW[selectedOrder.status]
+                    return (
+                      <motion.button whileTap={{ scale: 0.97 }}
+                        onClick={() => { updateStatus(selectedOrder.id, flow.next); setSelectedOrder(null) }}
+                        className="w-full py-3.5 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2"
+                        style={{ backgroundColor: flow.color }}>
+                        <flow.Icon size={15} />
+                        {flow.label}
+                      </motion.button>
+                    )
+                  })()}
                 </div>
               )}
               {selectedOrder.payment_status === 'unpaid' && selectedOrder.status === 'served' && (
@@ -747,7 +754,9 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                     {PAYMENT_METHODS.map(m => (
                       <button key={m.key} onClick={() => { markPaid(selectedOrder.id, m.key); setSelectedOrder(null) }}
                         className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                        <img src={m.logo} alt={m.label} className="w-8 h-8 object-contain rounded-lg" />
+                        <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: m.color + '15' }}>
+                          <m.Icon size={17} style={{ color: m.color }} />
+                        </span>
                         <span className="text-sm font-bold text-gray-700">{m.label}</span>
                       </button>
                     ))}

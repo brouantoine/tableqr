@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/utils'
+import { MenuCategoryIcon } from '@/lib/icons'
 import type { Restaurant, RestaurantTable, QRCode, MenuCategory, MenuItem, Order, ClientSession } from '@/types'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -349,7 +350,7 @@ function ApercuTab({ restaurant, data, metrics, p, onToggleActive, onDelete, del
           {metrics.catOrders.slice(0, 5).map((cat: any, i: number) => (
             <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
               <div className="flex items-center gap-2">
-                {cat.icon && <span className="text-sm">{cat.icon}</span>}
+                <MenuCategoryIcon value={cat.icon} size={14} className="text-gray-500" />
                 <span className="text-sm font-semibold text-gray-800">{cat.name}</span>
                 <span className="text-xs text-gray-400">{cat.itemCount} plats</span>
               </div>
@@ -616,7 +617,7 @@ function MenuTab({ data, metrics, p, currency }: { data: PanelData; metrics: Non
           return (
             <div key={cat.id} className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? 'border-t border-gray-50' : ''}`}>
               <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-gray-50 text-base flex-shrink-0">
-                {cat.icon || '🍽'}
+                <MenuCategoryIcon value={cat.icon} size={17} className="text-gray-500" />
               </div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-gray-800">{cat.name}</p>

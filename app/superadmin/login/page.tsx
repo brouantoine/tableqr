@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
-import { Mail, Lock, Eye, EyeOff, Shield, Activity } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, Shield, Activity, QrCode } from 'lucide-react'
 
 export default function SuperAdminLoginPage() {
   const [email, setEmail] = useState('')
@@ -56,9 +56,7 @@ export default function SuperAdminLoginPage() {
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center"
             style={{ backgroundColor: '#F26522' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h18M3 12h18M3 18h18"/>
-            </svg>
+            <QrCode size={20} color="white" strokeWidth={2.5} />
           </div>
           <span className="font-black text-white text-lg">TABLE<span style={{ color: '#F26522' }}>QR</span></span>
         </div>
@@ -99,9 +97,7 @@ export default function SuperAdminLoginPage() {
         {/* Mobile logo */}
         <div className="lg:hidden flex items-center gap-3 mb-10">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#F26522' }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h18M3 12h18M3 18h18"/>
-            </svg>
+            <QrCode size={20} color="white" strokeWidth={2.5} />
           </div>
           <span className="font-black text-white text-lg">TABLE<span style={{ color: '#F26522' }}>QR</span></span>
         </div>

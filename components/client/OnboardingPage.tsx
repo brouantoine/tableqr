@@ -1,36 +1,22 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { TwemojiIcon } from '@/components/Twemoji'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { generateDeviceFingerprint } from '@/lib/utils'
-import { getAvatarLabel } from './TwemojiAvatar'
+import LucideAvatar, { AVATAR_OPTIONS, getAvatarLabel } from './LucideAvatar'
 import { getPresenceCutoffIso } from '@/lib/social/presence'
+import { ArrowRight, Check, ChevronLeft, Heart, PartyPopper, QrCode, UserRound, UsersRound, UtensilsCrossed } from 'lucide-react'
 import type { ClientSession, Gender, ProfileType, Restaurant, RestaurantTable } from '@/types'
 
-// Avatars pros — emojis Twemoji haute qualité
-const AVATARS = [
-  { id: 'ninja', emoji: '🥷', label: 'Ninja', bg: '#1F2937' },
-  { id: 'king', emoji: '🤴', label: 'Roi', bg: '#7C3AED' },
-  { id: 'queen', emoji: '👸', label: 'Reine', bg: '#DB2777' },
-  { id: 'astronaut', emoji: '🧑‍🚀', label: 'Astro', bg: '#0EA5E9' },
-  { id: 'chef', emoji: '🧑‍🍳', label: 'Chef', bg: '#F26522' },
-  { id: 'artist', emoji: '🧑‍🎨', label: 'Artiste', bg: '#10B981' },
-  { id: 'vampire', emoji: '🧛', label: 'Vampire', bg: '#DC2626' },
-  { id: 'mage', emoji: '🧙', label: 'Mage', bg: '#6D28D9' },
-  { id: 'robot', emoji: '🤖', label: 'Robot', bg: '#374151' },
-  { id: 'alien', emoji: '👽', label: 'Alien', bg: '#059669' },
-  { id: 'ghost', emoji: '👻', label: 'Ghost', bg: '#6B7280' },
-  { id: 'fire', emoji: '🔥', label: 'Fire', bg: '#DC2626' },
-]
+const AVATARS = AVATAR_OPTIONS
 
 const PROFILES = [
-  { value: 'solo', emoji: '🧑', label: 'Solo', desc: 'Je dîne seul' },
-  { value: 'couple', emoji: '💑', label: 'En couple', desc: 'À deux' },
-  { value: 'famille', emoji: '👨‍👩‍👧', label: 'Famille', desc: 'En famille' },
-  { value: 'groupe', emoji: '🎉', label: 'Entre amis', desc: 'Groupe' },
+  { value: 'solo', Icon: UserRound, label: 'Solo', desc: 'Je dîne seul' },
+  { value: 'couple', Icon: Heart, label: 'En couple', desc: 'À deux' },
+  { value: 'famille', Icon: UsersRound, label: 'Famille', desc: 'En famille' },
+  { value: 'groupe', Icon: PartyPopper, label: 'Entre amis', desc: 'Groupe' },
 ]
 
 export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGuestUpgrade }: {
@@ -165,9 +151,7 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
         <div className="flex items-center gap-2 mb-8">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
             style={{ backgroundColor: p }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h18M3 12h18M3 18h18"/>
-            </svg>
+            <QrCode size={18} strokeWidth={2.5} />
           </div>
           <span className="font-black text-white text-sm">{restaurant.name}</span>
           <span className="ml-auto text-xs text-gray-500">Table {table.table_number}</span>
@@ -214,10 +198,7 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
               {/* Pseudo */}
               <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-2xl"
                 style={{ backgroundColor: '#1A1A1A' }}>
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: selectedAvatar.bg }}>
-                  <TwemojiIcon emoji={selectedAvatar.emoji} size={28} />
-                </div>
+                <LucideAvatar avatarId={selectedAvatar.id} size={48} />
                 <div>
                   <p className="text-white font-black">{selectedAvatar.label}</p>
                   <p className="text-gray-500 text-xs mt-0.5">Votre identité ce soir</p>
@@ -243,7 +224,7 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
                         ? { backgroundColor: av.bg + '30', border: `2px solid ${p}` }
                         : { backgroundColor: '#1A1A1A', border: '2px solid transparent', opacity: isTaken ? 0.35 : 1 }}>
                       <div style={isTaken ? { filter: 'grayscale(1)' } : undefined}>
-                        <TwemojiIcon emoji={av.emoji} size={36} />
+                        <LucideAvatar avatarId={av.id} size={44} />
                       </div>
                       <span className="text-xs font-bold" style={{
                         color: isSelected ? p : isTaken ? '#4B5563' : '#6B7280'
@@ -276,7 +257,10 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
                   style={selectedProfile === pr.value
                     ? { backgroundColor: p + '15', border: `2px solid ${p}` }
                     : { backgroundColor: '#1A1A1A', border: '2px solid transparent' }}>
-                  <TwemojiIcon emoji={pr.emoji} size={42} />
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: selectedProfile === pr.value ? p + '25' : '#111827' }}>
+                    <pr.Icon size={28} style={{ color: selectedProfile === pr.value ? p : '#9CA3AF' }} strokeWidth={2.3} />
+                  </div>
                   <div className="flex-1">
                     <p className="font-black text-white text-base">{pr.label}</p>
                     <p className="text-gray-500 text-sm mt-0.5">{pr.desc}</p>
@@ -286,9 +270,7 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
                       ? { borderColor: p, backgroundColor: p }
                       : { borderColor: '#374151' }}>
                     {selectedProfile === pr.value && (
-                      <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
-                        <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
+                      <Check size={12} className="text-white" strokeWidth={3} />
                     )}
                   </div>
                 </motion.button>
@@ -303,9 +285,10 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
         {step === 'avatar' ? (
           <motion.button whileTap={{ scale: 0.97 }}
             onClick={() => setStep('profile')}
-            className="w-full py-4 rounded-2xl text-white font-black text-base"
+            className="w-full py-4 rounded-2xl text-white font-black text-base flex items-center justify-center gap-2"
             style={{ backgroundColor: p, boxShadow: `0 8px 30px ${p}40` }}>
-            Continuer →
+            <span>Continuer</span>
+            <ArrowRight size={18} />
           </motion.button>
         ) : (
           <motion.button whileTap={{ scale: loading ? 1 : 0.97 }}
@@ -321,15 +304,16 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
               </>
             ) : (
               <>
-                <TwemojiIcon emoji="🍽️" size={18} />
+                <UtensilsCrossed size={18} />
                 <span>Voir le menu</span>
               </>
             )}
           </motion.button>
         )}
         {step === 'profile' && (
-          <button onClick={() => setStep('avatar')} className="w-full text-center text-sm text-gray-500 mt-3 py-2">
-            ← Étape précédente
+          <button onClick={() => setStep('avatar')} className="w-full text-sm text-gray-500 mt-3 py-2 flex items-center justify-center gap-1">
+            <ChevronLeft size={16} />
+            <span>Étape précédente</span>
           </button>
         )}
         {onSkip && (

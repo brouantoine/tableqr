@@ -2,25 +2,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 
 const DEMO_MENU = [
-  { name: 'Entrées', name_en: 'Starters', icon: '🥗', position: 1, items: [
+  { name: 'Entrées', name_en: 'Starters', icon: 'salad', position: 1, items: [
     { name: 'Salade fraîche', price: 2500, description: 'Salade de légumes frais de saison' },
     { name: 'Soupe du jour', price: 3000, description: 'Soupe maison préparée chaque matin' },
     { name: 'Alloco', price: 1500, description: 'Banane plantain frite croustillante' },
     { name: 'Beignets de crevettes', price: 4000, description: 'Crevettes marinées en beignet doré' },
   ]},
-  { name: 'Plats', name_en: 'Main Dishes', icon: '🍽️', position: 2, items: [
+  { name: 'Plats', name_en: 'Main Dishes', icon: 'utensils', position: 2, items: [
     { name: 'Riz sauce tomate poulet', price: 5500, description: 'Riz parfumé avec poulet mijoté sauce tomate' },
     { name: 'Attiéké poisson braisé', price: 4500, description: 'Attiéké frais avec poisson braisé aux épices' },
     { name: 'Foutou banane sauce graine', price: 5000, description: 'Foutou maison avec sauce graine traditionnelle' },
     { name: 'Poulet grillé & frites', price: 6500, description: 'Demi-poulet grillé accompagné de frites maison' },
     { name: 'Riz jollof', price: 5000, description: 'Riz jollof épicé avec légumes' },
   ]},
-  { name: 'Desserts', name_en: 'Desserts', icon: '🍮', position: 3, items: [
+  { name: 'Desserts', name_en: 'Desserts', icon: 'dessert', position: 3, items: [
     { name: 'Gâteau fondant chocolat', price: 2000, description: 'Fondant au chocolat avec coulant chaud' },
     { name: 'Fruits de saison', price: 1500, description: 'Assortiment de fruits frais tropicaux' },
     { name: 'Glace 2 boules', price: 1500, description: 'Glace vanille ou chocolat, au choix' },
   ]},
-  { name: 'Boissons', name_en: 'Drinks', icon: '🥤', position: 4, items: [
+  { name: 'Boissons', name_en: 'Drinks', icon: 'drink', position: 4, items: [
     { name: 'Eau minérale', price: 500, description: 'Bouteille 50cl' },
     { name: 'Jus de bissap', price: 1000, description: 'Jus naturel de fleurs d\'hibiscus' },
     { name: 'Jus de gingembre', price: 1000, description: 'Jus artisanal de gingembre frais' },

@@ -3,7 +3,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { getPresenceCutoffIso, isLiveSocialClient } from '@/lib/social/presence'
-import { Hand, Heart, Mail, MessageCircle } from 'lucide-react'
+import LucideAvatar from './LucideAvatar'
+import { Hand, Heart, Mail, MessageCircle, PartyPopper } from 'lucide-react'
 import type { ClientSession, Restaurant } from '@/types'
 
 export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
@@ -135,7 +136,7 @@ export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
           return (
             <div key={client.id} className="bg-white rounded-2xl p-5 shadow-sm">
               <div className="flex items-center gap-3 mb-4">
-                <span className="text-4xl">{client.avatar_icon}</span>
+                <LucideAvatar avatarId={client.avatar_icon || 'ghost'} size={48} />
                 <div>
                   <p className="font-bold text-gray-900">{client.pseudo}</p>
                   <p className="text-xs text-gray-500">Vous avez échangé ce soir</p>
@@ -144,7 +145,7 @@ export default function MatchPage({ restaurant }: { restaurant: Restaurant }) {
 
               {matched ? (
                 <div className="text-center py-3">
-                  <p className="text-2xl mb-1">🎉</p>
+                  <PartyPopper size={28} className="text-green-500 mx-auto mb-1" />
                   <p className="font-bold text-green-600">C&apos;est un match !</p>
                   {sharingWith === client.id ? (
                     <div className="mt-3 flex gap-2">

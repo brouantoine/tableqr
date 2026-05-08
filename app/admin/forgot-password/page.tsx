@@ -40,8 +40,9 @@ export default function ForgotPasswordPage() {
               </div>
               <h2 className="font-black text-xl text-gray-900 mb-2">Email envoyé !</h2>
               <p className="text-gray-500 text-sm">Vérifiez votre boîte mail et cliquez sur le lien pour réinitialiser votre mot de passe.</p>
-              <Link href="/admin/login" className="block mt-6 text-sm font-bold" style={{ color: '#F26522' }}>
-                Retour à la connexion →
+              <Link href="/admin/login" className="mt-6 text-sm font-bold inline-flex items-center justify-center gap-1" style={{ color: '#F26522' }}>
+                <span>Retour à la connexion</span>
+                <ArrowLeft size={14} className="rotate-180" />
               </Link>
             </div>
           ) : (

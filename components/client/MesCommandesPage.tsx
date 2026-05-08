@@ -1,11 +1,10 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { TwemojiIcon } from '@/components/Twemoji'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { formatPrice, formatTimeAgo } from '@/lib/utils'
-import { Clock, ChefHat, CheckCircle, Utensils, XCircle, MessageSquare } from 'lucide-react'
+import { Clock, ChefHat, CheckCircle, Utensils, XCircle, MessageSquare, ChevronDown, ArrowRight } from 'lucide-react'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 import type { Order, Restaurant } from '@/types'
@@ -87,9 +86,9 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
             playSoundRef.current('ready')
             // Notification browser si permission accordée
             if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification('🍽️ Votre plat est prêt !', {
+              new Notification('Votre plat est prêt !', {
                 body: 'Le serveur arrive vers vous',
-                icon: '/icon.png',
+                icon: '/icon-192.png',
               })
             }
           }
@@ -148,9 +147,10 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
           <p className="font-black text-gray-900 text-xl mb-1">Aucune commande</p>
           <p className="text-gray-400 text-sm mb-6">Vos commandes apparaîtront ici</p>
           <a href={`/${restaurant.slug}/menu`}
-            className="px-6 py-3 rounded-2xl text-white font-bold text-sm"
+            className="px-6 py-3 rounded-2xl text-white font-bold text-sm inline-flex items-center gap-2"
             style={{ backgroundColor: p }}>
-            Voir le menu →
+            <span>Voir le menu</span>
+            <ArrowRight size={15} />
           </a>
         </div>
       ) : (
@@ -222,9 +222,7 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
                                         borderColor: isDone || isActive ? cfg.color : '#E5E7EB',
                                       }}>
                                       {isDone ? (
-                                        <svg width="11" height="9" viewBox="0 0 12 10" fill="none">
-                                          <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                                        </svg>
+                                        <CheckCircle size={14} color="#fff" strokeWidth={2.4} />
                                       ) : (
                                         <StepIcon size={14}
                                           color={isActive ? '#fff' : '#D1D5DB'}
@@ -265,9 +263,7 @@ export default function MesCommandesPage({ restaurant }: { restaurant: Restauran
                               {formatPrice(order.total, restaurant.currency)}
                             </span>
                             <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M6 9l6 6 6-6"/>
-                              </svg>
+                              <ChevronDown size={14} className="text-gray-400" strokeWidth={2.5} />
                             </motion.div>
                           </div>
                         </button>

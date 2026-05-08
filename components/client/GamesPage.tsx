@@ -2,13 +2,14 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
+import { Brain, CookingPot, Gamepad2, Heart, Radio, Type } from 'lucide-react'
 import type { GameSession, Restaurant } from '@/types'
 
 const GAMES = [
-  { type: 'quiz', name: 'Quiz Culture G.', emoji: '🧠', desc: 'Testez vos connaissances', min: 1, max: 4 },
-  { type: 'trivia', name: 'Trivia Cuisine', emoji: '🍛', desc: 'Questions sur la gastronomie', min: 1, max: 6 },
-  { type: 'couple_quiz', name: 'Quiz Couple', emoji: '💑', desc: 'Vous connaissez-vous vraiment ?', min: 2, max: 2 },
-  { type: 'mots_croises', name: 'Mots Croisés', emoji: '🔤', desc: 'Défi vocabulaire en solo', min: 1, max: 1 },
+  { type: 'quiz', name: 'Quiz Culture G.', Icon: Brain, desc: 'Testez vos connaissances', min: 1, max: 4 },
+  { type: 'trivia', name: 'Trivia Cuisine', Icon: CookingPot, desc: 'Questions sur la gastronomie', min: 1, max: 6 },
+  { type: 'couple_quiz', name: 'Quiz Couple', Icon: Heart, desc: 'Vous connaissez-vous vraiment ?', min: 2, max: 2 },
+  { type: 'mots_croises', name: 'Mots Croisés', Icon: Type, desc: 'Défi vocabulaire en solo', min: 1, max: 1 },
 ]
 
 export default function GamesPage({ restaurant }: { restaurant: Restaurant }) {
@@ -92,7 +93,7 @@ async function joinGame(gameId: string) {
       .eq('id', gameId)
     
     setActiveGame({ ...game, status: 'playing', current_players: newCount })
-    alert('La partie commence ! 🎮')
+    alert('La partie commence !')
   } else {
     setActiveGame({ ...game, current_players: newCount })
   }
@@ -103,20 +104,29 @@ async function joinGame(gameId: string) {
   return (
     <div className="min-h-screen bg-gray-50 pb-24">
       <div className="bg-white px-4 py-4 shadow-sm">
-        <h1 className="font-bold text-gray-900 text-lg">Mini-jeux 🎮</h1>
+        <h1 className="font-bold text-gray-900 text-lg inline-flex items-center gap-2">
+          <Gamepad2 size={18} style={{ color: p }} />
+          <span>Mini-jeux</span>
+        </h1>
         <p className="text-sm text-gray-500">Jouez avec d&apos;autres clients du restaurant</p>
       </div>
 
       {/* Parties en attente */}
       {activeSessions.length > 0 && (
         <div className="px-4 pt-4">
-          <p className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wide">🔴 En cours / en attente</p>
+          <p className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-wide flex items-center gap-1.5">
+            <Radio size={12} className="text-red-500" />
+            <span>En cours / en attente</span>
+          </p>
           <div className="space-y-2">
             {activeSessions.map(gs => {
               const game = GAMES.find(g => g.type === gs.game_type)
+              const Icon = game?.Icon || Gamepad2
               return (
                 <div key={gs.id} className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3">
-                  <span className="text-3xl">{game?.emoji}</span>
+                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ backgroundColor: p + '15' }}>
+                    <Icon size={22} style={{ color: p }} />
+                  </div>
                   <div className="flex-1">
                     <p className="font-bold text-sm">{game?.name}</p>
                     <p className="text-xs text-gray-500">{gs.current_players}/{gs.max_players} joueurs</p>
@@ -140,7 +150,9 @@ async function joinGame(gameId: string) {
           {GAMES.map(game => (
             <button key={game.type} onClick={() => createGame(game.type)} disabled={loading}
               className="bg-white rounded-2xl p-4 text-left shadow-sm border-2 border-transparent hover:border-orange-200 transition-all">
-              <span className="text-3xl block mb-2">{game.emoji}</span>
+              <div className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3" style={{ backgroundColor: p + '15' }}>
+                <game.Icon size={22} style={{ color: p }} />
+              </div>
               <p className="font-bold text-sm text-gray-900">{game.name}</p>
               <p className="text-xs text-gray-500 mt-1">{game.desc}</p>
               <p className="text-xs mt-2 font-medium" style={{ color: p }}>
@@ -156,8 +168,12 @@ async function joinGame(gameId: string) {
         <div className="fixed inset-0 z-50 flex items-end">
           <div className="absolute inset-0 bg-black/50" onClick={() => setActiveGame(null)} />
           <div className="relative bg-white w-full max-w-md mx-auto rounded-t-3xl p-6">
-            <h2 className="font-bold text-xl text-center mb-2">
-              {GAMES.find(g => g.type === activeGame.game_type)?.emoji} Partie créée !
+            <h2 className="font-bold text-xl text-center mb-2 flex items-center justify-center gap-2">
+              {(() => {
+                const Icon = GAMES.find(g => g.type === activeGame.game_type)?.Icon || Gamepad2
+                return <Icon size={22} style={{ color: p }} />
+              })()}
+              <span>Partie créée !</span>
             </h2>
             <p className="text-gray-500 text-sm text-center mb-6">
               En attente des autres joueurs... Partagez le code de la table !

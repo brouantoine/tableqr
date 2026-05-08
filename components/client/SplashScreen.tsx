@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { QrCode } from 'lucide-react'
 
 interface Props {
   onDone: () => void
@@ -64,9 +65,7 @@ export default function SplashScreen({ onDone, duration = 2800 }: Props) {
           className="relative z-10 mb-6">
           <div className="w-20 h-20 rounded-3xl flex items-center justify-center"
             style={{ backgroundColor: '#F26522', boxShadow: '0 12px 40px #F2652230, 0 4px 12px #F2652220' }}>
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h18M3 12h18M3 18h18" />
-            </svg>
+            <QrCode size={40} color="#fff" strokeWidth={2.2} />
           </div>
         </motion.div>
 

@@ -3,9 +3,12 @@ export interface QRItem {
   label?: string
 }
 
-const UTENSILS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Z"/></svg>`
+const SVG_OPEN = '<' + 'svg'
+const SVG_CLOSE = '</' + 'svg>'
 
-const SMARTPHONE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>`
+const UTENSILS_ICON = `${SVG_OPEN} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Z"/><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/>${SVG_CLOSE}`
+const SMARTPHONE_ICON = `${SVG_OPEN} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>${SVG_CLOSE}`
+const SCISSORS_ICON = `${SVG_OPEN} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12 12 12"/><path d="M20 4 8.12 15.88"/><circle cx="6" cy="18" r="3"/><path d="M14.8 14.8 20 20"/>${SVG_CLOSE}`
 
 export function generateQRPrintHTML(
   items: QRItem[],
@@ -71,12 +74,16 @@ export function generateQRPrintHTML(
       position: absolute;
       top: -7px;
       left: 3px;
-      font-size: 10px;
       color: #aaa;
       background: white;
       padding: 0 2px;
       line-height: 1;
       user-select: none;
+    }
+
+    .scissors svg {
+      width: 3mm;
+      height: 3mm;
     }
 
     /* ═══ CARTE QR ═══ */
@@ -211,7 +218,7 @@ export function generateQRPrintHTML(
 </head>
 <body>`
 
-  pages.forEach((pageItems, pageIndex) => {
+  pages.forEach((pageItems) => {
     html += `\n<div class="page">`
 
     pageItems.forEach((item) => {
@@ -220,10 +227,10 @@ export function generateQRPrintHTML(
 
       html += `
   <div class="label">
-    <span class="scissors">&#9986;</span>
+    <span class="scissors">${SCISSORS_ICON}</span>
     <div class="qr-card">
       <div class="qr-header">
-        <div class="icon">${UTENSILS_SVG}</div>
+        <div class="icon">${UTENSILS_ICON}</div>
         <h1>NOTRE MENU</h1>
         <div class="divider"></div>
       </div>
@@ -231,7 +238,7 @@ export function generateQRPrintHTML(
         <img src="${qrImgSrc}" alt="QR ${escapeHtml(item.code)}" />
       </div>
       <div class="qr-footer">
-        <div class="phone">${SMARTPHONE_SVG}</div>
+        <div class="phone">${SMARTPHONE_ICON}</div>
         <p class="scan-fr">Scannez pour découvrir</p>
         <p class="scan-en">Scan to view our menu</p>
       </div>

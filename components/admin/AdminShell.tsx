@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut, ChefHat, Headset } from 'lucide-react'
+import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut, ChefHat, Headset, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import PushToggle from './PushToggle'
 
@@ -50,8 +50,9 @@ export default function AdminShell({ children, restaurantName, primaryColor }: {
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           {isSuperAdmin && (
-            <Link href="/superadmin" className="text-xs font-semibold text-gray-400 hover:text-gray-600">
-              ← Tous les restos
+            <Link href="/superadmin" className="text-xs font-semibold text-gray-400 hover:text-gray-600 inline-flex items-center gap-1">
+              <ArrowLeft size={12} />
+              <span>Tous les restos</span>
             </Link>
           )}
           <PushToggle />

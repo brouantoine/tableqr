@@ -1,3 +1,5 @@
+import { QrCode } from 'lucide-react'
+
 export default function CGUPage() {
   const sections = [
     { title: '1. Objet', content: "Les présentes CGU régissent l'accès et l'utilisation de la plateforme TableQR, service SaaS permettant aux restaurateurs de digitaliser leur menu, gestion des commandes et expérience client via QR codes." },
@@ -16,7 +18,7 @@ export default function CGUPage() {
       <div className="max-w-3xl mx-auto px-5 py-16">
         <div className="flex items-center gap-3 mb-10">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: '#F26522' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            <QrCode size={18} strokeWidth={2.5} />
           </div>
           <span className="font-black text-gray-900">TABLE<span style={{ color: '#F26522' }}>QR</span></span>
         </div>

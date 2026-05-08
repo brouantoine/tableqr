@@ -1,3 +1,5 @@
+import { QrCode } from 'lucide-react'
+
 export default function PrivacyPage() {
   const sections = [
     { title: '1. Données collectées', content: "Restaurateurs : email, informations restaurant, commandes, statistiques. Clients : profil anonyme temporaire (genre, type visite) via fingerprint technique anonymisé. Aucune donnée nominative requise." },
@@ -13,7 +15,7 @@ export default function PrivacyPage() {
       <div className="max-w-3xl mx-auto px-5 py-16">
         <div className="flex items-center gap-3 mb-10">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: '#F26522' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            <QrCode size={18} strokeWidth={2.5} />
           </div>
           <span className="font-black text-gray-900">TABLE<span style={{ color: '#F26522' }}>QR</span></span>
         </div>

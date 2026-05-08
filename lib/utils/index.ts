@@ -14,21 +14,21 @@ export function generatePseudo(): string {
   return `${adj} ${color}`
 }
 
-export const PROFILE_ICONS = ['🦁','🐯','🦊','🐺','🦅','🦋','🐉','🦄','🌟','⚡','🔥','🌊','🌙','☀️','💎','🎭']
+export const PROFILE_ICONS = ['crown', 'shield', 'rocket', 'sparkles', 'star', 'flame', 'moon', 'sun', 'gem', 'theater']
 
 export const GENDER_OPTIONS = [
-  { value: 'homme', emoji: '👨', label: 'Homme' },
-  { value: 'femme', emoji: '👩', label: 'Femme' },
-  { value: 'jeune_homme', emoji: '👦', label: 'Jeune homme' },
-  { value: 'fille', emoji: '👧', label: 'Fille' },
-  { value: 'maman', emoji: '👩‍👧', label: 'Maman' },
+  { value: 'homme', icon: 'user-round', label: 'Homme' },
+  { value: 'femme', icon: 'user-round', label: 'Femme' },
+  { value: 'jeune_homme', icon: 'user-round', label: 'Jeune homme' },
+  { value: 'fille', icon: 'user-round', label: 'Fille' },
+  { value: 'maman', icon: 'users-round', label: 'Maman' },
 ] as const
 
 export const PROFILE_OPTIONS = [
-  { value: 'solo', emoji: '🧑', label: 'Solo', desc: 'Seul(e) ce soir' },
-  { value: 'couple', emoji: '💑', label: 'En couple', desc: 'À deux' },
-  { value: 'famille', emoji: '👨‍👩‍👧', label: 'Famille', desc: 'En famille' },
-  { value: 'groupe', emoji: '🎉', label: 'Groupe', desc: 'Entre amis' },
+  { value: 'solo', icon: 'user-round', label: 'Solo', desc: 'Seul(e) ce soir' },
+  { value: 'couple', icon: 'heart', label: 'En couple', desc: 'À deux' },
+  { value: 'famille', icon: 'users-round', label: 'Famille', desc: 'En famille' },
+  { value: 'groupe', icon: 'party-popper', label: 'Groupe', desc: 'Entre amis' },
 ] as const
 
 export function formatPrice(amount: number, currency = 'XOF'): string {
@@ -64,10 +64,10 @@ export const ORDER_STATUS_CONFIG = {
 }
 
 export const PAYMENT_METHOD_CONFIG = {
-  cash:         { label: 'Espèces',           icon: '💵' },
-  wave:         { label: 'Wave',              icon: '🌊' },
-  orange_money: { label: 'Orange Money',      icon: '🟠' },
-  mtn:          { label: 'MTN MoMo',          icon: '🟡' },
-  moov:         { label: 'Moov Money',        icon: '🔵' },
-  card:         { label: 'Carte bancaire',    icon: '💳' },
+  cash:         { label: 'Espèces',           icon: 'banknote' },
+  wave:         { label: 'Wave',              icon: 'wallet' },
+  orange_money: { label: 'Orange Money',      icon: 'smartphone' },
+  mtn:          { label: 'MTN MoMo',          icon: 'smartphone' },
+  moov:         { label: 'Moov Money',        icon: 'smartphone' },
+  card:         { label: 'Carte bancaire',    icon: 'credit-card' },
 }

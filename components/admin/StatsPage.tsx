@@ -1,7 +1,7 @@
 'use client'
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp, Users, MessageCircle, Heart, ShoppingBag, Star, ArrowUpRight, DollarSign, Trophy, BarChart3 } from 'lucide-react'
+import { TrendingUp, Users, MessageCircle, Heart, ShoppingBag, Star, ArrowUpRight, DollarSign, Trophy, BarChart3, UserRound, UsersRound, PartyPopper } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import type { Restaurant, Order } from '@/types'
 
@@ -55,10 +55,10 @@ export default function StatsPage({ restaurant, orders, sessions, messages, matc
   ]
 
   const profiles = [
-    { key: 'solo', label: 'Solo', emoji: '🧑' },
-    { key: 'couple', label: 'Couple', emoji: '💑' },
-    { key: 'famille', label: 'Famille', emoji: '👨‍👩‍👧' },
-    { key: 'groupe', label: 'Groupe', emoji: '🎉' },
+    { key: 'solo', label: 'Solo', Icon: UserRound },
+    { key: 'couple', label: 'Couple', Icon: Heart },
+    { key: 'famille', label: 'Famille', Icon: UsersRound },
+    { key: 'groupe', label: 'Groupe', Icon: PartyPopper },
   ]
 
   const medalColors = ['#F59E0B', '#9CA3AF', '#B45309', p, p]
@@ -130,7 +130,10 @@ export default function StatsPage({ restaurant, orders, sessions, messages, matc
                 return (
                   <div key={prof.key}>
                     <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-sm font-medium text-gray-700">{prof.emoji} {prof.label}</span>
+                      <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                        <prof.Icon size={14} className="text-gray-400" />
+                        {prof.label}
+                      </span>
                       <span className="text-sm font-black text-gray-900">{count} <span className="text-xs text-gray-400 font-normal">({pct}%)</span></span>
                     </div>
                     <div className="h-2 bg-gray-100 rounded-full overflow-hidden">

@@ -262,7 +262,7 @@ export default function AbonnementsTab({ restaurants }: { restaurants: Restauran
             <div>
               <p className="text-sm font-black text-amber-800">Revenu potentiel non capturé</p>
               <p className="text-xs text-amber-600 mt-0.5">
-                Si {trials.length} essai{trials.length > 1 ? 's' : ''} convertis → <strong>+{fmt(trials.length * PRICE_MONTHLY)}/mois</strong>
+                Si {trials.length} essai{trials.length > 1 ? 's' : ''} convertis : <strong>+{fmt(trials.length * PRICE_MONTHLY)}/mois</strong>
               </p>
             </div>
             <p className="text-xl font-black text-amber-700 ml-auto flex-shrink-0">

@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
     if (!restaurant) return NextResponse.json({ error: 'Restaurant introuvable' }, { status: 404 })
 
     const result = await sendPushToRestaurantAdmins(restaurant.id, {
-      title: '🔔 Test TableQR',
-      body: `Notifications actives sur ${restaurant.name} ✓`,
+      title: 'Test TableQR',
+      body: `Notifications actives sur ${restaurant.name}`,
       url: '/admin/dashboard',
       tag: 'tableqr-test',
       icon: '/icon-192.png',

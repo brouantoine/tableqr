@@ -1,13 +1,14 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { BarChart3, LayoutDashboard, QrCode, Settings, UtensilsCrossed } from 'lucide-react'
 
 const NAV = [
-  { href: '/admin/dashboard', icon: '🔴', label: 'Caisse Live' },
-  { href: '/admin/menu', icon: '🍽️', label: 'Menu' },
-  { href: '/admin/tables', icon: '📱', label: 'Tables & QR' },
-  { href: '/admin/stats', icon: '📊', label: 'Statistiques' },
-  { href: '/admin/settings', icon: '⚙️', label: 'Paramètres' },
+  { href: '/admin/dashboard', Icon: LayoutDashboard, label: 'Caisse Live' },
+  { href: '/admin/menu', Icon: UtensilsCrossed, label: 'Menu' },
+  { href: '/admin/tables', Icon: QrCode, label: 'Tables & QR' },
+  { href: '/admin/stats', Icon: BarChart3, label: 'Statistiques' },
+  { href: '/admin/settings', Icon: Settings, label: 'Paramètres' },
 ]
 
 export default function AdminNav() {
@@ -20,7 +21,7 @@ export default function AdminNav() {
           return (
             <Link key={item.href} href={item.href}
               className={`flex-1 md:flex-initial flex flex-col md:flex-row items-center md:gap-3 py-3 md:py-3 md:px-4 text-center md:text-left transition-all ${active ? 'text-orange-500 md:bg-orange-50 font-medium' : 'text-gray-400 hover:text-gray-600'}`}>
-              <span className="text-xl md:text-base">{item.icon}</span>
+              <item.Icon size={20} />
               <span className="text-xs md:text-sm">{item.label}</span>
             </Link>
           )

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
-import TwemojiAvatar from './TwemojiAvatar'
+import LucideAvatar from './LucideAvatar'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
@@ -433,7 +433,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
     })()
   }, [supportParam, hasValidSession, supportConversation, loadSupportConversation, markSupportRead])
 
-  // Nettoyage automatique des coucous expirés (visuel "Coucou ✓")
+  // Nettoyage automatique des coucous expirés.
   useEffect(() => {
     if (Object.keys(outgoingCoucous).length === 0) return
     const timer = window.setInterval(() => {
@@ -686,7 +686,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
       <div className="bg-white px-4 pt-5 pb-4" style={{ boxShadow: '0 1px 0 #F0F0F0' }}>
         <div className="flex items-center gap-3 mb-3 px-1">
           <div className="relative">
-            <TwemojiAvatar avatarId={session?.avatar_icon || ''} size={42} />
+            <LucideAvatar avatarId={session?.avatar_icon || ''} size={42} />
             <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
               style={{ backgroundColor: MODE_INFO[socialMode].color }} />
           </div>
@@ -794,7 +794,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
                     }}
                     className="w-full flex items-center gap-3 rounded-2xl px-3 py-3 text-left active:bg-white">
                     <div className="relative flex-shrink-0">
-                      <TwemojiAvatar avatarId={client.avatar_icon || 'ghost'} size={52} />
+                      <LucideAvatar avatarId={client.avatar_icon || 'ghost'} size={52} />
                       <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
                         style={{ backgroundColor: client.social_mode === 'receptif' ? '#10B981' : '#F59E0B' }} />
                     </div>
@@ -855,7 +855,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
                       onClick={() => { setSelectedClient(client); setView('chat') }}
                       className="flex flex-col items-center gap-1">
                       <div className="relative">
-                        <TwemojiAvatar avatarId={client.avatar_icon || ''} size={54} />
+                        <LucideAvatar avatarId={client.avatar_icon || ''} size={54} />
                         <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white"
                           style={{ backgroundColor: client.social_mode === 'receptif' ? '#10B981' : '#F59E0B' }} />
                       </div>
@@ -1006,7 +1006,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
         </motion.button>
 
         <div className="relative flex-shrink-0">
-          <TwemojiAvatar avatarId={selectedClient?.avatar_icon || ''} size={40} />
+          <LucideAvatar avatarId={selectedClient?.avatar_icon || ''} size={40} />
           <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white"
             style={{ backgroundColor: selectedClient?.social_mode === 'receptif' ? '#10B981' : '#D1D5DB' }} />
         </div>
@@ -1024,7 +1024,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
       <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3" style={{ backgroundColor: '#F8F8F8' }}>
         {currentMessages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
-            <TwemojiAvatar avatarId={selectedClient?.avatar_icon || ''} size={64} className="mb-4" />
+            <LucideAvatar avatarId={selectedClient?.avatar_icon || ''} size={64} className="mb-4" />
             <p className="font-black text-gray-900">{selectedClient?.pseudo}</p>
           </div>
         )}
@@ -1047,7 +1047,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
                 <div className={`flex ${isMe ? 'justify-end' : 'justify-start'} items-end gap-2`}>
                   {!isMe && (
                     <div style={{ width: 30, flexShrink: 0 }}>
-                      {showAvatar && <TwemojiAvatar avatarId={selectedClient?.avatar_icon || ''} size={28} />}
+                      {showAvatar && <LucideAvatar avatarId={selectedClient?.avatar_icon || ''} size={28} />}
                     </div>
                   )}
                   <div className={`max-w-[78%] overflow-hidden text-sm leading-relaxed ${msg.attachment_url ? 'p-1.5' : 'px-4 py-2.5'} ${isMe ? 'rounded-3xl rounded-br-lg' : 'rounded-3xl rounded-bl-lg'}`}
@@ -1080,7 +1080,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
                   </div>
                   {isMe && (
                     <div style={{ width: 30, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
-                      {showAvatar && <TwemojiAvatar avatarId={session?.avatar_icon || ''} size={28} />}
+                      {showAvatar && <LucideAvatar avatarId={session?.avatar_icon || ''} size={28} />}
                     </div>
                   )}
                 </div>
@@ -1097,7 +1097,7 @@ export default function SocialPage({ restaurant }: { restaurant: Restaurant }) {
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               className="flex items-end gap-2">
               <div style={{ width: 30, flexShrink: 0 }}>
-                <TwemojiAvatar avatarId={selectedClient.avatar_icon || ''} size={28} />
+                <LucideAvatar avatarId={selectedClient.avatar_icon || ''} size={28} />
               </div>
               <div className="flex items-center gap-1 rounded-3xl rounded-bl-lg bg-white px-4 py-3 shadow-sm">
                 {[0, 1, 2].map(i => (

@@ -198,7 +198,7 @@ export default function PushToggle() {
 
       {showHint === 'ok' && (
         <div className="absolute right-0 top-full mt-2 w-64 p-3 bg-emerald-600 text-white text-xs font-semibold rounded-xl shadow-lg z-50">
-          <p>Notifications activées ✓</p>
+          <p className="flex items-center gap-1.5"><BellRing size={13} /> Notifications activées</p>
           <button
             onClick={sendTest}
             disabled={testStatus === 'sending'}

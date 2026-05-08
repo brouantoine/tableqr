@@ -2,7 +2,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, QrCode } from 'lucide-react'
+import Link from 'next/link'
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState('')
@@ -55,9 +56,7 @@ export default function AdminLoginPage() {
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-3xl flex items-center justify-center text-white mx-auto mb-4 shadow-lg"
             style={{ backgroundColor: '#F26522', boxShadow: '0 8px 30px #F2652240' }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 6h18M3 12h18M3 18h18"/>
-            </svg>
+            <QrCode size={32} strokeWidth={2.5} />
           </div>
           <h1 className="text-2xl font-black text-gray-900">TABLE<span style={{ color: '#F26522' }}>QR</span></h1>
           <p className="text-gray-400 text-sm mt-1">Espace restaurateur</p>
@@ -108,10 +107,10 @@ export default function AdminLoginPage() {
             </motion.button>
 
             <div className="text-center pt-1">
-              <a href="/admin/forgot-password"
+              <Link href="/admin/forgot-password"
                 className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
                 Mot de passe oublié ?
-              </a>
+              </Link>
             </div>
           </form>
         </div>

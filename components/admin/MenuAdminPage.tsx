@@ -1,9 +1,10 @@
 'use client'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Plus, Eye, EyeOff, Edit2, X, Check, Flame, Leaf, Search, Image, UtensilsCrossed, Camera } from 'lucide-react'
+import { Plus, Eye, EyeOff, Edit2, X, Check, Flame, Leaf, Search, UtensilsCrossed, Camera, ShieldCheck, Vegan } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/utils'
+import { MENU_ICON_OPTIONS, MenuCategoryIcon, getMenuIconOption, normalizeMenuIcon } from '@/lib/icons'
 import type { MenuCategory, MenuItem, Restaurant } from '@/types'
 import ImagePickerModal from './ImagePickerModal'
 
@@ -19,7 +20,7 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
   const [editItem, setEditItem] = useState<Partial<MenuItem> | null>(null)
   const [showCatForm, setShowCatForm] = useState(false)
   const [newCatName, setNewCatName] = useState('')
-  const [newCatIcon, setNewCatIcon] = useState('🍽️')
+  const [newCatIcon, setNewCatIcon] = useState('utensils')
   const [search, setSearch] = useState('')
   const p = restaurant.primary_color
 
@@ -62,13 +63,11 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
   async function addCategory() {
     if (!newCatName.trim()) return
     const { data } = await supabase.from('menu_categories')
-      .insert({ restaurant_id: restaurant.id, name: newCatName, icon: newCatIcon, position: categories.length, is_active: true })
+      .insert({ restaurant_id: restaurant.id, name: newCatName, icon: normalizeMenuIcon(newCatIcon), position: categories.length, is_active: true })
       .select().single()
     if (data) { setCategories(prev => [...prev, { ...data as MenuCategory, items: [] }]); setActiveCategory(data.id) }
     setNewCatName(''); setShowCatForm(false)
   }
-
-  const ICONS = ['🍽️','🍗','🥩','🐟','🍚','🥗','🍜','🥘','🍕','🥪','🧆','🍟','🥤','🧃','🍺','☕','🧁','🍰','🍦','🧇']
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -101,7 +100,8 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
               <button key={cat.id} onClick={() => setActiveCategory(cat.id)}
                 className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
                 style={activeCategory === cat.id ? { backgroundColor: p, color: '#fff' } : { backgroundColor: '#F5F5F5', color: '#555' }}>
-                {cat.icon} {cat.name}
+                <MenuCategoryIcon value={cat.icon} size={14} />
+                <span>{cat.name}</span>
                 <span className="opacity-60">({(cat.items || []).length})</span>
               </button>
             ))}
@@ -182,11 +182,12 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
                 onChange={e => setNewCatName(e.target.value)}
                 className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none mb-4" />
               <p className="text-xs font-bold text-gray-500 mb-2">Icône</p>
-              <div className="grid grid-cols-10 gap-2 mb-5">
-                {ICONS.map(icon => (
-                  <button key={icon} onClick={() => setNewCatIcon(icon)}
-                    className={`text-xl p-1.5 rounded-xl ${newCatIcon === icon ? 'bg-orange-100 ring-2 ring-orange-400' : 'bg-gray-50'}`}>
-                    {icon}
+              <div className="grid grid-cols-5 gap-2 mb-5">
+                {MENU_ICON_OPTIONS.map(option => (
+                  <button key={option.key} onClick={() => setNewCatIcon(option.key)}
+                    aria-label={option.label}
+                    className={`h-10 rounded-xl flex items-center justify-center ${normalizeMenuIcon(newCatIcon) === option.key ? 'bg-orange-100 ring-2 ring-orange-400' : 'bg-gray-50'}`}>
+                    <option.Icon size={19} style={{ color: normalizeMenuIcon(newCatIcon) === option.key ? p : '#6B7280' }} />
                   </button>
                 ))}
               </div>
@@ -257,7 +258,7 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
             <label className="text-xs font-bold text-gray-500 block mb-1.5">Catégorie</label>
             <select value={form.category_id || ''} onChange={e => set('category_id', e.target.value)}
               className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none">
-              {categories.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+              {categories.map(c => <option key={c.id} value={c.id}>{getMenuIconOption(c.icon).label} - {c.name}</option>)}
             </select>
           </div>
           {/* Nom + Prix */}
@@ -312,10 +313,10 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
             <label className="text-xs font-bold text-gray-500 block mb-2">Options</label>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { key: 'is_vegetarian', label: '🌿 Végétarien' },
-                { key: 'is_vegan', label: '🥦 Vegan' },
-                { key: 'is_halal', label: '✅ Halal' },
-                { key: 'is_spicy', label: '🌶️ Épicé' },
+                { key: 'is_vegetarian', label: 'Végétarien', Icon: Leaf },
+                { key: 'is_vegan', label: 'Vegan', Icon: Vegan },
+                { key: 'is_halal', label: 'Halal', Icon: ShieldCheck },
+                { key: 'is_spicy', label: 'Épicé', Icon: Flame },
               ].map(opt => (
                 <button key={opt.key} onClick={() => set(opt.key, !(form as any)[opt.key])}
                   className="flex items-center gap-2 p-3 rounded-2xl text-sm font-medium border-2 transition-all"
@@ -324,6 +325,7 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
                     style={(form as any)[opt.key] ? { borderColor: p, backgroundColor: p } : {}}>
                     {(form as any)[opt.key] && <Check size={10} className="text-white" strokeWidth={3} />}
                   </div>
+                  <opt.Icon size={14} />
                   {opt.label}
                 </button>
               ))}
@@ -345,9 +347,9 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
         <div className="p-5 border-t">
           <motion.button whileTap={{ scale: 0.97 }} onClick={handleSave}
             disabled={!form.name || !form.price || loading}
-            className="w-full py-4 rounded-2xl text-white font-black text-base disabled:opacity-40"
+            className="w-full py-4 rounded-2xl text-white font-black text-base disabled:opacity-40 flex items-center justify-center gap-2"
             style={{ backgroundColor: p }}>
-            {loading ? 'Sauvegarde...' : form.id ? '✓ Sauvegarder' : '+ Ajouter le plat'}
+            {loading ? 'Sauvegarde...' : form.id ? <><Check size={17} /> Sauvegarder</> : <><Plus size={17} /> Ajouter le plat</>}
           </motion.button>
         </div>
       </motion.div>

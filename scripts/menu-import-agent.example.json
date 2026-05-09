@@ -1,0 +1,22 @@
+{
+  "categories": [
+    { "name": "Boissons", "icon": "drink" },
+    { "name": "Pizzas", "icon": "pizza" }
+  ],
+  "items": [
+    {
+      "category": "Boissons",
+      "name": "Coca Cola",
+      "price": 1000,
+      "description": "Canette de Coca Cola fraiche.",
+      "image": "canette-coca-cola.png"
+    },
+    {
+      "category": "Pizzas",
+      "name": "Pizza Royale - Petite",
+      "price": 4000,
+      "description": "Pizza garnie facon royale.",
+      "image": "pizza-royale.webp"
+    }
+  ]
+}

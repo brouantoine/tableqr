@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import LucideAvatar from './LucideAvatar'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -11,11 +11,54 @@ import { MenuCategoryIcon } from '@/lib/icons'
 import type { MenuCategory, MenuItem, Restaurant, RestaurantTable } from '@/types'
 import OnboardingPage from './OnboardingPage'
 
+const CATEGORY_PRIORITY_RULES: Array<{ rank: number; terms: string[] }> = [
+  { rank: 10, terms: ['pizza'] },
+  { rank: 20, terms: ['assiette', 'plat', 'grillade', 'braise', 'braisé', 'roti', 'rôti'] },
+  { rank: 30, terms: ['poulet', 'viande', 'steak', 'brochette', 'kebab', 'taouk'] },
+  { rank: 40, terms: ['tacos', 'sandwich', 'burger'] },
+  { rank: 50, terms: ['pasta', 'pate', 'pâte'] },
+  { rank: 60, terms: ['salade', 'entree', 'entrée'] },
+  { rank: 75, terms: ['dessert', 'glace', 'cafe', 'café', 'the', 'thé'] },
+  { rank: 85, terms: ['evenement', 'événement', 'formule'] },
+  { rank: 95, terms: ['jus', 'smoothie', 'milkshake', 'milk-shake', 'mojito', 'limonade'] },
+  { rank: 110, terms: ['boisson', 'eau', 'soda', 'coca', 'fresco'] },
+]
+
+function normalizeLabel(value?: string | null) {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+}
+
+function categoryRank(category?: Pick<MenuCategory, 'name'> | null) {
+  const name = normalizeLabel(category?.name)
+  return CATEGORY_PRIORITY_RULES.find(rule => rule.terms.some(term => name.includes(normalizeLabel(term))))?.rank ?? 70
+}
+
+function isDrinkOrDessert(categoryName?: string | null, itemName?: string | null) {
+  const haystack = `${normalizeLabel(categoryName)} ${normalizeLabel(itemName)}`
+  return [
+    'boisson', 'eau', 'soda', 'coca', 'fresco',
+    'jus', 'smoothie', 'milkshake', 'milk shake', 'milk-shake', 'mojito', 'limonade',
+    'dessert', 'glace', 'cafe', 'the', 'salade de fruits',
+  ].some(term => haystack.includes(normalizeLabel(term)))
+}
+
+function sortMenuItems(items: MenuItem[]) {
+  return [...items].sort((a, b) => {
+    const pa = Number.isFinite(Number(a.position)) ? Number(a.position) : Number.MAX_SAFE_INTEGER
+    const pb = Number.isFinite(Number(b.position)) ? Number(b.position) : Number.MAX_SAFE_INTEGER
+    if (pa !== pb) return pa - pb
+    return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+  })
+}
+
 export default function MenuPage({ restaurant, categories }: { restaurant: Restaurant; categories: MenuCategory[] }) {
   const router = useRouter()
   const { cart, addToCart, updateQuantity, session, setSession, clearCart } = useSessionStore()
 
-  const [activeCategory, setActiveCategory] = useState(categories[0]?.id)
+  const [activeCategory, setActiveCategory] = useState<string | undefined>()
   const [search, setSearch] = useState('')
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
   const [showCart, setShowCart] = useState(false)
@@ -30,6 +73,8 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   const [transitioning, setTransitioning] = useState(false)
   const [isGuestUpgrade, setIsGuestUpgrade] = useState(false)
   const guestRedirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sectionRefs = useRef(new Map<string, HTMLElement>())
+  const categoryButtonRefs = useRef(new Map<string, HTMLButtonElement>())
   const cancelGuestRedirect = useCallback(() => {
     if (guestRedirectTimer.current) {
       clearTimeout(guestRedirectTimer.current)
@@ -72,16 +117,128 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     created_at: '',
   }
 
-  const allItems = categories.flatMap(c => c.items || [])
-  const featured = allItems.filter(i => i.is_available).slice(0, 5)
-  const activeItems = search
-    ? allItems.filter(i => i.name.toLowerCase().includes(search.toLowerCase()))
-    : categories.find(c => c.id === activeCategory)?.items?.filter(i => i.is_available) || []
+  const menuCategories = useMemo(() => categories
+    .map(cat => ({
+      ...cat,
+      items: sortMenuItems((cat.items || []).filter(i => i.is_available)),
+    }))
+    .filter(cat => (cat.items || []).length > 0)
+    .sort((a, b) => {
+      const rankDiff = categoryRank(a) - categoryRank(b)
+      if (rankDiff !== 0) return rankDiff
+      return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    }), [categories])
+
+  useEffect(() => {
+    if (!menuCategories.length) return
+    if (!activeCategory || !menuCategories.some(cat => cat.id === activeCategory)) {
+      setActiveCategory(menuCategories[0].id)
+    }
+  }, [activeCategory, menuCategories])
+
+  const allItems = useMemo(() => menuCategories.flatMap(c =>
+    (c.items || []).map(item => ({ ...item, category: c }))
+  ), [menuCategories])
+
+  const featured = useMemo(() => {
+    const candidates = allItems
+      .filter(item => !isDrinkOrDessert(item.category?.name, item.name))
+      .sort((a, b) => {
+        const orderDiff = (b.order_count || 0) - (a.order_count || 0)
+        if (orderDiff !== 0) return orderDiff
+        const imageDiff = Number(Boolean(b.image_url)) - Number(Boolean(a.image_url))
+        if (imageDiff !== 0) return imageDiff
+        const rankDiff = categoryRank(a.category) - categoryRank(b.category)
+        if (rankDiff !== 0) return rankDiff
+        return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+      })
+
+    const byCategory = new Map<string, number>()
+    const picked: MenuItem[] = []
+    for (const item of candidates) {
+      const categoryId = item.category_id || item.category?.id || 'menu'
+      const count = byCategory.get(categoryId) || 0
+      if (count >= 2) continue
+      picked.push(item)
+      byCategory.set(categoryId, count + 1)
+      if (picked.length >= 6) break
+    }
+    return picked
+  }, [allItems])
+
+  const featuredIds = useMemo(() => new Set(featured.map(item => item.id)), [featured])
+
+  const searchResults = useMemo(() => {
+    const q = normalizeLabel(search).trim()
+    if (!q) return []
+    return allItems.filter(item =>
+      normalizeLabel(`${item.name} ${item.description || ''} ${item.category?.name || ''}`).includes(q)
+    )
+  }, [allItems, search])
+
+  const activeItems = search ? searchResults : allItems
   const cartQty = (id: string) => cart.items.find(i => i.menu_item.id === id)?.quantity || 0
   const isAnonymousSession = (sess: typeof session) => !sess || sess.pseudo === 'Invité' || sess.avatar_icon === 'ghost'
-  const activeCategoryName = categories.find(c => c.id === activeCategory)?.name || 'Menu'
+  const activeCategoryName = menuCategories.find(c => c.id === activeCategory)?.name || 'Menu'
   const tableLabel = tableDisplayName || tableId
   const displayLogoUrl = logoPreviewUrl || restaurant.logo_url
+
+  const registerCategorySection = useCallback((id: string, node: HTMLElement | null) => {
+    if (node) sectionRefs.current.set(id, node)
+    else sectionRefs.current.delete(id)
+  }, [])
+
+  const registerCategoryButton = useCallback((id: string, node: HTMLButtonElement | null) => {
+    if (node) categoryButtonRefs.current.set(id, node)
+    else categoryButtonRefs.current.delete(id)
+  }, [])
+
+  const scrollToCategory = useCallback((id: string) => {
+    setActiveCategory(id)
+    sectionRefs.current.get(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
+
+  useEffect(() => {
+    if (search || menuCategories.length === 0) return
+
+    let frame: number | null = null
+    const updateActiveCategory = () => {
+      frame = null
+      const anchorY = 150
+      let current = menuCategories[0]?.id
+      for (const cat of menuCategories) {
+        const node = sectionRefs.current.get(cat.id)
+        if (!node) continue
+        if (node.getBoundingClientRect().top <= anchorY) current = cat.id
+        else break
+      }
+      if (current) setActiveCategory(prev => prev === current ? prev : current)
+    }
+
+    const schedule = () => {
+      if (frame !== null) return
+      frame = window.requestAnimationFrame(updateActiveCategory)
+    }
+
+    updateActiveCategory()
+    window.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('resize', schedule)
+
+    return () => {
+      if (frame !== null) window.cancelAnimationFrame(frame)
+      window.removeEventListener('scroll', schedule)
+      window.removeEventListener('resize', schedule)
+    }
+  }, [menuCategories, search])
+
+  useEffect(() => {
+    if (!activeCategory || search) return
+    categoryButtonRefs.current.get(activeCategory)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    })
+  }, [activeCategory, search])
 
   async function sendOrder(sess: typeof session, itemsSnapshot: typeof cart.items, notesSnapshot: Record<string, string>) {
     if (!sess || itemsSnapshot.length === 0) return false
@@ -198,6 +355,100 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     setIsGuestUpgrade(false)
   }
 
+  function renderMenuItemCard(item: MenuItem, index: number, options: { showCategory?: boolean } = {}) {
+    const quantity = cartQty(item.id)
+    const isFeatured = featuredIds.has(item.id)
+
+    return (
+      <motion.div key={item.id}
+        layout
+        role="button"
+        tabIndex={0}
+        initial={{ opacity: 0, y: 14 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-40px 0px' }}
+        transition={{ type: 'spring', damping: 30, stiffness: 260, delay: Math.min(index, 4) * 0.025 }}
+        onClick={() => setSelectedItem(item)}
+        onKeyDown={(e) => { if (e.key === 'Enter') setSelectedItem(item) }}
+        className="w-full rounded-3xl bg-white border border-gray-100 p-2.5 flex gap-3 text-left shadow-[0_6px_24px_rgba(15,23,42,0.05)] active:scale-[0.99] transition-[transform,box-shadow] duration-300">
+        <div className="relative w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-100">
+          {item.image_url
+            ? <img src={item.image_url} alt={item.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
+            : <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: p + '12' }}><UtensilsCrossed size={30} style={{ color: p }} /></div>
+          }
+          {isFeatured && !search && (
+            <span className="absolute left-2 top-2 w-6 h-6 rounded-xl bg-white/95 flex items-center justify-center shadow-sm">
+              <Star size={12} fill={p} style={{ color: p }} />
+            </span>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0 py-1 pr-1 flex flex-col">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              {options.showCategory && item.category?.name && (
+                <p className="text-[10px] font-black uppercase tracking-wide text-gray-400 mb-1 truncate">
+                  {item.category.name}
+                </p>
+              )}
+              <p className="font-black text-gray-950 text-base leading-tight line-clamp-2">{item.name}</p>
+              <p className="text-xs text-gray-500 mt-1 leading-snug line-clamp-2">
+                {item.description || 'Préparé à la demande'}
+              </p>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); setLiked(l => l.includes(item.id) ? l.filter(x => x !== item.id) : [...l, item.id]) }}
+              aria-label={liked.includes(item.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              className="w-8 h-8 rounded-2xl bg-gray-50 flex items-center justify-center flex-shrink-0 transition-colors">
+              <Heart size={14} fill={liked.includes(item.id) ? '#ef4444' : 'none'} color={liked.includes(item.id) ? '#ef4444' : '#9CA3AF'} />
+            </button>
+          </div>
+
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {item.is_halal && <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-black bg-emerald-50 text-emerald-700"><ShieldCheck size={10} /> Halal</span>}
+            {item.is_spicy && <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-black bg-red-50 text-red-600"><Flame size={10} /> Épicé</span>}
+            {item.is_vegetarian && <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-black bg-green-50 text-green-700"><Leaf size={10} /> Végé</span>}
+          </div>
+
+          <div className="mt-auto pt-3 flex items-center justify-between gap-3">
+            <span className="font-black text-base whitespace-nowrap" style={{ color: p }}>{formatPrice(item.price, restaurant.currency)}</span>
+            <AnimatePresence mode="wait">
+              {quantity === 0 ? (
+                <motion.button key="add"
+                  initial={{ scale: 0.85 }} animate={{ scale: 1 }} exit={{ scale: 0.85 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={(e) => { e.stopPropagation(); addToCart(item) }}
+                  aria-label={`Ajouter ${item.name}`}
+                  className="h-9 px-3 rounded-2xl flex items-center gap-1.5 text-white font-black text-sm flex-shrink-0"
+                  style={{ backgroundColor: p, boxShadow: `0 6px 16px ${p}35` }}>
+                  <Plus size={15} strokeWidth={3} />
+                  <span>Ajouter</span>
+                </motion.button>
+              ) : (
+                <motion.div key="counter"
+                  initial={{ scale: 0.9 }} animate={{ scale: 1 }}
+                  className="h-9 flex items-center gap-1 rounded-2xl bg-gray-100 px-1 flex-shrink-0">
+                  <button onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, quantity - 1) }}
+                    aria-label={`Retirer ${item.name}`}
+                    className="w-7 h-7 rounded-xl bg-white flex items-center justify-center">
+                    <Minus size={12} style={{ color: p }} strokeWidth={3} />
+                  </button>
+                  <span className="font-black text-sm w-6 text-center text-gray-900">{quantity}</span>
+                  <button onClick={(e) => { e.stopPropagation(); addToCart(item) }}
+                    aria-label={`Ajouter ${item.name}`}
+                    className="w-7 h-7 rounded-xl flex items-center justify-center text-white"
+                    style={{ backgroundColor: p }}>
+                    <Plus size={12} strokeWidth={3} />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </motion.div>
+    )
+  }
+
   return (
     <div className="min-h-screen pb-32" style={{ backgroundColor: '#F8F8F8' }}>
 
@@ -275,10 +526,11 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
               className="flex-shrink-0 px-4 py-2.5 rounded-2xl bg-white text-sm font-black text-gray-700 border border-gray-100">
               Voir tout le menu
             </button>
-          ) : categories.map(cat => (
+          ) : menuCategories.map(cat => (
             <motion.button key={cat.id} whileTap={{ scale: 0.94 }}
-              onClick={() => setActiveCategory(cat.id)}
-              className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-black transition-all"
+              ref={(node) => registerCategoryButton(cat.id, node)}
+              onClick={() => scrollToCategory(cat.id)}
+              className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-black transition-all duration-300"
               style={activeCategory === cat.id
                 ? { backgroundColor: p, color: '#fff', boxShadow: `0 6px 18px ${p}35` }
                 : { backgroundColor: '#fff', color: '#4B5563', border: '1px solid #F0F0F0' }}>
@@ -293,8 +545,8 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         <section className="mt-5">
           <div className="flex items-center justify-between px-5 mb-3">
             <div>
-              <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">Raccourci</p>
-              <h2 className="font-black text-gray-950 text-lg">Les plus commandés</h2>
+              <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">À commander</p>
+              <h2 className="font-black text-gray-950 text-lg">Plats populaires</h2>
             </div>
             <Star size={18} style={{ color: p }} fill={p} />
           </div>
@@ -310,7 +562,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                 className="flex-shrink-0 w-40 rounded-3xl bg-white overflow-hidden border border-gray-100 shadow-sm text-left">
                 <div className="relative h-24">
                   {item.image_url
-                    ? <img src={item.image_url} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
+                    ? <img src={item.image_url} alt={item.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
                     : <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: p + '12' }}><UtensilsCrossed size={32} style={{ color: p }} /></div>
                   }
                   <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-white/90 flex items-center gap-1 text-[10px] font-black text-gray-800">
@@ -343,121 +595,86 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
       )}
 
       <section className="px-5 mt-5">
-        <div className="flex items-end justify-between gap-4 mb-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">
-              {search ? 'Recherche' : 'Catégorie'}
-            </p>
-            <h2 className="font-black text-gray-950 text-xl leading-tight truncate">
-              {search ? `"${search}"` : activeCategoryName}
-            </h2>
-          </div>
-          <span className="text-xs text-gray-500 font-black bg-white px-3 py-1.5 rounded-full border border-gray-100 flex-shrink-0">
-            {activeItems.length} plat{activeItems.length > 1 ? 's' : ''}
-          </span>
-        </div>
-
-        <div className="space-y-3">
-          <AnimatePresence mode="popLayout">
-            {activeItems.map((item, i) => (
-              <motion.div key={item.id}
-                role="button"
-                tabIndex={0}
-                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.98 }} transition={{ delay: i * 0.025 }}
-                onClick={() => setSelectedItem(item)}
-                onKeyDown={(e) => { if (e.key === 'Enter') setSelectedItem(item) }}
-                className="w-full rounded-3xl bg-white border border-gray-100 p-2.5 flex gap-3 text-left shadow-sm active:scale-[0.99] transition-transform">
-                <div className="relative w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-100">
-                  {item.image_url
-                    ? <img src={item.image_url} alt={item.name} className="absolute inset-0 w-full h-full object-cover" />
-                    : <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: p + '12' }}><UtensilsCrossed size={30} style={{ color: p }} /></div>
-                  }
-                  {i < 3 && !search && (
-                    <span className="absolute left-2 top-2 w-6 h-6 rounded-xl bg-white/95 flex items-center justify-center">
-                      <Star size={12} fill={p} style={{ color: p }} />
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0 py-1 pr-1 flex flex-col">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-black text-gray-950 text-base leading-tight line-clamp-2">{item.name}</p>
-                      <p className="text-xs text-gray-500 mt-1 leading-snug line-clamp-2">
-                        {item.description || 'Préparé à la demande'}
-                      </p>
-                    </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setLiked(l => l.includes(item.id) ? l.filter(x => x !== item.id) : [...l, item.id]) }}
-                      aria-label={liked.includes(item.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                      className="w-8 h-8 rounded-2xl bg-gray-50 flex items-center justify-center flex-shrink-0">
-                      <Heart size={14} fill={liked.includes(item.id) ? '#ef4444' : 'none'} color={liked.includes(item.id) ? '#ef4444' : '#9CA3AF'} />
-                    </button>
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {item.is_halal && <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-black bg-emerald-50 text-emerald-700"><ShieldCheck size={10} /> Halal</span>}
-                    {item.is_spicy && <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-black bg-red-50 text-red-600"><Flame size={10} /> Épicé</span>}
-                    {item.is_vegetarian && <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-black bg-green-50 text-green-700"><Leaf size={10} /> Végé</span>}
-                  </div>
-
-                  <div className="mt-auto pt-3 flex items-center justify-between gap-3">
-                    <span className="font-black text-base whitespace-nowrap" style={{ color: p }}>{formatPrice(item.price, restaurant.currency)}</span>
-                    <AnimatePresence mode="wait">
-                      {cartQty(item.id) === 0 ? (
-                        <motion.button key="add"
-                          initial={{ scale: 0.85 }} animate={{ scale: 1 }} exit={{ scale: 0.85 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={(e) => { e.stopPropagation(); addToCart(item) }}
-                          aria-label={`Ajouter ${item.name}`}
-                          className="h-9 px-3 rounded-2xl flex items-center gap-1.5 text-white font-black text-sm flex-shrink-0"
-                          style={{ backgroundColor: p, boxShadow: `0 6px 16px ${p}35` }}>
-                          <Plus size={15} strokeWidth={3} />
-                          <span>Ajouter</span>
-                        </motion.button>
-                      ) : (
-                        <motion.div key="counter"
-                          initial={{ scale: 0.9 }} animate={{ scale: 1 }}
-                          className="h-9 flex items-center gap-1 rounded-2xl bg-gray-100 px-1 flex-shrink-0">
-                          <button onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, cartQty(item.id) - 1) }}
-                            aria-label={`Retirer ${item.name}`}
-                            className="w-7 h-7 rounded-xl bg-white flex items-center justify-center">
-                            <Minus size={12} style={{ color: p }} strokeWidth={3} />
-                          </button>
-                          <span className="font-black text-sm w-6 text-center text-gray-900">{cartQty(item.id)}</span>
-                          <button onClick={(e) => { e.stopPropagation(); addToCart(item) }}
-                            aria-label={`Ajouter ${item.name}`}
-                            className="w-7 h-7 rounded-xl flex items-center justify-center text-white"
-                            style={{ backgroundColor: p }}>
-                            <Plus size={12} strokeWidth={3} />
-                          </button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-
-          {activeItems.length === 0 && (
-            <div className="text-center py-16 bg-white rounded-3xl border border-gray-100">
-              <div className="w-14 h-14 rounded-3xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                <Search size={22} className="text-gray-400" />
+        {search ? (
+          <>
+            <div className="flex items-end justify-between gap-4 mb-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">Recherche</p>
+                <h2 className="font-black text-gray-950 text-xl leading-tight truncate">&quot;{search}&quot;</h2>
               </div>
-              <p className="text-gray-900 font-black">Aucun plat trouvé</p>
-              <p className="text-gray-400 text-sm mt-1">Essayez un autre mot ou revenez au menu complet.</p>
-              {search && (
-                <button onClick={() => setSearch('')}
-                  className="mt-4 px-4 py-2.5 rounded-2xl text-white font-black text-sm"
-                  style={{ backgroundColor: p }}>
-                  Voir tout le menu
-                </button>
+              <span className="text-xs text-gray-500 font-black bg-white px-3 py-1.5 rounded-full border border-gray-100 flex-shrink-0">
+                {activeItems.length} plat{activeItems.length > 1 ? 's' : ''}
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <AnimatePresence mode="popLayout">
+                {activeItems.map((item, i) => renderMenuItemCard(item, i, { showCategory: true }))}
+              </AnimatePresence>
+
+              {activeItems.length === 0 && (
+                <div className="text-center py-16 bg-white rounded-3xl border border-gray-100">
+                  <div className="w-14 h-14 rounded-3xl bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                    <Search size={22} className="text-gray-400" />
+                  </div>
+                  <p className="text-gray-900 font-black">Aucun plat trouvé</p>
+                  <p className="text-gray-400 text-sm mt-1">Essayez un autre mot ou revenez au menu complet.</p>
+                  <button onClick={() => setSearch('')}
+                    className="mt-4 px-4 py-2.5 rounded-2xl text-white font-black text-sm"
+                    style={{ backgroundColor: p }}>
+                    Voir tout le menu
+                  </button>
+                </div>
               )}
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <div className="space-y-7">
+            <div className="flex items-end justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">Menu complet</p>
+                <h2 className="font-black text-gray-950 text-xl leading-tight truncate">{activeCategoryName}</h2>
+              </div>
+              <span className="text-xs text-gray-500 font-black bg-white px-3 py-1.5 rounded-full border border-gray-100 flex-shrink-0">
+                {allItems.length} plat{allItems.length > 1 ? 's' : ''}
+              </span>
+            </div>
+
+            {menuCategories.map((cat, catIndex) => (
+              <motion.section
+                key={cat.id}
+                ref={(node) => registerCategorySection(cat.id, node)}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-80px 0px' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 240, delay: Math.min(catIndex, 3) * 0.04 }}
+                className="space-y-3"
+                style={{ scrollMarginTop: 148 }}>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: activeCategory === cat.id ? p : '#FFFFFF', color: activeCategory === cat.id ? '#FFFFFF' : p, boxShadow: activeCategory === cat.id ? `0 8px 22px ${p}30` : '0 1px 0 rgba(0,0,0,0.04)' }}>
+                      <MenuCategoryIcon value={cat.icon} size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-black uppercase tracking-wide text-gray-400">
+                        Catégorie {catIndex + 1}
+                      </p>
+                      <h3 className="font-black text-gray-950 text-lg leading-tight truncate">{cat.name}</h3>
+                    </div>
+                  </div>
+                  <span className="text-xs text-gray-500 font-black bg-white px-3 py-1.5 rounded-full border border-gray-100 flex-shrink-0">
+                    {(cat.items || []).length}
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {(cat.items || []).map((item, i) => renderMenuItemCard(item, i))}
+                </div>
+              </motion.section>
+            ))}
+          </div>
+        )}
       </section>
 
       <AnimatePresence>

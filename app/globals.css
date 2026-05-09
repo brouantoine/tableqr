@@ -24,6 +24,16 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 html {
   background-color: var(--background);
   min-height: 100%;

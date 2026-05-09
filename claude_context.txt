@@ -3109,4 +3109,27 @@ head -80
 
 
 
+J’ai créé l’agent projet menu-import ici : agents/menu-import-agent.md:1
 
+  Et je l’ai branché dans AGENTS.md:7, donc la prochaine fois tu peux dire :
+
+  utilise l'agent menu-import
+  restaurant id: ...
+  dossier images: ...
+  voici la liste des prix: ...
+
+  J’ai aussi ajouté l’importeur générique : scripts/import-menu-from-json.mjs:1
+
+  Il fait le vrai travail : dry-run, upload images Supabase, création/réutilisation catégories, ajout/mise à jour plats, sans supprimer
+  l’existant. Exemple de format ici : scripts/menu-import-agent.example.json:1
+
+  Vérification faite :
+
+  DRY RUN OK
+  Categories: 2
+  Plats: 2
+  Images locales a uploader: 2
+  Plats sans image: 0
+
+  Important : il faudra toujours les prix, sauf si tu me dis explicitement de mettre 0 temporairement, parce que la base exige un prix
+  pour chaque plat.

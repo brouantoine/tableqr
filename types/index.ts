@@ -43,6 +43,30 @@ export interface Restaurant {
   updated_at: string
 }
 
+export type SubscriptionPaymentStatus = 'pending' | 'approved' | 'rejected'
+
+export interface SubscriptionPayment {
+  id: string
+  restaurant_id: string
+  month_key: string
+  amount: number
+  currency: string
+  status: SubscriptionPaymentStatus
+  receipt_storage_path?: string | null
+  receipt_file_name?: string | null
+  receipt_content_type?: string | null
+  receipt_size?: number | null
+  signed_receipt_url?: string | null
+  note?: string | null
+  submitted_at?: string | null
+  reviewed_at?: string | null
+  reviewed_by_email?: string | null
+  review_note?: string | null
+  created_at: string
+  updated_at: string
+  restaurant?: Pick<Restaurant, 'id' | 'name' | 'slug' | 'logo_url' | 'primary_color' | 'city' | 'subscription_paid_until' | 'subscription_monthly_amount' | 'is_active' | 'is_preview'>
+}
+
 export interface QRCode {
   id: string
   code: string

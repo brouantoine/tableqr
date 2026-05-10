@@ -58,6 +58,28 @@ CREATE TABLE admin_users (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- PAIEMENTS ABONNEMENT MENSUEL
+CREATE TABLE subscription_payments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  month_key TEXT NOT NULL CHECK (month_key ~ '^[0-9]{4}-[0-9]{2}$'),
+  amount DECIMAL(10,2) NOT NULL DEFAULT 15000,
+  currency TEXT NOT NULL DEFAULT 'XOF',
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  receipt_storage_path TEXT,
+  receipt_file_name TEXT,
+  receipt_content_type TEXT,
+  receipt_size BIGINT,
+  note TEXT,
+  submitted_at TIMESTAMPTZ,
+  reviewed_at TIMESTAMPTZ,
+  reviewed_by_email TEXT,
+  review_note TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (restaurant_id, month_key)
+);
+
 -- TABLES
 CREATE TABLE restaurant_tables (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

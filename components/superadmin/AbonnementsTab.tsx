@@ -1,14 +1,14 @@
 'use client'
-import { useState, useMemo } from 'react'
-import { motion } from 'framer-motion'
+import { useEffect, useMemo, useState } from 'react'
 import {
-  TrendingUp, Users, Clock, CheckCircle, AlertTriangle,
-  Calendar, DollarSign, ArrowUpRight, ChevronRight, Store,
-  BarChart2, Zap, Target, RefreshCw, XCircle, Loader2,
+  Clock, CheckCircle,
+  Calendar, DollarSign, ArrowUpRight, Store,
+  BarChart2, Zap, Target, RefreshCw, XCircle, Eye,
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
 import RestaurantLogo, { getRestaurantLogoUrl } from '@/components/RestaurantLogo'
+import { getPaymentStatusClass, getPaymentStatusLabel } from '@/lib/subscription-payments'
 import {
   TABLEQR_MONTHLY_PRICE,
   TABLEQR_SUBSCRIPTION_CURRENCY,
@@ -17,7 +17,7 @@ import {
   getMonthLabel,
   isRestaurantMonthPaid,
 } from '@/lib/subscription'
-import type { Restaurant } from '@/types'
+import type { Restaurant, SubscriptionPayment } from '@/types'
 
 const PRICE_MONTHLY = TABLEQR_MONTHLY_PRICE
 const CURRENCY = TABLEQR_SUBSCRIPTION_CURRENCY
@@ -26,6 +26,13 @@ function fmt(n: number) { return formatPrice(n, CURRENCY) }
 
 function monthsBetween(from: Date, to: Date): number {
   return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth())
+}
+
+async function authJsonHeaders() {
+  const { data: { session } } = await supabase.auth.getSession()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (session?.access_token) headers.authorization = `Bearer ${session.access_token}`
+  return headers
 }
 
 export default function AbonnementsTab({
@@ -40,7 +47,9 @@ export default function AbonnementsTab({
   const [selectedMonth, setSelectedMonth] = useState(currentMonth)
   const [projYear, setProjYear] = useState(now.getFullYear())
   const [projMonth, setProjMonth] = useState(now.getMonth())
-  const [busyId, setBusyId] = useState<string | null>(null)
+  const [payments, setPayments] = useState<SubscriptionPayment[]>([])
+  const [paymentsLoading, setPaymentsLoading] = useState(true)
+  const [reviewBusy, setReviewBusy] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const real = useMemo(() => restaurants.filter(r => !r.is_preview), [restaurants])
@@ -75,36 +84,51 @@ export default function AbonnementsTab({
   const projLabel = `${MONTHS_FR[projMonth]} ${projYear}`
 
   const yearOptions = Array.from({ length: 10 }, (_, i) => now.getFullYear() + i)
+  const pendingPayments = useMemo(() => payments.filter(payment => payment.status === 'pending'), [payments])
+  const selectedMonthPayments = useMemo(() => payments.filter(payment => payment.month_key === selectedMonth), [payments, selectedMonth])
 
-  async function updatePaymentStatus(restaurant: Restaurant, status: 'paid' | 'unpaid') {
-    setBusyId(`${restaurant.id}-${status}`)
+  useEffect(() => { void loadPayments() }, [])
+
+  async function loadPayments() {
+    setPaymentsLoading(true)
     setFeedback(null)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (session?.access_token) headers.authorization = `Bearer ${session.access_token}`
-
-      const res = await fetch(`/api/restaurants/${restaurant.id}/subscription`, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify({
-          month: selectedMonth,
-          status,
-          amount: restaurant.subscription_monthly_amount || PRICE_MONTHLY,
-        }),
+      const res = await fetch('/api/superadmin/subscription-payments', {
+        cache: 'no-store',
+        headers: await authJsonHeaders(),
       })
       const result = await res.json()
-      if (!res.ok) throw new Error(result.error || 'Mise à jour impossible')
+      if (!res.ok) throw new Error(result.error || 'Chargement impossible')
+      setPayments(result.data || [])
+      if (result.migration_needed) setFeedback({ type: 'error', text: 'Migration SQL paiement manquante.' })
+    } catch (e) {
+      setFeedback({ type: 'error', text: e instanceof Error ? e.message : 'Erreur réseau' })
+    } finally {
+      setPaymentsLoading(false)
+    }
+  }
 
-      onRestaurantUpdated?.(result.data)
+  async function reviewPayment(payment: SubscriptionPayment, status: 'approved' | 'rejected') {
+    setReviewBusy(`${payment.id}-${status}`)
+    setFeedback(null)
+    try {
+      const res = await fetch('/api/superadmin/subscription-payments', {
+        method: 'PATCH',
+        headers: await authJsonHeaders(),
+        body: JSON.stringify({ id: payment.id, status }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Validation impossible')
+      setPayments(prev => prev.map(item => item.id === payment.id ? result.data : item))
+      if (result.restaurant) onRestaurantUpdated?.(result.restaurant)
       setFeedback({
         type: 'success',
-        text: `${restaurant.name} : ${getMonthLabel(selectedMonth)} ${status === 'paid' ? 'payé' : 'non payé'}.`,
+        text: `${payment.restaurant?.name || 'Restaurant'} : ${getMonthLabel(payment.month_key)} ${status === 'approved' ? 'validé' : 'rejeté'}.`,
       })
     } catch (e) {
       setFeedback({ type: 'error', text: e instanceof Error ? e.message : 'Erreur réseau' })
     } finally {
-      setBusyId(null)
+      setReviewBusy(null)
     }
   }
 
@@ -168,6 +192,95 @@ export default function AbonnementsTab({
           </p>
         )}
       </div>
+
+      <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+          <div className="flex items-center gap-2">
+            <Clock size={15} className="text-amber-500" />
+            <p className="font-black text-gray-900 text-sm">Reçus à valider</p>
+          </div>
+          <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full font-semibold">
+            {paymentsLoading ? '...' : pendingPayments.length}
+          </span>
+        </div>
+        {pendingPayments.length === 0 ? (
+          <div className="px-5 py-8 text-center">
+            <CheckCircle size={28} className="mx-auto mb-2 text-emerald-200" />
+            <p className="text-sm font-bold text-gray-500">Aucun reçu en attente</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {pendingPayments.map(payment => (
+              <div key={payment.id} className="px-5 py-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+                    style={{ backgroundColor: payment.restaurant?.primary_color || '#F26522' }}>
+                    {getRestaurantLogoUrl(payment.restaurant?.logo_url)
+                      ? <RestaurantLogo src={payment.restaurant?.logo_url} alt={payment.restaurant?.name || ''} className="w-full h-full rounded-xl bg-white" />
+                      : <Store size={16} strokeWidth={2.2} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-gray-900 truncate">{payment.restaurant?.name || 'Restaurant'}</p>
+                    <p className="text-xs text-gray-400">
+                      {getMonthLabel(payment.month_key)} · {formatPrice(payment.amount, payment.currency)}
+                    </p>
+                  </div>
+                  {payment.signed_receipt_url && (
+                    <a href={payment.signed_receipt_url} target="_blank" rel="noreferrer"
+                      className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center">
+                      <Eye size={15} className="text-gray-500" />
+                    </a>
+                  )}
+                </div>
+                {payment.note && <p className="text-xs text-gray-500 bg-gray-50 rounded-xl px-3 py-2">{payment.note}</p>}
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => reviewPayment(payment, 'rejected')}
+                    disabled={!!reviewBusy}
+                    className="h-10 rounded-xl bg-red-50 text-red-600 font-black text-xs disabled:opacity-50">
+                    {reviewBusy === `${payment.id}-rejected` ? 'Rejet...' : 'Rejeter'}
+                  </button>
+                  <button onClick={() => reviewPayment(payment, 'approved')}
+                    disabled={!!reviewBusy}
+                    className="h-10 rounded-xl bg-emerald-600 text-white font-black text-xs disabled:opacity-50">
+                    {reviewBusy === `${payment.id}-approved` ? 'Validation...' : 'Valider payé'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {selectedMonthPayments.length > 0 && (
+        <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+            <div className="flex items-center gap-2">
+              <Calendar size={15} className="text-gray-500" />
+              <p className="font-black text-gray-900 text-sm">Reçus — {getMonthLabel(selectedMonth)}</p>
+            </div>
+            <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full font-semibold">{selectedMonthPayments.length}</span>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {selectedMonthPayments.map(payment => (
+              <div key={payment.id} className="px-5 py-3.5 flex items-center gap-3">
+                <div className={`text-xs font-black px-2 py-1 rounded-full border ${getPaymentStatusClass(payment.status)}`}>
+                  {getPaymentStatusLabel(payment.status)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-gray-900 truncate">{payment.restaurant?.name || 'Restaurant'}</p>
+                  <p className="text-xs text-gray-400">{formatPrice(payment.amount, payment.currency)}</p>
+                </div>
+                {payment.signed_receipt_url && (
+                  <a href={payment.signed_receipt_url} target="_blank" rel="noreferrer"
+                    className="text-xs font-black text-gray-500 bg-gray-50 px-3 py-2 rounded-xl">
+                    Reçu
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-3xl p-5 shadow-sm">
         <div className="flex items-center gap-2 mb-4">

@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   X, Store, Layers, QrCode, TrendingUp, BookOpen, Check,
-  AlertTriangle, Pause, Play, Trash2, Eye, Rocket, Key,
+  AlertTriangle, Pause, Play, Trash2, Eye, Rocket,
   Mail, Phone, Globe, Users, Loader2, MessageCircle,
   Gamepad2, Bike, Star, Cake, Clock, DollarSign, Package,
   UtensilsCrossed, Smartphone, FileText,
@@ -12,11 +12,13 @@ import { supabase } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/utils'
 import { MenuCategoryIcon } from '@/lib/icons'
 import RestaurantLogo from '@/components/RestaurantLogo'
-import type { Restaurant, RestaurantTable, QRCode, MenuCategory, MenuItem, Order, ClientSession } from '@/types'
+import { getPaymentStatusClass, getPaymentStatusLabel } from '@/lib/subscription-payments'
+import { getMonthLabel } from '@/lib/subscription'
+import type { Restaurant, RestaurantTable, QRCode, MenuCategory, MenuItem, Order, ClientSession, SubscriptionPayment } from '@/types'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-type Tab = 'apercu' | 'tables' | 'menu' | 'revenus'
+type Tab = 'apercu' | 'tables' | 'menu' | 'revenus' | 'payments'
 type RestaurantModuleKey = 'module_social' | 'module_games' | 'module_delivery' | 'module_loyalty' | 'module_birthday'
 type ActivateForm = { email: string; password: string }
 
@@ -26,6 +28,7 @@ interface PanelData {
   categories: (MenuCategory & { items: MenuItem[] })[]
   orders: Pick<Order, 'id' | 'total' | 'status' | 'payment_status' | 'payment_method' | 'created_at' | 'order_number'>[]
   sessions: Pick<ClientSession, 'id' | 'created_at' | 'entered_at' | 'left_at' | 'profile_type'>[]
+  payments: SubscriptionPayment[]
 }
 
 type Metrics = ReturnType<typeof computeMetrics>
@@ -51,6 +54,13 @@ type ApercuTabProps = {
   onClose: () => void
 }
 
+async function authJsonHeaders() {
+  const { data: { session } } = await supabase.auth.getSession()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (session?.access_token) headers.authorization = `Bearer ${session.access_token}`
+  return headers
+}
+
 export default function RestaurantAnalyticsPanel({
   restaurant,
   onClose,
@@ -72,16 +82,20 @@ export default function RestaurantAnalyticsPanel({
   const [activateForm, setActivateForm] = useState({ email: '', password: '' })
   const [activating, setActivating] = useState(false)
   const [activateSuccess, setActivateSuccess] = useState<{ email: string; password: string } | null>(null)
+  const [paymentBusy, setPaymentBusy] = useState<string | null>(null)
+  const [paymentFeedback, setPaymentFeedback] = useState('')
 
   useEffect(() => {
     ;(async () => {
       setLoading(true)
+      const headers = await authJsonHeaders()
       const [
         { data: tables },
         { data: qrCodes },
         { data: categories },
         { data: orders },
         { data: sessions },
+        paymentsResult,
       ] = await Promise.all([
         supabase.from('restaurant_tables').select('*').eq('restaurant_id', restaurant.id),
         supabase.from('qr_codes').select('*').eq('restaurant_id', restaurant.id),
@@ -90,6 +104,9 @@ export default function RestaurantAnalyticsPanel({
           .eq('restaurant_id', restaurant.id).order('created_at', { ascending: false }).limit(200),
         supabase.from('client_sessions').select('id,created_at,entered_at,left_at,profile_type')
           .eq('restaurant_id', restaurant.id).order('created_at', { ascending: false }).limit(500),
+        fetch(`/api/superadmin/subscription-payments?restaurant_id=${restaurant.id}`, { cache: 'no-store', headers })
+          .then(res => res.json())
+          .catch(() => ({ data: [] })),
       ])
       setData({
         tables: tables || [],
@@ -97,6 +114,7 @@ export default function RestaurantAnalyticsPanel({
         categories: (categories || []) as (MenuCategory & { items: MenuItem[] })[],
         orders: (orders || []) as PanelData['orders'],
         sessions: (sessions || []) as PanelData['sessions'],
+        payments: (paymentsResult.data || []) as SubscriptionPayment[],
       })
       setLoading(false)
     })()
@@ -139,11 +157,35 @@ export default function RestaurantAnalyticsPanel({
     finally { setActivating(false) }
   }
 
+  async function reviewPayment(payment: SubscriptionPayment, status: 'approved' | 'rejected') {
+    setPaymentBusy(`${payment.id}-${status}`)
+    setPaymentFeedback('')
+    try {
+      const res = await fetch('/api/superadmin/subscription-payments', {
+        method: 'PATCH',
+        headers: await authJsonHeaders(),
+        body: JSON.stringify({ id: payment.id, status }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Validation impossible')
+      setData(prev => prev ? {
+        ...prev,
+        payments: prev.payments.map(item => item.id === payment.id ? result.data : item),
+      } : prev)
+      setPaymentFeedback(status === 'approved' ? 'Paiement validé.' : 'Paiement rejeté.')
+    } catch (e) {
+      setPaymentFeedback(e instanceof Error ? e.message : 'Erreur réseau')
+    } finally {
+      setPaymentBusy(null)
+    }
+  }
+
   const TABS: { id: Tab; label: string; Icon: React.ElementType }[] = [
     { id: 'apercu', label: 'Aperçu', Icon: Store },
     { id: 'tables', label: 'Tables', Icon: Layers },
     { id: 'menu', label: 'Menu', Icon: BookOpen },
     { id: 'revenus', label: 'Revenus', Icon: TrendingUp },
+    { id: 'payments', label: 'Paiements', Icon: DollarSign },
   ]
 
   return (
@@ -216,11 +258,102 @@ export default function RestaurantAnalyticsPanel({
               {tab === 'tables' && <TablesTab data={data!} metrics={metrics!} p={p} />}
               {tab === 'menu' && <MenuTab data={data!} metrics={metrics!} p={p} currency={restaurant.currency} />}
               {tab === 'revenus' && <RevenusTab data={data!} p={p} currency={restaurant.currency} />}
+              {tab === 'payments' && <PaymentsTab data={data!} p={p} busyId={paymentBusy} feedback={paymentFeedback} onReview={reviewPayment} />}
             </>
           )}
         </div>
       </motion.div>
     </motion.div>
+  )
+}
+
+function PaymentsTab({ data, p, busyId, feedback, onReview }: {
+  data: PanelData
+  p: string
+  busyId: string | null
+  feedback: string
+  onReview: (payment: SubscriptionPayment, status: 'approved' | 'rejected') => void
+}) {
+  const sorted = [...data.payments].sort((a, b) => {
+    const byMonth = b.month_key.localeCompare(a.month_key)
+    if (byMonth !== 0) return byMonth
+    return new Date(b.submitted_at || b.created_at).getTime() - new Date(a.submitted_at || a.created_at).getTime()
+  })
+  const pending = sorted.filter(payment => payment.status === 'pending').length
+
+  return (
+    <div className="p-4 space-y-4 pb-8">
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { label: 'Total reçus', value: sorted.length, color: p, Icon: FileText },
+          { label: 'À valider', value: pending, color: '#F59E0B', Icon: Clock },
+          { label: 'Validés', value: sorted.filter(payment => payment.status === 'approved').length, color: '#10B981', Icon: Check },
+        ].map(item => (
+          <StatCard key={item.label} label={item.label} value={String(item.value)} Icon={item.Icon} color={item.color} />
+        ))}
+      </div>
+
+      {feedback && <p className="text-xs font-bold text-gray-600 bg-white rounded-2xl px-3 py-2 shadow-sm">{feedback}</p>}
+
+      {sorted.length === 0 ? (
+        <div className="text-center py-14 bg-white rounded-3xl shadow-sm">
+          <DollarSign size={34} className="mx-auto mb-3 text-gray-200" />
+          <p className="font-black text-gray-900">Aucun paiement soumis</p>
+          <p className="text-xs text-gray-400 mt-1">Les reçus du restaurateur apparaîtront ici.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-50">
+            <p className="font-black text-gray-900 text-sm">Historique paiements</p>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {sorted.map(payment => (
+              <div key={payment.id} className="px-4 py-4 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className={`text-xs font-black px-2 py-1 rounded-full border ${getPaymentStatusClass(payment.status)}`}>
+                    {getPaymentStatusLabel(payment.status)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-gray-900">{getMonthLabel(payment.month_key)}</p>
+                    <p className="text-xs text-gray-400">
+                      {payment.submitted_at ? new Date(payment.submitted_at).toLocaleString('fr-FR') : 'Non envoyé'}
+                    </p>
+                  </div>
+                  <p className="text-sm font-black text-gray-900">{formatPrice(payment.amount, payment.currency)}</p>
+                </div>
+
+                {payment.note && <p className="text-xs text-gray-500 bg-gray-50 rounded-xl px-3 py-2">{payment.note}</p>}
+                {payment.review_note && <p className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2">{payment.review_note}</p>}
+
+                <div className="flex items-center gap-2">
+                  {payment.signed_receipt_url && (
+                    <a href={payment.signed_receipt_url} target="_blank" rel="noreferrer"
+                      className="flex-1 h-10 rounded-xl bg-gray-50 text-gray-600 text-xs font-black flex items-center justify-center gap-1.5">
+                      <Eye size={14} />
+                      Voir reçu
+                    </a>
+                  )}
+                  {payment.status === 'pending' && (
+                    <>
+                      <button onClick={() => onReview(payment, 'rejected')}
+                        disabled={!!busyId}
+                        className="flex-1 h-10 rounded-xl bg-red-50 text-red-600 text-xs font-black disabled:opacity-50">
+                        {busyId === `${payment.id}-rejected` ? 'Rejet...' : 'Rejeter'}
+                      </button>
+                      <button onClick={() => onReview(payment, 'approved')}
+                        disabled={!!busyId}
+                        className="flex-1 h-10 rounded-xl bg-emerald-600 text-white text-xs font-black disabled:opacity-50">
+                        {busyId === `${payment.id}-approved` ? 'Validation...' : 'Valider'}
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -481,7 +614,7 @@ function TablesTab({ data, metrics, p }: { data: PanelData; metrics: NonNullable
       map[z].push(t)
     })
     return map
-  }, [metrics.tablesByScan])
+  }, [metrics])
 
   const maxScans = Math.max(...metrics.tablesByScan.map(t => t.scans), 1)
   const totalScans = metrics.tablesByScan.reduce((s, t) => s + t.scans, 0)

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut, ChefHat, Headset, ArrowLeft } from 'lucide-react'
+import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut, ChefHat, Headset, ArrowLeft, CreditCard } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import RestaurantLogo, { getRestaurantLogoUrl } from '@/components/RestaurantLogo'
 import PushToggle from './PushToggle'
@@ -12,6 +12,7 @@ const NAV = [
   { href: '/admin/assistance', icon: Headset, label: 'Aide' },
   { href: '/admin/menu', icon: UtensilsCrossed, label: 'Menu' },
   { href: '/admin/tables', icon: QrCode, label: 'Tables' },
+  { href: '/admin/paiements', icon: CreditCard, label: 'Payer' },
   { href: '/admin/activites', icon: Gamepad2, label: 'Activités' },
   { href: '/admin/stats', icon: BarChart3, label: 'Stats' },
   { href: '/admin/settings', icon: Settings, label: 'Config' },

@@ -15,7 +15,6 @@ import {
   addMonths,
   getMonthKey,
   getMonthLabel,
-  isRestaurantMonthPaid,
 } from '@/lib/subscription'
 import type { Restaurant, SubscriptionPayment } from '@/types'
 
@@ -38,9 +37,11 @@ async function authJsonHeaders() {
 export default function AbonnementsTab({
   restaurants,
   onRestaurantUpdated,
+  onPaymentReviewed,
 }: {
   restaurants: Restaurant[]
   onRestaurantUpdated?: (restaurant: Restaurant) => void
+  onPaymentReviewed?: (payment: SubscriptionPayment) => void
 }) {
   const now = new Date()
   const currentMonth = getMonthKey(now)
@@ -53,8 +54,17 @@ export default function AbonnementsTab({
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const real = useMemo(() => restaurants.filter(r => !r.is_preview), [restaurants])
-  const subscribed = useMemo(() => real.filter(r => isRestaurantMonthPaid(r, selectedMonth) && r.is_active), [real, selectedMonth])
-  const unpaid = useMemo(() => real.filter(r => !isRestaurantMonthPaid(r, selectedMonth) && r.is_active), [real, selectedMonth])
+  const pendingPayments = useMemo(() => payments.filter(payment => payment.status === 'pending'), [payments])
+  const selectedMonthPayments = useMemo(() => payments.filter(payment => payment.month_key === selectedMonth), [payments, selectedMonth])
+  const selectedMonthPaymentByRestaurant = useMemo(() => new Map(
+    selectedMonthPayments.map(payment => [payment.restaurant_id, payment]),
+  ), [selectedMonthPayments])
+  const subscribed = useMemo(() =>
+    real.filter(r => r.is_active && selectedMonthPaymentByRestaurant.get(r.id)?.status === 'approved'),
+    [real, selectedMonthPaymentByRestaurant])
+  const unpaid = useMemo(() =>
+    real.filter(r => r.is_active && selectedMonthPaymentByRestaurant.get(r.id)?.status !== 'approved'),
+    [real, selectedMonthPaymentByRestaurant])
   const trials = useMemo(() => real.filter(r => (r.subscription_status ?? 'subscribed') === 'trial' || (!r.is_active)), [real])
   const previews = useMemo(() => restaurants.filter(r => r.is_preview), [restaurants])
   const monthOptions = useMemo(() => Array.from({ length: 8 }, (_, i) => addMonths(currentMonth, -i)), [currentMonth])
@@ -84,10 +94,16 @@ export default function AbonnementsTab({
   const projLabel = `${MONTHS_FR[projMonth]} ${projYear}`
 
   const yearOptions = Array.from({ length: 10 }, (_, i) => now.getFullYear() + i)
-  const pendingPayments = useMemo(() => payments.filter(payment => payment.status === 'pending'), [payments])
-  const selectedMonthPayments = useMemo(() => payments.filter(payment => payment.month_key === selectedMonth), [payments, selectedMonth])
 
   useEffect(() => { void loadPayments() }, [])
+
+  function replacePayment(updated: SubscriptionPayment) {
+    setPayments(prev => [
+      updated,
+      ...prev.filter(item => item.id !== updated.id && !(item.restaurant_id === updated.restaurant_id && item.month_key === updated.month_key)),
+    ])
+    onPaymentReviewed?.(updated)
+  }
 
   async function loadPayments() {
     setPaymentsLoading(true)
@@ -119,11 +135,39 @@ export default function AbonnementsTab({
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Validation impossible')
-      setPayments(prev => prev.map(item => item.id === payment.id ? result.data : item))
+      replacePayment(result.data)
       if (result.restaurant) onRestaurantUpdated?.(result.restaurant)
       setFeedback({
         type: 'success',
         text: `${payment.restaurant?.name || 'Restaurant'} : ${getMonthLabel(payment.month_key)} ${status === 'approved' ? 'validé' : 'rejeté'}.`,
+      })
+    } catch (e) {
+      setFeedback({ type: 'error', text: e instanceof Error ? e.message : 'Erreur réseau' })
+    } finally {
+      setReviewBusy(null)
+    }
+  }
+
+  async function approveRestaurantMonth(restaurant: Restaurant) {
+    setReviewBusy(`${restaurant.id}-direct`)
+    setFeedback(null)
+    try {
+      const res = await fetch('/api/superadmin/subscription-payments', {
+        method: 'POST',
+        headers: await authJsonHeaders(),
+        body: JSON.stringify({
+          restaurant_id: restaurant.id,
+          month: selectedMonth,
+          amount: restaurant.subscription_monthly_amount || PRICE_MONTHLY,
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Validation impossible')
+      replacePayment(result.data)
+      if (result.restaurant) onRestaurantUpdated?.(result.restaurant)
+      setFeedback({
+        type: 'success',
+        text: `${restaurant.name} : ${getMonthLabel(selectedMonth)} validé sans reçu restaurateur.`,
       })
     } catch (e) {
       setFeedback({ type: 'error', text: e instanceof Error ? e.message : 'Erreur réseau' })
@@ -190,6 +234,58 @@ export default function AbonnementsTab({
           <p className={`mt-3 text-xs font-bold ${feedback.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
             {feedback.text}
           </p>
+        )}
+      </div>
+
+      <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+          <div className="flex items-center gap-2">
+            <XCircle size={15} className="text-red-500" />
+            <p className="font-black text-gray-900 text-sm">Non validés — {getMonthLabel(selectedMonth)}</p>
+          </div>
+          <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full font-semibold">{unpaid.length}</span>
+        </div>
+        {unpaid.length === 0 ? (
+          <div className="px-5 py-8 text-center">
+            <CheckCircle size={28} className="mx-auto mb-2 text-emerald-200" />
+            <p className="text-sm font-bold text-gray-500">Tous les restaurants actifs sont validés pour ce mois.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {unpaid.map(restaurant => {
+              const payment = selectedMonthPaymentByRestaurant.get(restaurant.id)
+              const busyKey = payment ? `${payment.id}-approved` : `${restaurant.id}-direct`
+              return (
+                <div key={restaurant.id} className="px-5 py-3.5 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+                    style={{ backgroundColor: restaurant.primary_color }}>
+                    {getRestaurantLogoUrl(restaurant.logo_url)
+                      ? <RestaurantLogo src={restaurant.logo_url} alt={restaurant.name} className="w-full h-full rounded-xl bg-white" />
+                      : <Store size={16} strokeWidth={2.2} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-900 truncate">{restaurant.name}</p>
+                    <p className="text-xs text-gray-400">
+                      {payment ? getPaymentStatusLabel(payment.status) : 'Aucun reçu envoyé'}
+                    </p>
+                  </div>
+                  {payment?.signed_receipt_url && (
+                    <a href={payment.signed_receipt_url} target="_blank" rel="noreferrer"
+                      className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center">
+                      <Eye size={15} className="text-gray-500" />
+                    </a>
+                  )}
+                  <button onClick={() => payment ? reviewPayment(payment, 'approved') : approveRestaurantMonth(restaurant)}
+                    disabled={!!reviewBusy}
+                    className="h-9 px-3 rounded-xl bg-emerald-600 text-white font-black text-xs disabled:opacity-50 flex-shrink-0">
+                    {reviewBusy === busyKey
+                      ? 'Validation...'
+                      : payment?.signed_receipt_url ? 'Valider reçu' : 'Marquer payé'}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
 
@@ -378,7 +474,7 @@ export default function AbonnementsTab({
           <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
             <div className="flex items-center gap-2">
               <CheckCircle size={15} className="text-green-500" />
-              <p className="font-black text-gray-900 text-sm">Abonnés actifs</p>
+              <p className="font-black text-gray-900 text-sm">Payés validés</p>
             </div>
             <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full font-semibold">{subscribed.length}</span>
           </div>

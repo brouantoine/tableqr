@@ -12,8 +12,8 @@ import { supabase } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/utils'
 import { MenuCategoryIcon } from '@/lib/icons'
 import RestaurantLogo from '@/components/RestaurantLogo'
-import { getPaymentStatusClass, getPaymentStatusLabel } from '@/lib/subscription-payments'
-import { getMonthLabel } from '@/lib/subscription'
+import { getPaymentForMonth, getPaymentStatusClass, getPaymentStatusLabel, getRecentMonthKeys } from '@/lib/subscription-payments'
+import { TABLEQR_MONTHLY_PRICE, getMonthKey, getMonthLabel } from '@/lib/subscription'
 import type { Restaurant, RestaurantTable, QRCode, MenuCategory, MenuItem, Order, ClientSession, SubscriptionPayment } from '@/types'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -65,10 +65,12 @@ export default function RestaurantAnalyticsPanel({
   restaurant,
   onClose,
   onDeleted,
+  onPaymentReviewed,
 }: {
   restaurant: Restaurant
   onClose: () => void
   onDeleted: (id: string) => void
+  onPaymentReviewed?: (payment: SubscriptionPayment) => void
 }) {
   const p = restaurant.primary_color
   const [tab, setTab] = useState<Tab>('apercu')
@@ -168,11 +170,45 @@ export default function RestaurantAnalyticsPanel({
       })
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Validation impossible')
+      const updatedPayment = result.data as SubscriptionPayment
       setData(prev => prev ? {
         ...prev,
-        payments: prev.payments.map(item => item.id === payment.id ? result.data : item),
+        payments: prev.payments.map(item => item.id === payment.id ? updatedPayment : item),
       } : prev)
+      onPaymentReviewed?.(updatedPayment)
       setPaymentFeedback(status === 'approved' ? 'Paiement validé.' : 'Paiement rejeté.')
+    } catch (e) {
+      setPaymentFeedback(e instanceof Error ? e.message : 'Erreur réseau')
+    } finally {
+      setPaymentBusy(null)
+    }
+  }
+
+  async function approveRestaurantMonth(monthKey: string) {
+    setPaymentBusy(`direct-${monthKey}`)
+    setPaymentFeedback('')
+    try {
+      const res = await fetch('/api/superadmin/subscription-payments', {
+        method: 'POST',
+        headers: await authJsonHeaders(),
+        body: JSON.stringify({
+          restaurant_id: restaurant.id,
+          month: monthKey,
+          amount: restaurant.subscription_monthly_amount || TABLEQR_MONTHLY_PRICE,
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Validation impossible')
+      const updatedPayment = result.data as SubscriptionPayment
+      setData(prev => prev ? {
+        ...prev,
+        payments: [
+          updatedPayment,
+          ...prev.payments.filter(item => item.id !== updatedPayment.id && !(item.restaurant_id === updatedPayment.restaurant_id && item.month_key === updatedPayment.month_key)),
+        ],
+      } : prev)
+      onPaymentReviewed?.(updatedPayment)
+      setPaymentFeedback(`${getMonthLabel(monthKey)} validé.`)
     } catch (e) {
       setPaymentFeedback(e instanceof Error ? e.message : 'Erreur réseau')
     } finally {
@@ -258,7 +294,16 @@ export default function RestaurantAnalyticsPanel({
               {tab === 'tables' && <TablesTab data={data!} metrics={metrics!} p={p} />}
               {tab === 'menu' && <MenuTab data={data!} metrics={metrics!} p={p} currency={restaurant.currency} />}
               {tab === 'revenus' && <RevenusTab data={data!} p={p} currency={restaurant.currency} />}
-              {tab === 'payments' && <PaymentsTab data={data!} p={p} busyId={paymentBusy} feedback={paymentFeedback} onReview={reviewPayment} />}
+              {tab === 'payments' && (
+                <PaymentsTab
+                  data={data!}
+                  p={p}
+                  busyId={paymentBusy}
+                  feedback={paymentFeedback}
+                  onReview={reviewPayment}
+                  onDirectApprove={approveRestaurantMonth}
+                />
+              )}
             </>
           )}
         </div>
@@ -267,19 +312,24 @@ export default function RestaurantAnalyticsPanel({
   )
 }
 
-function PaymentsTab({ data, p, busyId, feedback, onReview }: {
+function PaymentsTab({ data, p, busyId, feedback, onReview, onDirectApprove }: {
   data: PanelData
   p: string
   busyId: string | null
   feedback: string
   onReview: (payment: SubscriptionPayment, status: 'approved' | 'rejected') => void
+  onDirectApprove: (monthKey: string) => void
 }) {
+  const [selectedMonth, setSelectedMonth] = useState(getMonthKey())
+  const monthOptions = useMemo(() => getRecentMonthKeys(12), [])
   const sorted = [...data.payments].sort((a, b) => {
     const byMonth = b.month_key.localeCompare(a.month_key)
     if (byMonth !== 0) return byMonth
     return new Date(b.submitted_at || b.created_at).getTime() - new Date(a.submitted_at || a.created_at).getTime()
   })
   const pending = sorted.filter(payment => payment.status === 'pending').length
+  const selectedPayment = getPaymentForMonth(sorted, selectedMonth)
+  const selectedStatus = selectedPayment?.status || 'unpaid'
 
   return (
     <div className="p-4 space-y-4 pb-8">
@@ -294,6 +344,37 @@ function PaymentsTab({ data, p, busyId, feedback, onReview }: {
       </div>
 
       {feedback && <p className="text-xs font-bold text-gray-600 bg-white rounded-2xl px-3 py-2 shadow-sm">{feedback}</p>}
+
+      <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-50">
+          <p className="font-black text-gray-900 text-sm">Valider un mois</p>
+          <p className="text-xs text-gray-400 mt-0.5">Possible même si le restaurateur n&apos;a pas encore envoyé de reçu.</p>
+        </div>
+        <div className="p-4 space-y-3">
+          <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-xl bg-gray-50 text-sm font-semibold outline-none border border-gray-100 focus:border-orange-300">
+            {monthOptions.map(month => (
+              <option key={month} value={month}>{getMonthLabel(month)}</option>
+            ))}
+          </select>
+          <div className={`rounded-2xl border px-3 py-2.5 flex items-center justify-between ${getPaymentStatusClass(selectedStatus)}`}>
+            <span className="text-xs font-black">{getPaymentStatusLabel(selectedStatus)}</span>
+            {selectedPayment?.signed_receipt_url && (
+              <a href={selectedPayment.signed_receipt_url} target="_blank" rel="noreferrer"
+                className="text-xs font-black underline">
+                Voir reçu
+              </a>
+            )}
+          </div>
+          <button onClick={() => onDirectApprove(selectedMonth)}
+            disabled={selectedStatus === 'approved' || !!busyId}
+            className="w-full h-10 rounded-xl bg-emerald-600 text-white text-xs font-black disabled:opacity-50">
+            {busyId === `direct-${selectedMonth}`
+              ? 'Validation...'
+              : selectedPayment?.signed_receipt_url ? 'Valider ce reçu' : 'Marquer payé sans reçu'}
+          </button>
+        </div>
+      </div>
 
       {sorted.length === 0 ? (
         <div className="text-center py-14 bg-white rounded-3xl shadow-sm">

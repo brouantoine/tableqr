@@ -58,10 +58,10 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
   const amount = restaurant.subscription_monthly_amount || TABLEQR_MONTHLY_PRICE
   const monthOptions = useMemo(() => getRecentMonthKeys(12), [])
   const selectedPayment = getPaymentForMonth(payments, selectedMonth)
-  const selectedState = getRestaurantMonthPaymentState(restaurant, payments, selectedMonth)
-  const paidCount = monthOptions.filter(month => getRestaurantMonthPaymentState(restaurant, payments, month) === 'approved').length
+  const selectedState = getRestaurantMonthPaymentState(payments, selectedMonth)
+  const paidCount = monthOptions.filter(month => getRestaurantMonthPaymentState(payments, month) === 'approved').length
   const pendingCount = payments.filter(payment => payment.status === 'pending').length
-  const unpaidCount = monthOptions.filter(month => getRestaurantMonthPaymentState(restaurant, payments, month) === 'unpaid').length
+  const unpaidCount = monthOptions.filter(month => getRestaurantMonthPaymentState(payments, month) === 'unpaid').length
 
   useEffect(() => { void loadPayments() }, [])
 
@@ -254,7 +254,7 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
           </div>
           <div className="divide-y divide-gray-50">
             {monthOptions.map(month => {
-              const status = getRestaurantMonthPaymentState(restaurant, payments, month)
+              const status = getRestaurantMonthPaymentState(payments, month)
               const payment = getPaymentForMonth(payments, month)
               return (
                 <button key={month} onClick={() => setSelectedMonth(month)}

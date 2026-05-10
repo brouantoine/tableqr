@@ -69,5 +69,5 @@ export function isRestaurantMonthPaid(restaurant: Restaurant, monthKey = getMont
     return paidUntil >= monthEnd
   }
 
-  return (restaurant.subscription_status ?? 'subscribed') === 'subscribed' && restaurant.is_active
+  return false
 }

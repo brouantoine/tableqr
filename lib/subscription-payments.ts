@@ -1,5 +1,5 @@
-import type { Restaurant, SubscriptionPayment, SubscriptionPaymentStatus } from '@/types'
-import { addMonths, getMonthKey, isRestaurantMonthPaid } from './subscription'
+import type { SubscriptionPayment, SubscriptionPaymentStatus } from '@/types'
+import { addMonths, getMonthKey } from './subscription'
 
 export const PAYMENT_RECEIPTS_BUCKET = 'payment-receipts'
 
@@ -12,13 +12,12 @@ export function getPaymentForMonth(payments: SubscriptionPayment[], monthKey: st
 }
 
 export function getRestaurantMonthPaymentState(
-  restaurant: Restaurant,
   payments: SubscriptionPayment[],
   monthKey: string,
 ): SubscriptionPaymentStatus | 'unpaid' {
   const payment = getPaymentForMonth(payments, monthKey)
   if (payment) return payment.status
-  return isRestaurantMonthPaid(restaurant, monthKey) ? 'approved' : 'unpaid'
+  return 'unpaid'
 }
 
 export function getPaymentStatusLabel(status: SubscriptionPaymentStatus | 'unpaid') {

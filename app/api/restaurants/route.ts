@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
-import { TABLEQR_MONTHLY_PRICE, getMonthEndDateString, getMonthKey } from '@/lib/subscription'
+import { TABLEQR_MONTHLY_PRICE } from '@/lib/subscription'
 
 const DEMO_MENU = [
   { name: 'Entrées', name_en: 'Starters', icon: 'salad', position: 1, items: [
@@ -126,8 +126,8 @@ export async function POST(req: NextRequest) {
       if (authError) return NextResponse.json({ error: `Erreur Auth: ${authError.message}` }, { status: 500 })
     }
 
-    const { password: _pwd, ...bodyClean } = body
-    const isSubscribed = (bodyClean.subscription_status ?? 'subscribed') === 'subscribed'
+    const bodyClean = { ...body }
+    delete bodyClean.password
     const { data, error } = await admin
       .from('restaurants')
       .insert({
@@ -135,8 +135,8 @@ export async function POST(req: NextRequest) {
         admin_email: email,
         is_active: true,
         is_preview: false,
-        subscription_paid_until: isSubscribed ? getMonthEndDateString(getMonthKey()) : null,
-        subscription_last_payment_at: isSubscribed ? new Date().toISOString() : null,
+        subscription_paid_until: null,
+        subscription_last_payment_at: null,
         subscription_monthly_amount: TABLEQR_MONTHLY_PRICE,
       })
       .select().single()
@@ -151,8 +151,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ data, credentials: { email, password: tempPassword, login_url: loginUrl } })
 
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 })
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : 'Erreur serveur' }, { status: 500 })
   }
 }
 

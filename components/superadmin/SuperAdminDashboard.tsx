@@ -9,10 +9,10 @@ import {
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { resolveStorageImageUrl } from '@/lib/images'
-import { getMonthKey, isRestaurantMonthPaid } from '@/lib/subscription'
+import { getMonthKey } from '@/lib/subscription'
 import { supabase } from '@/lib/supabase/client'
 import { generateQRPrintHTML } from '@/lib/qr-print-template'
-import type { Restaurant } from '@/types'
+import type { Restaurant, SubscriptionPayment } from '@/types'
 import DesignerKitQuantityModal from '@/components/DesignerKitQuantityModal'
 import RestaurantLogo from '@/components/RestaurantLogo'
 import RestaurantAnalyticsPanel from './RestaurantAnalyticsPanel'
@@ -80,12 +80,12 @@ function PrintUrlCheck() {
   )
 }
 
-function SubBadge({ r, monthKey = getMonthKey() }: { r: Restaurant; monthKey?: string }) {
+function SubBadge({ r, isPaid }: { r: Restaurant; isPaid: boolean }) {
   if (r.is_preview) return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-purple-100 text-purple-600">Démo</span>
   if (!r.is_active) return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-gray-100 text-gray-500">Inactif</span>
   const status = r.subscription_status ?? 'subscribed'
   if (status === 'trial') return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-700">Essai</span>
-  if (isRestaurantMonthPaid(r, monthKey)) {
+  if (isPaid) {
     return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-green-100 text-green-600">Payé</span>
   }
   return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-red-100 text-red-600">Non payé</span>
@@ -98,6 +98,7 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
   const [showQR, setShowQR] = useState(false)
   const [selectedResto, setSelectedResto] = useState<Restaurant | null>(null)
   const [localRestaurants, setLocalRestaurants] = useState<Restaurant[]>(initialRestaurants)
+  const [approvedCurrentRestaurantIds, setApprovedCurrentRestaurantIds] = useState<Set<string>>(() => new Set())
   const currentMonthKey = getMonthKey()
 
   useEffect(() => {
@@ -112,9 +113,24 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
     return () => { supabase.removeChannel(channel) }
   }, [])
 
+  useEffect(() => {
+    async function loadCurrentMonthPayments() {
+      try {
+        const res = await fetch(`/api/superadmin/subscription-payments?month=${currentMonthKey}&status=approved`, {
+          cache: 'no-store',
+          headers: await authJsonHeaders(),
+        })
+        const result = await res.json()
+        if (!res.ok) return
+        setApprovedCurrentRestaurantIds(new Set((result.data || []).map((payment: SubscriptionPayment) => payment.restaurant_id)))
+      } catch {}
+    }
+    void loadCurrentMonthPayments()
+  }, [currentMonthKey])
+
   const subscribed = useMemo(() =>
-    localRestaurants.filter(r => !r.is_preview && r.is_active && isRestaurantMonthPaid(r, currentMonthKey)),
-    [localRestaurants, currentMonthKey])
+    localRestaurants.filter(r => !r.is_preview && r.is_active && approvedCurrentRestaurantIds.has(r.id)),
+    [localRestaurants, approvedCurrentRestaurantIds])
   const mrr = subscribed.length * MONTHLY_PRICE
   const activeCount = localRestaurants.filter(r => r.is_active && !r.is_preview).length
 
@@ -127,6 +143,16 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
   async function handleLogout() {
     await supabase.auth.signOut()
     window.location.replace('/superadmin/login')
+  }
+
+  function handleSubscriptionPaymentReviewed(payment: SubscriptionPayment) {
+    if (payment.month_key !== currentMonthKey) return
+    setApprovedCurrentRestaurantIds(prev => {
+      const next = new Set(prev)
+      if (payment.status === 'approved') next.add(payment.restaurant_id)
+      else next.delete(payment.restaurant_id)
+      return next
+    })
   }
 
   return (
@@ -187,6 +213,7 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
             setLocalRestaurants(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r))
             setSelectedResto(prev => prev?.id === updated.id ? { ...prev, ...updated } : prev)
           }}
+          onPaymentReviewed={handleSubscriptionPaymentReviewed}
         />
       )}
 
@@ -236,12 +263,12 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                       <p className="font-black text-gray-900 text-sm">{r.name}</p>
-                      <SubBadge r={r} monthKey={currentMonthKey} />
+                      <SubBadge r={r} isPaid={approvedCurrentRestaurantIds.has(r.id)} />
                     </div>
                     <p className="text-xs text-gray-400 truncate">/{r.slug} · {r.city || '—'}</p>
                   </div>
                   <div className="flex-shrink-0 text-right">
-                    {!r.is_preview && isRestaurantMonthPaid(r, currentMonthKey) && r.is_active && (
+                    {!r.is_preview && approvedCurrentRestaurantIds.has(r.id) && r.is_active && (
                       <p className="text-xs font-black text-green-600">{formatPrice(MONTHLY_PRICE, 'XOF')}</p>
                     )}
                     <ChevronRight size={14} className="text-gray-300 mt-0.5 ml-auto" />
@@ -274,6 +301,7 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
               setLocalRestaurants(prev => prev.filter(r => r.id !== id))
               setSelectedResto(null)
             }}
+            onPaymentReviewed={handleSubscriptionPaymentReviewed}
           />
         )}
       </AnimatePresence>

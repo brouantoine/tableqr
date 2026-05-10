@@ -118,10 +118,10 @@ test('isRestaurantMonthPaid keeps previews and trials unpaid', () => {
   )
 })
 
-test('isRestaurantMonthPaid preserves legacy subscribed restaurants without paid_until', () => {
+test('isRestaurantMonthPaid does not invent paid months without paid_until', () => {
   assert.equal(
     isRestaurantMonthPaid(restaurant({ subscription_paid_until: null }), '2026-05'),
-    true,
+    false,
   )
   assert.equal(
     isRestaurantMonthPaid(restaurant({ is_active: false, subscription_paid_until: null }), '2026-05'),

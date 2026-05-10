@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
+import RestaurantLogo, { getRestaurantLogoUrl } from '@/components/RestaurantLogo'
 import {
   TABLEQR_MONTHLY_PRICE,
   TABLEQR_SUBSCRIPTION_CURRENCY,
@@ -272,7 +273,9 @@ export default function AbonnementsTab({
             <div key={r.id} className={`flex items-center gap-3 px-5 py-3.5 ${i > 0 ? 'border-t border-gray-50' : ''}`}>
               <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
                 style={{ backgroundColor: r.primary_color }}>
-                <Store size={16} strokeWidth={2.2} />
+                {getRestaurantLogoUrl(r.logo_url)
+                  ? <RestaurantLogo src={r.logo_url} alt={r.name} className="w-full h-full rounded-xl bg-white" />
+                  : <Store size={16} strokeWidth={2.2} />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-gray-900 truncate">{r.name}</p>
@@ -303,7 +306,9 @@ export default function AbonnementsTab({
               <div key={r.id} className={`flex items-center gap-3 px-5 py-3.5 ${i > 0 ? 'border-t border-gray-50' : ''}`}>
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0"
                   style={{ backgroundColor: r.primary_color }}>
-                  <Store size={16} strokeWidth={2.2} />
+                  {getRestaurantLogoUrl(r.logo_url)
+                    ? <RestaurantLogo src={r.logo_url} alt={r.name} className="w-full h-full rounded-xl bg-white" />
+                    : <Store size={16} strokeWidth={2.2} />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-gray-900 truncate">{r.name}</p>

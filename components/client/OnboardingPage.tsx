@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
 import { generateDeviceFingerprint } from '@/lib/utils'
 import LucideAvatar, { AVATAR_OPTIONS, getAvatarLabel } from './LucideAvatar'
+import RestaurantLogo, { getRestaurantLogoUrl } from '@/components/RestaurantLogo'
 import { getPresenceCutoffIso } from '@/lib/social/presence'
 import { ArrowRight, Check, ChevronLeft, Heart, PartyPopper, QrCode, UserRound, UsersRound, UtensilsCrossed } from 'lucide-react'
 import type { ClientSession, Gender, ProfileType, Restaurant, RestaurantTable } from '@/types'
@@ -36,6 +37,7 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
   const [takenAvatars, setTakenAvatars] = useState<Set<string>>(new Set())
   const p = restaurant.primary_color
   const ownAvatarId = isGuestUpgrade ? session?.avatar_icon : undefined
+  const logoUrl = getRestaurantLogoUrl(restaurant.logo_url)
 
   useEffect(() => {
     async function check() {
@@ -143,11 +145,22 @@ export default function OnboardingPage({ restaurant, table, onDone, onSkip, isGu
 
       <div className="px-5 pt-10 pb-6">
         <div className="flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
-            style={{ backgroundColor: p }}>
-            <QrCode size={18} strokeWidth={2.5} />
-          </div>
-          <span className="font-black text-white text-sm">{restaurant.name}</span>
+          {logoUrl ? (
+            <RestaurantLogo
+              src={logoUrl}
+              alt={restaurant.name}
+              className="w-10 h-10 rounded-xl bg-white flex-shrink-0"
+            />
+          ) : (
+            <>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
+                style={{ backgroundColor: p }}>
+                <QrCode size={18} strokeWidth={2.5} />
+              </div>
+              <span className="font-black text-white text-sm">{restaurant.name}</span>
+            </>
+          )}
+          {logoUrl && <span className="sr-only">{restaurant.name}</span>}
           <span className="ml-auto text-xs text-gray-500">Table {table.table_number}</span>
         </div>
 

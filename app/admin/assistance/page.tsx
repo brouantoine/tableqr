@@ -29,7 +29,7 @@ export default function AdminAssistanceRoute() {
   )
 
   return (
-    <AdminShell restaurantName={restaurant.name} primaryColor={restaurant.primary_color}>
+    <AdminShell restaurantName={restaurant.name} primaryColor={restaurant.primary_color} restaurantLogoUrl={restaurant.logo_url}>
       <AssistancePage restaurant={restaurant} />
     </AdminShell>
   )

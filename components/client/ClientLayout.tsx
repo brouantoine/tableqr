@@ -40,6 +40,9 @@ export default function ClientLayout({ children, restaurant }: { children: React
         <SplashScreen
           onDone={() => setShowSplash(false)}
           duration={2800}
+          restaurantName={restaurant.name}
+          logoUrl={restaurant.logo_url}
+          primaryColor={restaurant.primary_color}
         />
       )}
       <GlobalClientNotifier slug={restaurant.slug} primaryColor={restaurant.primary_color} />

@@ -2,15 +2,20 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { QrCode } from 'lucide-react'
+import RestaurantLogo, { getRestaurantLogoUrl } from '@/components/RestaurantLogo'
 
 interface Props {
   onDone: () => void
   duration?: number
+  restaurantName?: string
+  logoUrl?: string | null
+  primaryColor?: string
 }
 
-export default function SplashScreen({ onDone, duration = 2800 }: Props) {
+export default function SplashScreen({ onDone, duration = 2800, restaurantName, logoUrl, primaryColor = '#F26522' }: Props) {
   const [msgIndex, setMsgIndex] = useState(0)
   const [msgVisible, setMsgVisible] = useState(true)
+  const resolvedLogoUrl = getRestaurantLogoUrl(logoUrl)
 
   const msgs = [
     "Connexion au restaurant...",
@@ -52,7 +57,7 @@ export default function SplashScreen({ onDone, duration = 2800 }: Props) {
               animate={{ scale: [1, 1.08, 1], opacity: [0.06, 0.02, 0.06] }}
               transition={{ duration: 3.5, delay: i * 0.6, repeat: Infinity, ease: 'easeInOut' }}
               className="absolute rounded-full border"
-              style={{ width: size, height: size, borderColor: '#F26522', backgroundColor: i === 2 ? '#F265220A' : 'transparent' }} />
+              style={{ width: size, height: size, borderColor: primaryColor, backgroundColor: i === 2 ? primaryColor + '0A' : 'transparent' }} />
           ))}
         </div>
 
@@ -61,21 +66,31 @@ export default function SplashScreen({ onDone, duration = 2800 }: Props) {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', damping: 12, stiffness: 200 }}
           className="relative z-10 mb-6">
-          <div className="w-20 h-20 rounded-3xl flex items-center justify-center"
-            style={{ backgroundColor: '#F26522', boxShadow: '0 12px 40px #F2652230, 0 4px 12px #F2652220' }}>
-            <QrCode size={40} color="#fff" strokeWidth={2.2} />
-          </div>
+          {resolvedLogoUrl ? (
+            <RestaurantLogo
+              src={resolvedLogoUrl}
+              alt={restaurantName || ''}
+              className="w-24 h-24 rounded-3xl bg-white border border-gray-100 shadow-2xl"
+            />
+          ) : (
+            <div className="w-20 h-20 rounded-3xl flex items-center justify-center"
+              style={{ backgroundColor: primaryColor, boxShadow: `0 12px 40px ${primaryColor}30, 0 4px 12px ${primaryColor}20` }}>
+              <QrCode size={40} color="#fff" strokeWidth={2.2} />
+            </div>
+          )}
         </motion.div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
-          className="relative z-10 text-center mb-2">
-          <h1 className="text-3xl font-black text-gray-900" style={{ letterSpacing: '-0.5px' }}>
-            TABLE<span style={{ color: '#F26522' }}>QR</span>
-          </h1>
-        </motion.div>
+        {!resolvedLogoUrl && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="relative z-10 text-center mb-2">
+            <h1 className="text-3xl font-black text-gray-900">
+              {restaurantName || <>TABLE<span style={{ color: primaryColor }}>QR</span></>}
+            </h1>
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 8 }}
@@ -112,7 +127,7 @@ export default function SplashScreen({ onDone, duration = 2800 }: Props) {
               animate={{ width: '100%' }}
               transition={{ duration: duration / 1000, ease: 'easeInOut' }}
               className="h-full rounded-full"
-              style={{ background: 'linear-gradient(90deg, #F26522, #D4A017)' }} />
+              style={{ background: `linear-gradient(90deg, ${primaryColor}, #D4A017)` }} />
           </div>
           <motion.p
             animate={{ opacity: msgVisible ? 1 : 0, y: msgVisible ? 0 : -5 }}

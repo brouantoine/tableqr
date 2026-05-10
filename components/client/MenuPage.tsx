@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase/client'
 import { formatPrice, generateDeviceFingerprint } from '@/lib/utils'
 import { MenuCategoryIcon } from '@/lib/icons'
 import { resolveStorageImageUrl } from '@/lib/images'
+import RestaurantLogo from '@/components/RestaurantLogo'
 import type { MenuCategory, MenuItem, Restaurant, RestaurantTable } from '@/types'
 import OnboardingPage from './OnboardingPage'
 
@@ -457,9 +458,11 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             {displayLogoUrl ? (
-              <div className="w-10 h-10 rounded-2xl bg-white border border-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                <img src={displayLogoUrl} alt="" className="w-full h-full object-contain p-1" />
-              </div>
+              <RestaurantLogo
+                src={displayLogoUrl}
+                alt={restaurant.name}
+                className="w-12 h-12 rounded-2xl bg-white border border-gray-100 flex-shrink-0"
+              />
             ) : session ? (
               <LucideAvatar avatarId={session.avatar_icon || ''} size={40} className="ring-2 ring-gray-100" />
             ) : (
@@ -474,7 +477,11 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                   Table {tableLabel}
                 </p>
               )}
-              <h1 className="font-black text-gray-950 text-lg leading-tight truncate">{restaurant.name}</h1>
+              {displayLogoUrl ? (
+                <span className="sr-only">{restaurant.name}</span>
+              ) : (
+                <h1 className="font-black text-gray-950 text-lg leading-tight truncate">{restaurant.name}</h1>
+              )}
             </div>
           </div>
 

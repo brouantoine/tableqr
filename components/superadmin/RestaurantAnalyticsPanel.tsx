@@ -11,11 +11,14 @@ import {
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/utils'
 import { MenuCategoryIcon } from '@/lib/icons'
+import RestaurantLogo from '@/components/RestaurantLogo'
 import type { Restaurant, RestaurantTable, QRCode, MenuCategory, MenuItem, Order, ClientSession } from '@/types'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 type Tab = 'apercu' | 'tables' | 'menu' | 'revenus'
+type RestaurantModuleKey = 'module_social' | 'module_games' | 'module_delivery' | 'module_loyalty' | 'module_birthday'
+type ActivateForm = { email: string; password: string }
 
 interface PanelData {
   tables: RestaurantTable[]
@@ -23,6 +26,29 @@ interface PanelData {
   categories: (MenuCategory & { items: MenuItem[] })[]
   orders: Pick<Order, 'id' | 'total' | 'status' | 'payment_status' | 'payment_method' | 'created_at' | 'order_number'>[]
   sessions: Pick<ClientSession, 'id' | 'created_at' | 'entered_at' | 'left_at' | 'profile_type'>[]
+}
+
+type Metrics = ReturnType<typeof computeMetrics>
+
+type ApercuTabProps = {
+  restaurant: Restaurant
+  data: PanelData
+  metrics: Metrics
+  p: string
+  onToggleActive: () => void
+  onDelete: () => void
+  deleting: boolean
+  confirming: boolean
+  deleteError: string
+  onCancelDelete: () => void
+  showActivate: boolean
+  setShowActivate: React.Dispatch<React.SetStateAction<boolean>>
+  activateForm: ActivateForm
+  setActivateForm: React.Dispatch<React.SetStateAction<ActivateForm>>
+  activating: boolean
+  onActivate: () => void
+  activateSuccess: { email: string; password: string } | null
+  onClose: () => void
 }
 
 export default function RestaurantAnalyticsPanel({
@@ -76,60 +102,7 @@ export default function RestaurantAnalyticsPanel({
     })()
   }, [restaurant.id])
 
-  const metrics = useMemo(() => {
-    if (!data) return null
-    const totalScans = data.qrCodes.reduce((s, q) => s + (q.scan_count || 0), 0)
-    const paidOrders = data.orders.filter(o => o.payment_status === 'paid')
-    const totalRevenue = paidOrders.reduce((s, o) => s + (o.total || 0), 0)
-    const activeTables = data.tables.filter(t => t.is_active).length
-
-    const hourCounts = Array(24).fill(0)
-    data.sessions.forEach(s => {
-      const h = new Date(s.entered_at || s.created_at).getHours()
-      hourCounts[h]++
-    })
-    const maxHour = Math.max(...hourCounts, 1)
-    const peakHour = hourCounts.indexOf(Math.max(...hourCounts))
-
-    const profileCounts: Record<string, number> = {}
-    data.sessions.forEach(s => {
-      const k = s.profile_type || 'solo'
-      profileCounts[k] = (profileCounts[k] || 0) + 1
-    })
-    const totalSessions = data.sessions.length
-
-    const durations = data.sessions
-      .filter(s => s.left_at)
-      .map(s => new Date(s.left_at!).getTime() - new Date(s.entered_at || s.created_at).getTime())
-      .filter(d => d > 60000 && d < 6 * 3600000)
-    const avgDurationMin = durations.length > 0
-      ? Math.round(durations.reduce((s, d) => s + d, 0) / durations.length / 60000)
-      : null
-
-    const linkedMap: Record<string, QRCode> = {}
-    data.qrCodes.forEach(q => {
-      if (q.table_name && UUID_REGEX.test(q.table_name)) linkedMap[q.table_name] = q
-    })
-
-    const tablesByScan = [...data.tables]
-      .map(t => ({ ...t, scans: linkedMap[t.id]?.scan_count || 0 }))
-      .sort((a, b) => b.scans - a.scans)
-
-    const catOrders = data.categories.map(cat => ({
-      name: cat.name,
-      icon: cat.icon,
-      total: cat.items?.reduce((s, i) => s + (i.order_count || 0), 0) || 0,
-      itemCount: cat.items?.length || 0,
-    })).sort((a, b) => b.total - a.total)
-
-    return {
-      totalScans, totalRevenue, activeTables,
-      totalOrders: data.orders.length, paidOrders: paidOrders.length,
-      hourCounts, maxHour, peakHour,
-      profileCounts, totalSessions, avgDurationMin,
-      linkedMap, tablesByScan, catOrders,
-    }
-  }, [data])
+  const metrics = useMemo(() => data ? computeMetrics(data) : null, [data])
 
   async function toggleActive() {
     await supabase.from('restaurants').update({ is_active: !restaurant.is_active }).eq('id', restaurant.id)
@@ -187,7 +160,7 @@ export default function RestaurantAnalyticsPanel({
             <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: p, color: '#fff' }}>
               {restaurant.logo_url
-                ? <img src={restaurant.logo_url} alt="" className="w-full h-full object-cover rounded-xl" />
+                ? <RestaurantLogo src={restaurant.logo_url} alt={restaurant.name} className="w-full h-full rounded-xl" />
                 : <Store size={16} strokeWidth={2.2} />}
             </div>
             <div className="flex-1 min-w-0">
@@ -270,7 +243,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">{children}</p>
 }
 
-function ApercuTab({ restaurant, data, metrics, p, onToggleActive, onDelete, deleting, confirming, deleteError, onCancelDelete, showActivate, setShowActivate, activateForm, setActivateForm, activating, onActivate, activateSuccess, onClose }: any) {
+function ApercuTab({ restaurant, data, metrics, p, onToggleActive, onDelete, deleting, confirming, deleteError, onCancelDelete, showActivate, setShowActivate, activateForm, setActivateForm, activating, onActivate, activateSuccess, onClose }: ApercuTabProps) {
   const profileLabels: Record<string, string> = { solo: 'Solo', couple: 'Couple', famille: 'Famille', groupe: 'Groupe' }
   const profileColors: Record<string, string> = { solo: '#6366F1', couple: '#EC4899', famille: '#F59E0B', groupe: '#10B981' }
 
@@ -319,7 +292,7 @@ function ApercuTab({ restaurant, data, metrics, p, onToggleActive, onDelete, del
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <SectionTitle>Profils clients</SectionTitle>
           <div className="space-y-2">
-            {Object.entries(metrics.profileCounts).sort((a: any, b: any) => b[1] - a[1]).map(([type, count]: any) => {
+            {Object.entries(metrics.profileCounts).sort(([, a], [, b]) => b - a).map(([type, count]) => {
               const pct = Math.round((count / metrics.totalSessions) * 100)
               const color = profileColors[type] || '#9CA3AF'
               return (
@@ -347,7 +320,7 @@ function ApercuTab({ restaurant, data, metrics, p, onToggleActive, onDelete, del
       {metrics.catOrders.length > 0 && (
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <SectionTitle>Sections les plus commandées</SectionTitle>
-          {metrics.catOrders.slice(0, 5).map((cat: any, i: number) => (
+          {metrics.catOrders.slice(0, 5).map((cat, i) => (
             <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
               <div className="flex items-center gap-2">
                 <MenuCategoryIcon value={cat.icon} size={14} className="text-gray-500" />
@@ -397,14 +370,14 @@ function ApercuTab({ restaurant, data, metrics, p, onToggleActive, onDelete, del
         <div className="bg-white rounded-2xl p-4 shadow-sm">
           <SectionTitle>Modules</SectionTitle>
           <div className="grid grid-cols-2 gap-2">
-            {[
+            {([
               { key: 'module_social', label: 'Social', Icon: MessageCircle },
               { key: 'module_games', label: 'Jeux', Icon: Gamepad2 },
               { key: 'module_delivery', label: 'Livraison', Icon: Bike },
               { key: 'module_loyalty', label: 'Fidélité', Icon: Star },
               { key: 'module_birthday', label: 'Anniversaire', Icon: Cake },
-            ].map(m => {
-              const active = (restaurant as any)[m.key]
+            ] satisfies Array<{ key: RestaurantModuleKey; label: string; Icon: React.ElementType }>).map(m => {
+              const active = restaurant[m.key]
               return (
                 <div key={m.key} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold ${active ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-300'}`}>
                   <m.Icon size={12} />{m.label}
@@ -441,10 +414,10 @@ function ApercuTab({ restaurant, data, metrics, p, onToggleActive, onDelete, del
             <div className="space-y-3">
               <p className="font-black text-gray-900 text-sm">Créer le compte admin</p>
               <input type="email" placeholder="Email du gérant" value={activateForm.email}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setActivateForm((f: any) => ({ ...f, email: e.target.value }))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setActivateForm((f) => ({ ...f, email: e.target.value }))}
                 className="w-full px-4 py-3 rounded-xl bg-gray-50 text-sm outline-none border border-gray-100 focus:border-yellow-300" />
               <input type="text" placeholder="Mot de passe (min. 6 car.)" value={activateForm.password}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setActivateForm((f: any) => ({ ...f, password: e.target.value }))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setActivateForm((f) => ({ ...f, password: e.target.value }))}
                 className="w-full px-4 py-3 rounded-xl bg-gray-50 text-sm outline-none border border-gray-100 focus:border-yellow-300" />
               <div className="flex gap-2">
                 <button onClick={() => setShowActivate(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm">Annuler</button>

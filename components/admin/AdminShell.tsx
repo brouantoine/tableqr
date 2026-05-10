@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut, ChefHat, Headset, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import RestaurantLogo, { getRestaurantLogoUrl } from '@/components/RestaurantLogo'
 import PushToggle from './PushToggle'
 
 const NAV = [
@@ -16,13 +17,15 @@ const NAV = [
   { href: '/admin/settings', icon: Settings, label: 'Config' },
 ]
 
-export default function AdminShell({ children, restaurantName, primaryColor }: {
+export default function AdminShell({ children, restaurantName, primaryColor, restaurantLogoUrl }: {
   children: React.ReactNode
   restaurantName: string
   primaryColor: string
+  restaurantLogoUrl?: string | null
 }) {
   const pathname = usePathname()
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const logoUrl = getRestaurantLogoUrl(restaurantLogoUrl)
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -42,11 +45,24 @@ export default function AdminShell({ children, restaurantName, primaryColor }: {
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <div className="bg-white border-b border-gray-100 px-4 sm:px-6 py-3 sticky top-0 z-30 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-sm"
-            style={{ backgroundColor: primaryColor }}>
-            <ChefHat size={16} strokeWidth={2.2} />
-          </div>
-          <span className="font-black text-sm text-gray-900 truncate max-w-[140px] sm:max-w-none">{restaurantName}</span>
+          {logoUrl ? (
+            <>
+              <RestaurantLogo
+                src={logoUrl}
+                alt={restaurantName}
+                className="w-10 h-10 rounded-xl bg-white border border-gray-100 shadow-sm flex-shrink-0"
+              />
+              <span className="sr-only">{restaurantName}</span>
+            </>
+          ) : (
+            <>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center text-white shadow-sm"
+                style={{ backgroundColor: primaryColor }}>
+                <ChefHat size={16} strokeWidth={2.2} />
+              </div>
+              <span className="font-black text-sm text-gray-900 truncate max-w-[140px] sm:max-w-none">{restaurantName}</span>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           {isSuperAdmin && (

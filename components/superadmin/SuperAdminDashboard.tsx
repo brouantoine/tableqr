@@ -14,6 +14,7 @@ import { supabase } from '@/lib/supabase/client'
 import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { Restaurant } from '@/types'
 import DesignerKitQuantityModal from '@/components/DesignerKitQuantityModal'
+import RestaurantLogo from '@/components/RestaurantLogo'
 import RestaurantAnalyticsPanel from './RestaurantAnalyticsPanel'
 import AbonnementsTab from './AbonnementsTab'
 
@@ -229,7 +230,7 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
                   <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-white shadow-sm"
                     style={{ backgroundColor: r.primary_color }}>
                     {resolveStorageImageUrl(r.logo_url)
-                      ? <img src={resolveStorageImageUrl(r.logo_url)} alt="" className="w-full h-full object-cover rounded-2xl" />
+                      ? <RestaurantLogo src={r.logo_url} alt={r.name} className="w-full h-full rounded-2xl" />
                       : <Store size={20} strokeWidth={2.2} />}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -525,7 +526,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
                     <div className="rounded-2xl bg-white border border-gray-200 p-3 flex items-center gap-3">
                       <div className="w-14 h-14 rounded-2xl border border-gray-100 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
                         {form.logo_url
-                          ? <img src={form.logo_url} alt="" className="w-full h-full object-contain p-1" />
+                          ? <RestaurantLogo src={form.logo_url} alt={form.name || 'Logo'} className="w-full h-full rounded-2xl" />
                           : <ImageIcon size={22} className="text-gray-300" />}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -588,7 +589,7 @@ function NewRestaurantModal({ onClose }: { onClose: () => void }) {
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white overflow-hidden border border-white/60"
                         style={{ backgroundColor: form.logo_url ? '#fff' : form.primary_color }}>
                         {form.logo_url
-                          ? <img src={form.logo_url} alt="" className="w-full h-full object-contain p-1" />
+                          ? <RestaurantLogo src={form.logo_url} alt={form.name || 'Logo'} className="w-full h-full rounded-xl" />
                           : <Store size={18} strokeWidth={2.2} />}
                       </div>
                       <div>

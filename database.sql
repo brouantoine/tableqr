@@ -35,6 +35,13 @@ CREATE TABLE restaurants (
   tax_rate DECIMAL(5,2) DEFAULT 0,
   plan TEXT DEFAULT 'starter',
   plan_expires_at TIMESTAMPTZ,
+  subscription_status TEXT DEFAULT 'subscribed' CHECK (subscription_status IN ('trial', 'subscribed')),
+  subscription_started_at TIMESTAMPTZ DEFAULT NOW(),
+  trial_ends_at TIMESTAMPTZ,
+  subscription_paid_until DATE,
+  subscription_last_payment_at TIMESTAMPTZ,
+  subscription_monthly_amount DECIMAL(10,2) DEFAULT 15000,
+  subscription_payment_note TEXT,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

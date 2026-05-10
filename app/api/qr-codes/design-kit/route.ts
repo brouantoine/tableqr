@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
+import { requireSuperAdmin } from '@/lib/supabase/superadmin'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -38,6 +39,9 @@ type ZipEntry = {
 }
 
 export async function POST(req: NextRequest) {
+  const superAdminError = await requireSuperAdmin(req)
+  if (superAdminError) return superAdminError
+
   try {
     const body = await req.json() as KitRequest
     const appUrl = normalizeUrl(body.app_url) || normalizeUrl(process.env.NEXT_PUBLIC_APP_URL) || req.nextUrl.origin

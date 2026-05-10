@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
+import { requireSuperAdmin } from '@/lib/supabase/superadmin'
 
 function generateCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -32,6 +33,9 @@ export async function POST(req: NextRequest) {
   const { action } = body
 
   if (action === 'generate') {
+    const superAdminError = await requireSuperAdmin(req)
+    if (superAdminError) return superAdminError
+
     const { batch_name, count = 10 } = body
     const maxCount = Math.min(Number(count), 500)
     const codes: string[] = []
@@ -94,12 +98,16 @@ export async function POST(req: NextRequest) {
       }, { status: 409 })
     }
 
+    if (!existing) {
+      return NextResponse.json({
+        error: 'QR non reconnu. Seul le superadmin peut générer de nouveaux QR codes.'
+      }, { status: 404 })
+    }
+
     const { data, error } = await admin
       .from('qr_codes')
-      .upsert(
-        { code: cleanCode, restaurant_id, table_name, linked_at: new Date().toISOString() },
-        { onConflict: 'code' }
-      )
+      .update({ restaurant_id, table_name, linked_at: new Date().toISOString() })
+      .eq('code', cleanCode)
       .select()
       .single()
 

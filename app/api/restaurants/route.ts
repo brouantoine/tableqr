@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
+import { TABLEQR_MONTHLY_PRICE, getMonthEndDateString, getMonthKey } from '@/lib/subscription'
 
 const DEMO_MENU = [
   { name: 'Entrées', name_en: 'Starters', icon: 'salad', position: 1, items: [
@@ -126,9 +127,18 @@ export async function POST(req: NextRequest) {
     }
 
     const { password: _pwd, ...bodyClean } = body
+    const isSubscribed = (bodyClean.subscription_status ?? 'subscribed') === 'subscribed'
     const { data, error } = await admin
       .from('restaurants')
-      .insert({ ...bodyClean, admin_email: email, is_active: true, is_preview: false })
+      .insert({
+        ...bodyClean,
+        admin_email: email,
+        is_active: true,
+        is_preview: false,
+        subscription_paid_until: isSubscribed ? getMonthEndDateString(getMonthKey()) : null,
+        subscription_last_payment_at: isSubscribed ? new Date().toISOString() : null,
+        subscription_monthly_amount: TABLEQR_MONTHLY_PRICE,
+      })
       .select().single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

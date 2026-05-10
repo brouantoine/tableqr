@@ -8,6 +8,7 @@ import { useSessionStore } from '@/lib/store'
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice, generateDeviceFingerprint } from '@/lib/utils'
 import { MenuCategoryIcon } from '@/lib/icons'
+import { resolveStorageImageUrl } from '@/lib/images'
 import type { MenuCategory, MenuItem, Restaurant, RestaurantTable } from '@/types'
 import OnboardingPage from './OnboardingPage'
 
@@ -181,7 +182,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   const isAnonymousSession = (sess: typeof session) => !sess || sess.pseudo === 'Invité' || sess.avatar_icon === 'ghost'
   const activeCategoryName = menuCategories.find(c => c.id === activeCategory)?.name || 'Menu'
   const tableLabel = tableDisplayName || tableId
-  const displayLogoUrl = logoPreviewUrl || restaurant.logo_url
+  const displayLogoUrl = resolveStorageImageUrl(logoPreviewUrl || restaurant.logo_url)
 
   const registerCategorySection = useCallback((id: string, node: HTMLElement | null) => {
     if (node) sectionRefs.current.set(id, node)

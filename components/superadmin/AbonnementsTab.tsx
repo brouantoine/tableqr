@@ -4,13 +4,22 @@ import { motion } from 'framer-motion'
 import {
   TrendingUp, Users, Clock, CheckCircle, AlertTriangle,
   Calendar, DollarSign, ArrowUpRight, ChevronRight, Store,
-  BarChart2, Zap, Target, RefreshCw,
+  BarChart2, Zap, Target, RefreshCw, XCircle, Loader2,
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
+import { supabase } from '@/lib/supabase/client'
+import {
+  TABLEQR_MONTHLY_PRICE,
+  TABLEQR_SUBSCRIPTION_CURRENCY,
+  addMonths,
+  getMonthKey,
+  getMonthLabel,
+  isRestaurantMonthPaid,
+} from '@/lib/subscription'
 import type { Restaurant } from '@/types'
 
-const PRICE_MONTHLY = 15000
-const CURRENCY = 'XOF'
+const PRICE_MONTHLY = TABLEQR_MONTHLY_PRICE
+const CURRENCY = TABLEQR_SUBSCRIPTION_CURRENCY
 
 function fmt(n: number) { return formatPrice(n, CURRENCY) }
 
@@ -18,15 +27,27 @@ function monthsBetween(from: Date, to: Date): number {
   return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth())
 }
 
-export default function AbonnementsTab({ restaurants }: { restaurants: Restaurant[] }) {
+export default function AbonnementsTab({
+  restaurants,
+  onRestaurantUpdated,
+}: {
+  restaurants: Restaurant[]
+  onRestaurantUpdated?: (restaurant: Restaurant) => void
+}) {
   const now = new Date()
+  const currentMonth = getMonthKey(now)
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth)
   const [projYear, setProjYear] = useState(now.getFullYear())
   const [projMonth, setProjMonth] = useState(now.getMonth())
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const real = useMemo(() => restaurants.filter(r => !r.is_preview), [restaurants])
-  const subscribed = useMemo(() => real.filter(r => (r.subscription_status ?? 'subscribed') === 'subscribed' && r.is_active), [real])
+  const subscribed = useMemo(() => real.filter(r => isRestaurantMonthPaid(r, selectedMonth) && r.is_active), [real, selectedMonth])
+  const unpaid = useMemo(() => real.filter(r => !isRestaurantMonthPaid(r, selectedMonth) && r.is_active), [real, selectedMonth])
   const trials = useMemo(() => real.filter(r => (r.subscription_status ?? 'subscribed') === 'trial' || (!r.is_active)), [real])
   const previews = useMemo(() => restaurants.filter(r => r.is_preview), [restaurants])
+  const monthOptions = useMemo(() => Array.from({ length: 8 }, (_, i) => addMonths(currentMonth, -i)), [currentMonth])
 
   const mrr = subscribed.length * PRICE_MONTHLY
   const conversionRate = real.length > 0 ? Math.round((subscribed.length / real.length) * 100) : 0
@@ -54,6 +75,38 @@ export default function AbonnementsTab({ restaurants }: { restaurants: Restauran
 
   const yearOptions = Array.from({ length: 10 }, (_, i) => now.getFullYear() + i)
 
+  async function updatePaymentStatus(restaurant: Restaurant, status: 'paid' | 'unpaid') {
+    setBusyId(`${restaurant.id}-${status}`)
+    setFeedback(null)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (session?.access_token) headers.authorization = `Bearer ${session.access_token}`
+
+      const res = await fetch(`/api/restaurants/${restaurant.id}/subscription`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({
+          month: selectedMonth,
+          status,
+          amount: restaurant.subscription_monthly_amount || PRICE_MONTHLY,
+        }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Mise à jour impossible')
+
+      onRestaurantUpdated?.(result.data)
+      setFeedback({
+        type: 'success',
+        text: `${restaurant.name} : ${getMonthLabel(selectedMonth)} ${status === 'paid' ? 'payé' : 'non payé'}.`,
+      })
+    } catch (e) {
+      setFeedback({ type: 'error', text: e instanceof Error ? e.message : 'Erreur réseau' })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   return (
     <div className="px-4 py-5 space-y-4 pb-12 max-w-2xl mx-auto">
 
@@ -61,23 +114,23 @@ export default function AbonnementsTab({ restaurants }: { restaurants: Restauran
         style={{ background: 'linear-gradient(135deg, #F26522 0%, #e0501a 100%)' }}>
         <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/10" />
         <div className="absolute -right-2 bottom-2 w-20 h-20 rounded-full bg-white/5" />
-        <p className="text-xs font-bold text-white/70 uppercase tracking-widest mb-1">Revenu mensuel récurrent</p>
+        <p className="text-xs font-bold text-white/70 uppercase tracking-widest mb-1">Revenu encaissé — {getMonthLabel(selectedMonth)}</p>
         <p className="text-4xl font-black mb-1">{fmt(mrr)}</p>
-        <p className="text-sm text-white/80">{subscribed.length} abonné{subscribed.length > 1 ? 's' : ''} · {PRICE_MONTHLY.toLocaleString()} CFA / mois / restaurant</p>
+        <p className="text-sm text-white/80">{subscribed.length} payé{subscribed.length > 1 ? 's' : ''} · {PRICE_MONTHLY.toLocaleString()} CFA / mois / restaurant</p>
         <div className="flex items-center gap-1.5 mt-3">
           <div className="px-2.5 py-1 rounded-full bg-white/20 text-xs font-bold">
             ARR : {fmt(mrr * 12)}
           </div>
           <div className="px-2.5 py-1 rounded-full bg-white/20 text-xs font-bold">
-            Taux conversion : {conversionRate}%
+            Taux payé : {conversionRate}%
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
         {[
-          { label: 'Abonnés', value: subscribed.length, color: '#10B981', Icon: CheckCircle, sub: 'actifs' },
-          { label: 'Essais', value: trials.length, color: '#F59E0B', Icon: Clock, sub: 'en cours' },
+          { label: 'Payés', value: subscribed.length, color: '#10B981', Icon: CheckCircle, sub: getMonthLabel(selectedMonth) },
+          { label: 'Non payés', value: unpaid.length, color: '#EF4444', Icon: XCircle, sub: 'à relancer' },
           { label: 'Démos', value: previews.length, color: '#6366F1', Icon: Zap, sub: 'preview' },
         ].map((s, i) => (
           <div key={i} className="bg-white rounded-2xl p-3.5 shadow-sm">
@@ -90,6 +143,29 @@ export default function AbonnementsTab({ restaurants }: { restaurants: Restauran
             <p className="text-xs text-gray-400">{s.sub}</p>
           </div>
         ))}
+      </div>
+
+      <div className="bg-white rounded-3xl p-5 shadow-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="w-8 h-8 rounded-xl bg-orange-50 flex items-center justify-center">
+            <Calendar size={15} className="text-orange-600" />
+          </div>
+          <div>
+            <p className="font-black text-gray-900 text-sm">Mois à contrôler</p>
+            <p className="text-xs text-gray-400">Le statut affiché aux restaurateurs suit ce mois.</p>
+          </div>
+        </div>
+        <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
+          className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm font-semibold outline-none border border-gray-100 focus:border-orange-300">
+          {monthOptions.map(month => (
+            <option key={month} value={month}>{getMonthLabel(month)}</option>
+          ))}
+        </select>
+        {feedback && (
+          <p className={`mt-3 text-xs font-bold ${feedback.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+            {feedback.text}
+          </p>
+        )}
       </div>
 
       <div className="bg-white rounded-3xl p-5 shadow-sm">

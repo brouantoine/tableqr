@@ -8,6 +8,8 @@ import {
   Download, Loader2,
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
+import { resolveStorageImageUrl } from '@/lib/images'
+import { getMonthKey, isRestaurantMonthPaid } from '@/lib/subscription'
 import { supabase } from '@/lib/supabase/client'
 import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { Restaurant } from '@/types'
@@ -43,6 +45,13 @@ async function downloadResponseFile(res: Response, fallback: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+async function authJsonHeaders() {
+  const { data: { session } } = await supabase.auth.getSession()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (session?.access_token) headers.authorization = `Bearer ${session.access_token}`
+  return headers
+}
+
 function isEphemeralVercelUrl(url: string): boolean {
   try {
     const host = new URL(url).host
@@ -70,12 +79,15 @@ function PrintUrlCheck() {
   )
 }
 
-function SubBadge({ r }: { r: Restaurant }) {
+function SubBadge({ r, monthKey = getMonthKey() }: { r: Restaurant; monthKey?: string }) {
   if (r.is_preview) return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-purple-100 text-purple-600">Démo</span>
   if (!r.is_active) return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-gray-100 text-gray-500">Inactif</span>
   const status = r.subscription_status ?? 'subscribed'
   if (status === 'trial') return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-700">Essai</span>
-  return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-green-100 text-green-600">Abonné</span>
+  if (isRestaurantMonthPaid(r, monthKey)) {
+    return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-green-100 text-green-600">Payé</span>
+  }
+  return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-red-100 text-red-600">Non payé</span>
 }
 
 export default function SuperAdminDashboard({ restaurants: initialRestaurants }: Props) {
@@ -85,6 +97,7 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
   const [showQR, setShowQR] = useState(false)
   const [selectedResto, setSelectedResto] = useState<Restaurant | null>(null)
   const [localRestaurants, setLocalRestaurants] = useState<Restaurant[]>(initialRestaurants)
+  const currentMonthKey = getMonthKey()
 
   useEffect(() => {
     const channel = supabase.channel('restaurants-changes')
@@ -99,8 +112,8 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
   }, [])
 
   const subscribed = useMemo(() =>
-    localRestaurants.filter(r => !r.is_preview && r.is_active && (r.subscription_status ?? 'subscribed') === 'subscribed'),
-    [localRestaurants])
+    localRestaurants.filter(r => !r.is_preview && r.is_active && isRestaurantMonthPaid(r, currentMonthKey)),
+    [localRestaurants, currentMonthKey])
   const mrr = subscribed.length * MONTHLY_PRICE
   const activeCount = localRestaurants.filter(r => r.is_active && !r.is_preview).length
 
@@ -167,7 +180,13 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
       </div>
 
       {tab === 'abonnements' && (
-        <AbonnementsTab restaurants={localRestaurants} />
+        <AbonnementsTab
+          restaurants={localRestaurants}
+          onRestaurantUpdated={(updated) => {
+            setLocalRestaurants(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r))
+            setSelectedResto(prev => prev?.id === updated.id ? { ...prev, ...updated } : prev)
+          }}
+        />
       )}
 
       {tab === 'restaurants' && (
@@ -209,19 +228,19 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
                   className="w-full bg-white rounded-2xl p-3.5 text-left flex items-center gap-3 shadow-sm border border-gray-50 hover:border-gray-200 transition-all">
                   <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-white shadow-sm"
                     style={{ backgroundColor: r.primary_color }}>
-                    {r.logo_url
-                      ? <img src={r.logo_url} alt="" className="w-full h-full object-cover rounded-2xl" />
+                    {resolveStorageImageUrl(r.logo_url)
+                      ? <img src={resolveStorageImageUrl(r.logo_url)} alt="" className="w-full h-full object-cover rounded-2xl" />
                       : <Store size={20} strokeWidth={2.2} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                       <p className="font-black text-gray-900 text-sm">{r.name}</p>
-                      <SubBadge r={r} />
+                      <SubBadge r={r} monthKey={currentMonthKey} />
                     </div>
                     <p className="text-xs text-gray-400 truncate">/{r.slug} · {r.city || '—'}</p>
                   </div>
                   <div className="flex-shrink-0 text-right">
-                    {!r.is_preview && (r.subscription_status ?? 'subscribed') === 'subscribed' && r.is_active && (
+                    {!r.is_preview && isRestaurantMonthPaid(r, currentMonthKey) && r.is_active && (
                       <p className="text-xs font-black text-green-600">{formatPrice(MONTHLY_PRICE, 'XOF')}</p>
                     )}
                     <ChevronRight size={14} className="text-gray-300 mt-0.5 ml-auto" />
@@ -688,7 +707,7 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
     setLoading(true)
     try {
       const res = await fetch('/api/qr-codes', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: await authJsonHeaders(),
         body: JSON.stringify({ action: 'generate', batch_name: batchName, count }),
       })
       const result = await res.json()
@@ -713,7 +732,7 @@ function QRGeneratorModal({ onClose }: { onClose: () => void }) {
       const useGeneratedCodes = generated.length > 0 && requestedCount === generated.length
       const res = await fetch('/api/qr-codes/design-kit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authJsonHeaders(),
         body: JSON.stringify({
           ...(useGeneratedCodes
             ? { codes: generated.map(qr => ({ code: qr.code })) }

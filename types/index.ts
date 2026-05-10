@@ -35,6 +35,10 @@ export interface Restaurant {
   subscription_status?: 'trial' | 'subscribed'
   subscription_started_at?: string
   trial_ends_at?: string
+  subscription_paid_until?: string | null
+  subscription_last_payment_at?: string | null
+  subscription_monthly_amount?: number | null
+  subscription_payment_note?: string | null
   created_at: string
   updated_at: string
 }

@@ -8,12 +8,13 @@ import {
 import { formatPrice } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
 import RestaurantLogo, { getRestaurantLogoUrl } from '@/components/RestaurantLogo'
-import { getPaymentStatusClass, getPaymentStatusLabel } from '@/lib/subscription-payments'
+import { getPaymentStatusClass, getPaymentStatusLabel, getPaymentTimelineMonthKeys } from '@/lib/subscription-payments'
 import {
   TABLEQR_MONTHLY_PRICE,
   TABLEQR_SUBSCRIPTION_CURRENCY,
-  addMonths,
+  getDateInputValue,
   getMonthKey,
+  getMonthKeyFromDateInput,
   getMonthLabel,
 } from '@/lib/subscription'
 import type { Restaurant, SubscriptionPayment } from '@/types'
@@ -46,6 +47,7 @@ export default function AbonnementsTab({
   const now = new Date()
   const currentMonth = getMonthKey(now)
   const [selectedMonth, setSelectedMonth] = useState(currentMonth)
+  const [paymentDate, setPaymentDate] = useState(getDateInputValue(now))
   const [projYear, setProjYear] = useState(now.getFullYear())
   const [projMonth, setProjMonth] = useState(now.getMonth())
   const [payments, setPayments] = useState<SubscriptionPayment[]>([])
@@ -67,7 +69,7 @@ export default function AbonnementsTab({
     [real, selectedMonthPaymentByRestaurant])
   const trials = useMemo(() => real.filter(r => (r.subscription_status ?? 'subscribed') === 'trial' || (!r.is_active)), [real])
   const previews = useMemo(() => restaurants.filter(r => r.is_preview), [restaurants])
-  const monthOptions = useMemo(() => Array.from({ length: 8 }, (_, i) => addMonths(currentMonth, -i)), [currentMonth])
+  const monthOptions = useMemo(() => getPaymentTimelineMonthKeys(payments, selectedMonth, currentMonth), [payments, selectedMonth, currentMonth])
 
   const mrr = subscribed.length * PRICE_MONTHLY
   const conversionRate = real.length > 0 ? Math.round((subscribed.length / real.length) * 100) : 0
@@ -96,6 +98,17 @@ export default function AbonnementsTab({
   const yearOptions = Array.from({ length: 10 }, (_, i) => now.getFullYear() + i)
 
   useEffect(() => { void loadPayments() }, [])
+
+  function selectPaymentDate(value: string) {
+    setPaymentDate(value)
+    const month = getMonthKeyFromDateInput(value)
+    if (month) setSelectedMonth(month)
+  }
+
+  function selectPaymentMonth(month: string) {
+    setSelectedMonth(month)
+    if (!paymentDate.startsWith(month)) setPaymentDate(`${month}-01`)
+  }
 
   function replacePayment(updated: SubscriptionPayment) {
     setPayments(prev => [
@@ -158,6 +171,7 @@ export default function AbonnementsTab({
         body: JSON.stringify({
           restaurant_id: restaurant.id,
           month: selectedMonth,
+          payment_date: paymentDate,
           amount: restaurant.subscription_monthly_amount || PRICE_MONTHLY,
         }),
       })
@@ -224,7 +238,16 @@ export default function AbonnementsTab({
             <p className="text-xs text-gray-400">Le statut affiché aux restaurateurs suit ce mois.</p>
           </div>
         </div>
-        <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
+        <div className="mb-3">
+          <label className="text-xs font-bold text-gray-500 block mb-1">Date du paiement</label>
+          <input
+            type="date"
+            value={paymentDate}
+            onChange={e => selectPaymentDate(e.target.value)}
+            className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm font-semibold outline-none border border-gray-100 focus:border-orange-300"
+          />
+        </div>
+        <select value={selectedMonth} onChange={e => selectPaymentMonth(e.target.value)}
           className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm font-semibold outline-none border border-gray-100 focus:border-orange-300">
           {monthOptions.map(month => (
             <option key={month} value={month}>{getMonthLabel(month)}</option>
@@ -276,7 +299,7 @@ export default function AbonnementsTab({
                     </a>
                   )}
                   <button onClick={() => payment ? reviewPayment(payment, 'approved') : approveRestaurantMonth(restaurant)}
-                    disabled={!!reviewBusy}
+                    disabled={!!reviewBusy || !paymentDate}
                     className="h-9 px-3 rounded-xl bg-emerald-600 text-white font-black text-xs disabled:opacity-50 flex-shrink-0">
                     {reviewBusy === busyKey
                       ? 'Validation...'
@@ -318,7 +341,9 @@ export default function AbonnementsTab({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-black text-gray-900 truncate">{payment.restaurant?.name || 'Restaurant'}</p>
                     <p className="text-xs text-gray-400">
-                      {getMonthLabel(payment.month_key)} · {formatPrice(payment.amount, payment.currency)}
+                      {getMonthLabel(payment.month_key)}
+                      {payment.paid_at ? ` · Payé le ${new Date(`${payment.paid_at}T00:00:00`).toLocaleDateString('fr-FR')}` : ''}
+                      {' · '}{formatPrice(payment.amount, payment.currency)}
                     </p>
                   </div>
                   {payment.signed_receipt_url && (
@@ -364,7 +389,10 @@ export default function AbonnementsTab({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-bold text-gray-900 truncate">{payment.restaurant?.name || 'Restaurant'}</p>
-                  <p className="text-xs text-gray-400">{formatPrice(payment.amount, payment.currency)}</p>
+                  <p className="text-xs text-gray-400">
+                    {payment.paid_at ? `Payé le ${new Date(`${payment.paid_at}T00:00:00`).toLocaleDateString('fr-FR')} · ` : ''}
+                    {formatPrice(payment.amount, payment.currency)}
+                  </p>
                 </div>
                 {payment.signed_receipt_url && (
                   <a href={payment.signed_receipt_url} target="_blank" rel="noreferrer"

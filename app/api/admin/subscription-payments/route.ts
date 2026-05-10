@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 import { getRequestUser } from '@/lib/supabase/request-user'
 import { PAYMENT_RECEIPTS_BUCKET } from '@/lib/subscription-payments'
-import { TABLEQR_MONTHLY_PRICE, TABLEQR_SUBSCRIPTION_CURRENCY, parseMonthKey } from '@/lib/subscription'
+import {
+  TABLEQR_MONTHLY_PRICE,
+  TABLEQR_SUBSCRIPTION_CURRENCY,
+  getMonthKeyFromDateInput,
+  parseDateInput,
+} from '@/lib/subscription'
 import type { Restaurant, SubscriptionPayment } from '@/types'
 
 export const runtime = 'nodejs'
@@ -76,6 +81,7 @@ export async function GET(req: NextRequest) {
       .select('*')
       .eq('restaurant_id', restaurant.id)
       .order('month_key', { ascending: false })
+      .order('paid_at', { ascending: false })
       .order('submitted_at', { ascending: false })
 
     if (error?.code === '42P01') {
@@ -101,8 +107,10 @@ export async function POST(req: NextRequest) {
     }
 
     const form = await req.formData()
-    const month = String(form.get('month') || '')
-    if (!parseMonthKey(month)) return NextResponse.json({ error: 'Mois invalide' }, { status: 400 })
+    const paidAt = parseDateInput(String(form.get('payment_date') || ''))
+    if (!paidAt) return NextResponse.json({ error: 'Date de paiement invalide' }, { status: 400 })
+    const month = getMonthKeyFromDateInput(paidAt)
+    if (!month) return NextResponse.json({ error: 'Mois invalide' }, { status: 400 })
     if (form.get('confirmed_paid') !== 'true') {
       return NextResponse.json({ error: 'Confirmez que le mois est payé avant d’envoyer le reçu.' }, { status: 400 })
     }
@@ -166,6 +174,7 @@ export async function POST(req: NextRequest) {
         receipt_content_type: receipt.type,
         receipt_size: receipt.size,
         note,
+        paid_at: paidAt,
         submitted_at: now,
         reviewed_at: null,
         reviewed_by_email: null,

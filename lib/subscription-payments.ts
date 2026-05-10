@@ -1,10 +1,39 @@
 import type { SubscriptionPayment, SubscriptionPaymentStatus } from '@/types'
-import { addMonths, getMonthKey } from './subscription'
+import { addMonths, getMonthKey, getMonthKeyFromDateInput, parseMonthKey } from './subscription'
 
 export const PAYMENT_RECEIPTS_BUCKET = 'payment-receipts'
 
 export function getRecentMonthKeys(count = 12, fromMonth = getMonthKey()) {
   return Array.from({ length: count }, (_, index) => addMonths(fromMonth, -index))
+}
+
+export function getPaymentMonthKey(payment: Pick<SubscriptionPayment, 'month_key' | 'paid_at'>) {
+  const paidMonth = payment.paid_at ? getMonthKeyFromDateInput(payment.paid_at) : null
+  return paidMonth || payment.month_key
+}
+
+export function getPaymentTimelineMonthKeys(
+  payments: SubscriptionPayment[],
+  selectedMonth = getMonthKey(),
+  currentMonth = getMonthKey(),
+) {
+  const paymentMonths = payments
+    .map(getPaymentMonthKey)
+    .filter((month): month is string => !!month && !!parseMonthKey(month))
+
+  if (paymentMonths.length === 0) return [selectedMonth]
+
+  const startMonth = paymentMonths.reduce((min, month) => month < min ? month : min, paymentMonths[0])
+  const endMonth = [currentMonth, selectedMonth, ...paymentMonths]
+    .filter(month => !!parseMonthKey(month))
+    .reduce((max, month) => month > max ? month : max, currentMonth)
+
+  const months: string[] = []
+  for (let month = endMonth; month >= startMonth; month = addMonths(month, -1)) {
+    months.push(month)
+    if (month === startMonth) break
+  }
+  return months
 }
 
 export function getPaymentForMonth(payments: SubscriptionPayment[], monthKey: string) {

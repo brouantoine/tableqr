@@ -12,8 +12,8 @@ import { supabase } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/utils'
 import { MenuCategoryIcon } from '@/lib/icons'
 import RestaurantLogo from '@/components/RestaurantLogo'
-import { getPaymentForMonth, getPaymentStatusClass, getPaymentStatusLabel, getRecentMonthKeys } from '@/lib/subscription-payments'
-import { TABLEQR_MONTHLY_PRICE, getMonthKey, getMonthLabel } from '@/lib/subscription'
+import { getPaymentForMonth, getPaymentStatusClass, getPaymentStatusLabel, getPaymentTimelineMonthKeys } from '@/lib/subscription-payments'
+import { TABLEQR_MONTHLY_PRICE, getDateInputValue, getMonthKey, getMonthKeyFromDateInput, getMonthLabel } from '@/lib/subscription'
 import type { Restaurant, RestaurantTable, QRCode, MenuCategory, MenuItem, Order, ClientSession, SubscriptionPayment } from '@/types'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -184,7 +184,8 @@ export default function RestaurantAnalyticsPanel({
     }
   }
 
-  async function approveRestaurantMonth(monthKey: string) {
+  async function approveRestaurantMonth(paymentDate: string) {
+    const monthKey = getMonthKeyFromDateInput(paymentDate) || getMonthKey()
     setPaymentBusy(`direct-${monthKey}`)
     setPaymentFeedback('')
     try {
@@ -194,6 +195,7 @@ export default function RestaurantAnalyticsPanel({
         body: JSON.stringify({
           restaurant_id: restaurant.id,
           month: monthKey,
+          payment_date: paymentDate,
           amount: restaurant.subscription_monthly_amount || TABLEQR_MONTHLY_PRICE,
         }),
       })
@@ -318,18 +320,30 @@ function PaymentsTab({ data, p, busyId, feedback, onReview, onDirectApprove }: {
   busyId: string | null
   feedback: string
   onReview: (payment: SubscriptionPayment, status: 'approved' | 'rejected') => void
-  onDirectApprove: (monthKey: string) => void
+  onDirectApprove: (paymentDate: string) => void
 }) {
   const [selectedMonth, setSelectedMonth] = useState(getMonthKey())
-  const monthOptions = useMemo(() => getRecentMonthKeys(12), [])
+  const [paymentDate, setPaymentDate] = useState(getDateInputValue())
   const sorted = [...data.payments].sort((a, b) => {
     const byMonth = b.month_key.localeCompare(a.month_key)
     if (byMonth !== 0) return byMonth
     return new Date(b.submitted_at || b.created_at).getTime() - new Date(a.submitted_at || a.created_at).getTime()
   })
+  const monthOptions = useMemo(() => getPaymentTimelineMonthKeys(sorted, selectedMonth), [sorted, selectedMonth])
   const pending = sorted.filter(payment => payment.status === 'pending').length
   const selectedPayment = getPaymentForMonth(sorted, selectedMonth)
   const selectedStatus = selectedPayment?.status || 'unpaid'
+
+  function selectPaymentDate(value: string) {
+    setPaymentDate(value)
+    const month = getMonthKeyFromDateInput(value)
+    if (month) setSelectedMonth(month)
+  }
+
+  function selectPaymentMonth(month: string) {
+    setSelectedMonth(month)
+    if (!paymentDate.startsWith(month)) setPaymentDate(`${month}-01`)
+  }
 
   return (
     <div className="p-4 space-y-4 pb-8">
@@ -351,7 +365,13 @@ function PaymentsTab({ data, p, busyId, feedback, onReview, onDirectApprove }: {
           <p className="text-xs text-gray-400 mt-0.5">Possible même si le restaurateur n&apos;a pas encore envoyé de reçu.</p>
         </div>
         <div className="p-4 space-y-3">
-          <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
+          <input
+            type="date"
+            value={paymentDate}
+            onChange={e => selectPaymentDate(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-xl bg-gray-50 text-sm font-semibold outline-none border border-gray-100 focus:border-orange-300"
+          />
+          <select value={selectedMonth} onChange={e => selectPaymentMonth(e.target.value)}
             className="w-full px-3 py-2.5 rounded-xl bg-gray-50 text-sm font-semibold outline-none border border-gray-100 focus:border-orange-300">
             {monthOptions.map(month => (
               <option key={month} value={month}>{getMonthLabel(month)}</option>
@@ -366,8 +386,8 @@ function PaymentsTab({ data, p, busyId, feedback, onReview, onDirectApprove }: {
               </a>
             )}
           </div>
-          <button onClick={() => onDirectApprove(selectedMonth)}
-            disabled={selectedStatus === 'approved' || !!busyId}
+          <button onClick={() => onDirectApprove(paymentDate)}
+            disabled={selectedStatus === 'approved' || !!busyId || !paymentDate}
             className="w-full h-10 rounded-xl bg-emerald-600 text-white text-xs font-black disabled:opacity-50">
             {busyId === `direct-${selectedMonth}`
               ? 'Validation...'
@@ -397,7 +417,9 @@ function PaymentsTab({ data, p, busyId, feedback, onReview, onDirectApprove }: {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-black text-gray-900">{getMonthLabel(payment.month_key)}</p>
                     <p className="text-xs text-gray-400">
-                      {payment.submitted_at ? new Date(payment.submitted_at).toLocaleString('fr-FR') : 'Non envoyé'}
+                      {payment.paid_at
+                        ? `Payé le ${new Date(`${payment.paid_at}T00:00:00`).toLocaleDateString('fr-FR')}`
+                        : payment.submitted_at ? new Date(payment.submitted_at).toLocaleString('fr-FR') : 'Non envoyé'}
                     </p>
                   </div>
                   <p className="text-sm font-black text-gray-900">{formatPrice(payment.amount, payment.currency)}</p>

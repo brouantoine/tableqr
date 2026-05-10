@@ -4,7 +4,6 @@ import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Bot, Headset, Loader2, MessageCircle, Send, Sparkles, X } from 'lucide-react'
 import { useSessionStore } from '@/lib/store'
-import RestaurantLogo, { getRestaurantLogoUrl } from '@/components/RestaurantLogo'
 import type { Restaurant } from '@/types'
 
 interface ChatMessage {
@@ -54,7 +53,6 @@ export default function TantieWidget({ restaurant }: { restaurant: Restaurant })
 
   const botName = restaurant.bot_name || 'Tantie'
   const primary = restaurant.primary_color
-  const logoUrl = getRestaurantLogoUrl(restaurant.logo_url)
   const initialMessage = useMemo<ChatMessage>(() => ({
     id: 'welcome',
     role: 'assistant',
@@ -123,15 +121,7 @@ export default function TantieWidget({ restaurant }: { restaurant: Restaurant })
           backgroundColor: primary,
           boxShadow: `0 14px 34px ${primary}55`,
         }}>
-        {logoUrl ? (
-          <RestaurantLogo
-            src={logoUrl}
-            alt={restaurant.name}
-            className="w-7 h-7 rounded-xl bg-white/15 flex-shrink-0"
-          />
-        ) : (
-          <Bot size={19} strokeWidth={2.5} />
-        )}
+        <Bot size={19} strokeWidth={2.5} />
         <span>{botName}</span>
       </motion.button>
 
@@ -152,18 +142,10 @@ export default function TantieWidget({ restaurant }: { restaurant: Restaurant })
               style={{ height: 'min(78vh, 680px)' }}
               onClick={(e) => e.stopPropagation()}>
               <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-3">
-                {logoUrl ? (
-                  <RestaurantLogo
-                    src={logoUrl}
-                    alt={restaurant.name}
-                    className="w-11 h-11 rounded-2xl bg-white border border-gray-100 flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white"
-                    style={{ backgroundColor: primary }}>
-                    <Sparkles size={18} strokeWidth={2.4} />
-                  </div>
-                )}
+                <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white"
+                  style={{ backgroundColor: primary }}>
+                  <Sparkles size={18} strokeWidth={2.4} />
+                </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-black text-gray-900 text-sm">{botName}</p>
                   <p className="text-xs text-gray-400 truncate">Assistant du restaurant</p>

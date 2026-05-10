@@ -18,12 +18,14 @@ import {
   getPaymentForMonth,
   getPaymentStatusClass,
   getPaymentStatusLabel,
-  getRecentMonthKeys,
+  getPaymentTimelineMonthKeys,
   getRestaurantMonthPaymentState,
 } from '@/lib/subscription-payments'
 import {
   TABLEQR_MONTHLY_PRICE,
+  getDateInputValue,
   getMonthKey,
+  getMonthKeyFromDateInput,
   getMonthLabel,
 } from '@/lib/subscription'
 import type { Restaurant, SubscriptionPayment } from '@/types'
@@ -48,6 +50,7 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
   const [restaurant, setRestaurant] = useState(initialRestaurant)
   const [payments, setPayments] = useState<SubscriptionPayment[]>([])
   const [selectedMonth, setSelectedMonth] = useState(getMonthKey())
+  const [paymentDate, setPaymentDate] = useState(getDateInputValue())
   const [receipt, setReceipt] = useState<File | null>(null)
   const [confirmedPaid, setConfirmedPaid] = useState(false)
   const [note, setNote] = useState('')
@@ -56,7 +59,7 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
   const [feedback, setFeedback] = useState<Feedback>(null)
   const p = restaurant.primary_color
   const amount = restaurant.subscription_monthly_amount || TABLEQR_MONTHLY_PRICE
-  const monthOptions = useMemo(() => getRecentMonthKeys(12), [])
+  const monthOptions = useMemo(() => getPaymentTimelineMonthKeys(payments, selectedMonth), [payments, selectedMonth])
   const selectedPayment = getPaymentForMonth(payments, selectedMonth)
   const selectedState = getRestaurantMonthPaymentState(payments, selectedMonth)
   const paidCount = monthOptions.filter(month => getRestaurantMonthPaymentState(payments, month) === 'approved').length
@@ -64,6 +67,21 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
   const unpaidCount = monthOptions.filter(month => getRestaurantMonthPaymentState(payments, month) === 'unpaid').length
 
   useEffect(() => { void loadPayments() }, [])
+
+  function selectPaymentDate(value: string) {
+    setPaymentDate(value)
+    const month = getMonthKeyFromDateInput(value)
+    if (month) setSelectedMonth(month)
+    setConfirmedPaid(false)
+    setReceipt(null)
+  }
+
+  function selectPaymentMonth(month: string) {
+    setSelectedMonth(month)
+    if (!paymentDate.startsWith(month)) setPaymentDate(`${month}-01`)
+    setConfirmedPaid(false)
+    setReceipt(null)
+  }
 
   async function loadPayments() {
     setLoading(true)
@@ -94,6 +112,7 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
     try {
       const form = new FormData()
       form.set('month', selectedMonth)
+      form.set('payment_date', paymentDate)
       form.set('amount', String(amount))
       form.set('note', note)
       form.set('confirmed_paid', confirmedPaid ? 'true' : 'false')
@@ -159,8 +178,18 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
 
           <div className="p-5 space-y-4">
             <div>
+              <label className="text-xs font-bold text-gray-500 block mb-1.5">Date du paiement</label>
+              <input
+                type="date"
+                value={paymentDate}
+                onChange={e => selectPaymentDate(e.target.value)}
+                className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm font-semibold outline-none border border-gray-100 focus:border-orange-300"
+              />
+            </div>
+
+            <div>
               <label className="text-xs font-bold text-gray-500 block mb-1.5">Mois payé</label>
-              <select value={selectedMonth} onChange={e => { setSelectedMonth(e.target.value); setConfirmedPaid(false); setReceipt(null) }}
+              <select value={selectedMonth} onChange={e => selectPaymentMonth(e.target.value)}
                 className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm font-semibold outline-none border border-gray-100 focus:border-orange-300">
                 {monthOptions.map(month => (
                   <option key={month} value={month}>{getMonthLabel(month)}</option>
@@ -225,7 +254,7 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
                     className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none border border-gray-100 resize-none focus:border-orange-300" />
                 </div>
 
-                <button onClick={submitReceipt} disabled={!receipt || !confirmedPaid || submitting}
+                <button onClick={submitReceipt} disabled={!receipt || !paymentDate || !confirmedPaid || submitting}
                   className="w-full h-12 rounded-2xl text-white font-black text-sm flex items-center justify-center gap-2 disabled:opacity-45"
                   style={{ backgroundColor: p }}>
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
@@ -257,13 +286,15 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
               const status = getRestaurantMonthPaymentState(payments, month)
               const payment = getPaymentForMonth(payments, month)
               return (
-                <button key={month} onClick={() => setSelectedMonth(month)}
+                <button key={month} onClick={() => selectPaymentMonth(month)}
                   className="w-full px-5 py-3.5 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors">
                   <StatusIcon status={status} />
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-gray-900">{getMonthLabel(month)}</p>
                     <p className="text-xs text-gray-400">
-                      {payment?.submitted_at ? `Envoyé le ${new Date(payment.submitted_at).toLocaleDateString('fr-FR')}` : 'Aucun reçu envoyé'}
+                      {payment?.paid_at
+                        ? `Payé le ${new Date(`${payment.paid_at}T00:00:00`).toLocaleDateString('fr-FR')}`
+                        : 'Aucun paiement enregistré'}
                     </p>
                   </div>
                   <span className={`text-xs font-black px-2 py-1 rounded-full border ${getPaymentStatusClass(status)}`}>
@@ -294,7 +325,9 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-gray-900">{getMonthLabel(payment.month_key)}</p>
                     <p className="text-xs text-gray-400">
-                      {payment.submitted_at ? new Date(payment.submitted_at).toLocaleString('fr-FR') : 'Non envoyé'}
+                      {payment.paid_at
+                        ? `Payé le ${new Date(`${payment.paid_at}T00:00:00`).toLocaleDateString('fr-FR')}`
+                        : payment.submitted_at ? new Date(payment.submitted_at).toLocaleString('fr-FR') : 'Non envoyé'}
                     </p>
                   </div>
                   {payment.signed_receipt_url && (

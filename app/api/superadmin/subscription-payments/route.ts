@@ -7,6 +7,8 @@ import {
   TABLEQR_MONTHLY_PRICE,
   TABLEQR_SUBSCRIPTION_CURRENCY,
   getMonthEndDateString,
+  getMonthKeyFromDateInput,
+  parseDateInput,
   parseMonthKey,
 } from '@/lib/subscription'
 import type { Restaurant, SubscriptionPayment, SubscriptionPaymentStatus } from '@/types'
@@ -23,6 +25,7 @@ type ReviewBody = {
 type DirectApproveBody = {
   restaurant_id?: string
   month?: string
+  payment_date?: string
   amount?: number
   review_note?: string
 }
@@ -56,7 +59,7 @@ async function markRestaurantPaidUntil(
   monthKey: string,
   amount: number,
   note: string | null,
-  now: string,
+  paidAt: string,
 ) {
   const paidUntil = getMonthEndDateString(monthKey)
   if (!paidUntil) return { error: NextResponse.json({ error: 'Mois invalide' }, { status: 400 }) }
@@ -67,7 +70,7 @@ async function markRestaurantPaidUntil(
     .update({
       subscription_status: 'subscribed',
       subscription_paid_until: nextPaidUntil,
-      subscription_last_payment_at: now,
+      subscription_last_payment_at: `${paidAt}T00:00:00.000Z`,
       subscription_monthly_amount: amount,
       subscription_payment_note: note,
     })
@@ -127,10 +130,12 @@ export async function POST(req: NextRequest) {
     const user = await getRequestUser(req)
     const admin = getSupabaseAdmin()
     const body = await req.json() as DirectApproveBody
-    const month = body.month || ''
+    const paidAt = parseDateInput(body.payment_date || '')
+    const month = paidAt ? getMonthKeyFromDateInput(paidAt) : body.month || ''
 
     if (!body.restaurant_id) return NextResponse.json({ error: 'Restaurant requis' }, { status: 400 })
-    if (!parseMonthKey(month)) return NextResponse.json({ error: 'Mois invalide' }, { status: 400 })
+    if (!paidAt) return NextResponse.json({ error: 'Date de paiement invalide' }, { status: 400 })
+    if (!month || !parseMonthKey(month)) return NextResponse.json({ error: 'Mois invalide' }, { status: 400 })
 
     const { data: restaurantData, error: restaurantError } = await admin
       .from('restaurants')
@@ -165,6 +170,7 @@ export async function POST(req: NextRequest) {
       amount,
       currency: restaurant.currency || TABLEQR_SUBSCRIPTION_CURRENCY,
       status: 'approved' as const,
+      paid_at: paidAt,
       reviewed_at: now,
       reviewed_by_email: user?.email?.toLowerCase() || null,
       review_note: reviewNote,
@@ -198,7 +204,7 @@ export async function POST(req: NextRequest) {
 
     if (paymentError) return NextResponse.json({ error: paymentError.message }, { status: 500 })
 
-    const restaurantResult = await markRestaurantPaidUntil(admin, restaurant, month, amount, reviewNote, now)
+    const restaurantResult = await markRestaurantPaidUntil(admin, restaurant, month, amount, reviewNote, paidAt)
     if (restaurantResult.error) return restaurantResult.error
 
     const [signedPayment] = await withSignedReceiptUrls(admin, [payment as SubscriptionPayment])
@@ -233,12 +239,14 @@ export async function PATCH(req: NextRequest) {
 
     const typedPayment = payment as SubscriptionPayment & { restaurant: Restaurant }
     const now = new Date().toISOString()
+    const paidAt = typedPayment.paid_at || now.slice(0, 10)
     const reviewNote = body.review_note?.trim() || null
 
     const { data: updatedPayment, error: updateError } = await admin
       .from('subscription_payments')
       .update({
         status,
+        paid_at: paidAt,
         reviewed_at: now,
         reviewed_by_email: user?.email?.toLowerCase() || null,
         review_note: reviewNote,
@@ -258,7 +266,7 @@ export async function PATCH(req: NextRequest) {
 
     let updatedRestaurant: Restaurant | null = null
     if (status === 'approved') {
-      const restaurantResult = await markRestaurantPaidUntil(admin, typedPayment.restaurant, typedPayment.month_key, typedPayment.amount, reviewNote, now)
+      const restaurantResult = await markRestaurantPaidUntil(admin, typedPayment.restaurant, typedPayment.month_key, typedPayment.amount, reviewNote, paidAt)
       if (restaurantResult.error) return restaurantResult.error
       updatedRestaurant = restaurantResult.restaurant || null
     }

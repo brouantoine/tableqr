@@ -71,6 +71,7 @@ CREATE TABLE subscription_payments (
   receipt_content_type TEXT,
   receipt_size BIGINT,
   note TEXT,
+  paid_at DATE,
   submitted_at TIMESTAMPTZ,
   reviewed_at TIMESTAMPTZ,
   reviewed_by_email TEXT,

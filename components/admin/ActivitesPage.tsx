@@ -3,7 +3,6 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bot, Brain, CakeSlice, Check, CookingPot, Gamepad2, Headset, Heart, MessageCircle, Rocket, Save, Sparkles, Star, Truck, Type, Zap, type LucideIcon } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
-import RestaurantLogo, { getRestaurantLogoUrl } from '@/components/RestaurantLogo'
 import type { Restaurant } from '@/types'
 
 type ModuleKey = 'module_social' | 'module_games' | 'module_birthday' | 'module_loyalty' | 'module_delivery'
@@ -36,7 +35,6 @@ export default function ActivitesPage({ restaurant: init }: { restaurant: Restau
     bot_transfer_enabled: restaurant.bot_transfer_enabled !== false,
   })
   const p = restaurant.primary_color
-  const logoUrl = getRestaurantLogoUrl(restaurant.logo_url)
 
   async function toggleModule(key: ModuleKey) {
     setSaving(key)
@@ -161,14 +159,10 @@ export default function ActivitesPage({ restaurant: init }: { restaurant: Restau
           <div className="space-y-4">
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
               <div className="flex items-center gap-4 mb-5">
-                {logoUrl ? (
-                  <RestaurantLogo src={logoUrl} alt={restaurant.name} className="w-14 h-14 rounded-2xl bg-white border border-gray-100" />
-                ) : (
-                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                    style={{ backgroundColor: p + '15' }}>
-                    <Bot size={28} style={{ color: p }} />
-                  </div>
-                )}
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                  style={{ backgroundColor: p + '15' }}>
+                  <Bot size={28} style={{ color: p }} />
+                </div>
                 <div>
                   <p className="font-black text-gray-900">{botForm.bot_name || 'Tantie'}</p>
                   <p className="text-xs text-gray-400">Disponible côté client</p>

@@ -58,6 +58,7 @@ export interface SubscriptionPayment {
   receipt_size?: number | null
   signed_receipt_url?: string | null
   note?: string | null
+  paid_at?: string | null
   submitted_at?: string | null
   reviewed_at?: string | null
   reviewed_by_email?: string | null

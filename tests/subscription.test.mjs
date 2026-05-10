@@ -7,11 +7,14 @@ import { pathToFileURL } from 'node:url'
 import ts from 'typescript'
 
 let addMonths
+let getDateInputValue
 let getMonthEndDateString
 let getMonthKey
+let getMonthKeyFromDateInput
 let getMonthLabel
 let getPreviousMonthEndDateString
 let isRestaurantMonthPaid
+let parseDateInput
 let parseMonthKey
 
 before(async () => {
@@ -30,11 +33,14 @@ before(async () => {
 
   const subscription = await import(pathToFileURL(outputFile).href)
   addMonths = subscription.addMonths
+  getDateInputValue = subscription.getDateInputValue
   getMonthEndDateString = subscription.getMonthEndDateString
   getMonthKey = subscription.getMonthKey
+  getMonthKeyFromDateInput = subscription.getMonthKeyFromDateInput
   getMonthLabel = subscription.getMonthLabel
   getPreviousMonthEndDateString = subscription.getPreviousMonthEndDateString
   isRestaurantMonthPaid = subscription.isRestaurantMonthPaid
+  parseDateInput = subscription.parseDateInput
   parseMonthKey = subscription.parseMonthKey
 })
 
@@ -69,6 +75,7 @@ function restaurant(overrides = {}) {
 test('getMonthKey formats dates as YYYY-MM', () => {
   assert.equal(getMonthKey(new Date(2026, 0, 15)), '2026-01')
   assert.equal(getMonthKey(new Date(2026, 11, 1)), '2026-12')
+  assert.equal(getDateInputValue(new Date(2026, 4, 9)), '2026-05-09')
 })
 
 test('parseMonthKey accepts valid months and rejects invalid values', () => {
@@ -76,6 +83,9 @@ test('parseMonthKey accepts valid months and rejects invalid values', () => {
   assert.equal(parseMonthKey('2026-00'), null)
   assert.equal(parseMonthKey('2026-13'), null)
   assert.equal(parseMonthKey('mai-2026'), null)
+  assert.equal(parseDateInput('2026-05-10'), '2026-05-10')
+  assert.equal(parseDateInput('2026-02-30'), null)
+  assert.equal(getMonthKeyFromDateInput('2026-05-10'), '2026-05')
 })
 
 test('addMonths handles year boundaries', () => {

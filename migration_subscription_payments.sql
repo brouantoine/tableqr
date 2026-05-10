@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS subscription_payments (
   receipt_content_type TEXT,
   receipt_size BIGINT,
   note TEXT,
+  paid_at DATE,
   submitted_at TIMESTAMPTZ,
   reviewed_at TIMESTAMPTZ,
   reviewed_by_email TEXT,
@@ -37,6 +38,12 @@ CREATE INDEX IF NOT EXISTS idx_subscription_payments_restaurant_month
 
 CREATE INDEX IF NOT EXISTS idx_subscription_payments_status
   ON subscription_payments(status, submitted_at DESC);
+
+ALTER TABLE subscription_payments
+  ADD COLUMN IF NOT EXISTS paid_at DATE;
+
+CREATE INDEX IF NOT EXISTS idx_subscription_payments_paid_at
+  ON subscription_payments(paid_at DESC);
 
 ALTER TABLE subscription_payments ENABLE ROW LEVEL SECURITY;
 

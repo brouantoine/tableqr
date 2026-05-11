@@ -3,13 +3,22 @@ import { getSupabaseAdmin } from '@/lib/supabase/client'
 import { sendPushToRestaurantAdmins } from '@/lib/push'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const CLIENT_PAYMENT_METHODS = new Set(['orange_money', 'wave', 'cash', 'card'])
+const PAYMENT_LABELS: Record<string, string> = {
+  orange_money: 'Orange Money',
+  wave: 'Wave',
+  cash: 'Espèces',
+  card: 'Carte bancaire',
+}
 
 export async function POST(req: NextRequest) {
   try {
     const admin = getSupabaseAdmin()
-    const { session_id, restaurant_id, table_id, items, notes, order_type } = await req.json()
+    const { session_id, restaurant_id, table_id, items, notes, order_type, payment_method } = await req.json()
     if (!session_id || !restaurant_id || !items?.length)
       return NextResponse.json({ error: 'Données manquantes' }, { status: 400 })
+    if (payment_method && !CLIENT_PAYMENT_METHODS.has(payment_method))
+      return NextResponse.json({ error: 'Moyen de paiement invalide' }, { status: 400 })
 
     const { data: menuItems } = await admin
       .from('menu_items').select('id, name, price, is_available')
@@ -29,9 +38,10 @@ export async function POST(req: NextRequest) {
     const order_number = `CMD-${String((cnt?.length || 0) + 1).padStart(4, '0')}`
 
     const safeTableId = table_id && UUID_REGEX.test(table_id) ? table_id : null
+    const safePaymentMethod = payment_method && CLIENT_PAYMENT_METHODS.has(payment_method) ? payment_method : null
 
     const { data: order, error } = await admin.from('orders')
-      .insert({ restaurant_id, session_id, table_id: safeTableId, order_number, status: 'pending', payment_status: 'unpaid', subtotal, tax_amount: 0, total: subtotal, order_type: order_type || 'dine_in', notes: notes || null, is_remote: order_type === 'delivery' })
+      .insert({ restaurant_id, session_id, table_id: safeTableId, order_number, status: 'pending', payment_status: safePaymentMethod ? 'paid' : 'unpaid', payment_method: safePaymentMethod, subtotal, tax_amount: 0, total: subtotal, order_type: order_type || 'dine_in', notes: notes || null, is_remote: order_type === 'delivery' })
       .select().single()
 
     if (error || !order) {
@@ -47,9 +57,10 @@ export async function POST(req: NextRequest) {
         if (t?.table_number) tableLabel = ` · Table ${t.table_number}`
       }
       const totalFmt = new Intl.NumberFormat('fr-FR').format(subtotal) + ' FCFA'
+      const paymentLabel = safePaymentMethod ? ` · ${PAYMENT_LABELS[safePaymentMethod]}` : ''
       await sendPushToRestaurantAdmins(restaurant_id, {
         title: `Nouvelle commande ${order_number}`,
-        body: `${totalFmt}${tableLabel}`,
+        body: `${totalFmt}${tableLabel}${paymentLabel}`,
         url: '/admin/dashboard',
         tag: `order-${order.id}`,
         data: { orderId: order.id, restaurantId: restaurant_id },

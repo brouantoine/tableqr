@@ -3,14 +3,14 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import LucideAvatar from './LucideAvatar'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Heart, UtensilsCrossed, MessageCircle, Gamepad2, Bell, Package, Star, Flame, Leaf, ShieldCheck, CheckCircle } from 'lucide-react'
+import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Heart, UtensilsCrossed, MessageCircle, Gamepad2, Bell, Package, Star, Flame, Leaf, ShieldCheck, CheckCircle, CreditCard, Banknote, Smartphone, Wallet, type LucideIcon } from 'lucide-react'
 import { useSessionStore } from '@/lib/store'
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice, generateDeviceFingerprint } from '@/lib/utils'
 import { MenuCategoryIcon } from '@/lib/icons'
 import { resolveStorageImageUrl } from '@/lib/images'
 import RestaurantLogo from '@/components/RestaurantLogo'
-import type { MenuCategory, MenuItem, Restaurant, RestaurantTable } from '@/types'
+import type { MenuCategory, MenuItem, PaymentMethod, Restaurant, RestaurantTable } from '@/types'
 import OnboardingPage from './OnboardingPage'
 
 const CATEGORY_PRIORITY_RULES: Array<{ rank: number; terms: string[] }> = [
@@ -24,6 +24,13 @@ const CATEGORY_PRIORITY_RULES: Array<{ rank: number; terms: string[] }> = [
   { rank: 85, terms: ['evenement', 'événement', 'formule'] },
   { rank: 95, terms: ['jus', 'smoothie', 'milkshake', 'milk-shake', 'mojito', 'limonade'] },
   { rank: 110, terms: ['boisson', 'eau', 'soda', 'coca', 'fresco'] },
+]
+
+const CLIENT_PAYMENT_METHODS: Array<{ key: PaymentMethod; label: string; color: string; Icon: LucideIcon }> = [
+  { key: 'orange_money', label: 'Orange Money', color: '#FF6600', Icon: Smartphone },
+  { key: 'wave', label: 'Wave', color: '#0099FF', Icon: Wallet },
+  { key: 'cash', label: 'Espèces', color: '#10B981', Icon: Banknote },
+  { key: 'card', label: 'Carte bancaire', color: '#3B82F6', Icon: CreditCard },
 ]
 
 function normalizeLabel(value?: string | null) {
@@ -68,6 +75,8 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   const [liked, setLiked] = useState<string[]>([])
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [ordering, setOrdering] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | ''>('')
+  const [paymentError, setPaymentError] = useState('')
   const [activeOrdersCount, setActiveOrdersCount] = useState(0)
   const [pendingHref, setPendingHref] = useState<string | null>(null)
 
@@ -242,7 +251,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     })
   }, [activeCategory, search])
 
-  async function sendOrder(sess: typeof session, itemsSnapshot: typeof cart.items, notesSnapshot: Record<string, string>) {
+  async function sendOrder(sess: typeof session, itemsSnapshot: typeof cart.items, notesSnapshot: Record<string, string>, paymentMethodSnapshot: PaymentMethod) {
     if (!sess || itemsSnapshot.length === 0) return false
     setOrdering(true)
     try {
@@ -253,6 +262,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
           session_id: sess.id,
           restaurant_id: restaurant.id,
           table_id: sess.table_id || (isUuid ? tableId : null),
+          payment_method: paymentMethodSnapshot,
           items: itemsSnapshot.map(i => ({
             menu_item_id: i.menu_item.id,
             quantity: i.quantity,
@@ -265,6 +275,8 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         const orderId = data?.data?.id
         await new Promise(r => setTimeout(r, 250))
         setNotes({})
+        setPaymentMethod('')
+        setPaymentError('')
         clearCart()
         setShowCart(false)
         setTimeout(() => setOrderPlaced(true), 250)
@@ -317,7 +329,13 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
 
   async function placeOrder() {
     if (cart.items.length === 0 || ordering || transitioning) return
+    if (!paymentMethod) {
+      setPaymentError('Choisissez un moyen de paiement avant de valider.')
+      return
+    }
 
+    setPaymentError('')
+    const selectedPaymentMethod = paymentMethod
     const wasGuest = !sessionValid
     setTransitioning(true)
     let useSess = session
@@ -331,7 +349,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
     await new Promise(r => setTimeout(r, 240))
     setTransitioning(false)
 
-    const orderSent = await sendOrder(useSess, cart.items, notes)
+    const orderSent = await sendOrder(useSess, cart.items, notes, selectedPaymentMethod)
     if (!orderSent) return
 
     if (wasGuest && isAnonymousSession(useSess)) {
@@ -819,7 +837,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         {showCart && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-end pb-14">
-            <motion.div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCart(false)} />
+            <motion.div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setShowCart(false); setPaymentError('') }} />
             <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 280 }}
               className="relative bg-white w-full max-w-md mx-auto rounded-t-[2.5rem] flex flex-col"
@@ -831,37 +849,10 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                     <h2 className="font-black text-xl text-gray-900">Mon panier</h2>
                     <p className="text-xs text-gray-400 mt-0.5">{cart.item_count} article{cart.item_count > 1 ? 's' : ''}</p>
                   </div>
-                  <button onClick={() => setShowCart(false)} className="w-9 h-9 rounded-2xl bg-gray-100 flex items-center justify-center">
+                  <button onClick={() => { setShowCart(false); setPaymentError('') }} className="w-9 h-9 rounded-2xl bg-gray-100 flex items-center justify-center">
                     <X size={16} className="text-gray-600" />
                   </button>
                 </div>
-                <motion.button
-                  whileTap={{ scale: (ordering || transitioning) ? 1 : 0.96 }}
-                  onClick={placeOrder}
-                  disabled={ordering || transitioning}
-                  className="w-full py-4 rounded-2xl text-white font-black text-base flex items-center justify-between px-5 disabled:opacity-90 transition-all"
-                  style={{ backgroundColor: ordering ? '#10B981' : p, boxShadow: `0 4px 20px ${p}50` }}>
-                  {ordering ? (
-                    <>
-                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-                        className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white" />
-                      <span>Envoi en cours...</span>
-                      <span className="opacity-0">·</span>
-                    </>
-                  ) : transitioning ? (
-                    <>
-                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-                        className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white" />
-                      <span>Préparation...</span>
-                      <span className="opacity-0">·</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Confirmer la commande</span>
-                      <span className="font-black">{formatPrice(cart.total, restaurant.currency)}</span>
-                    </>
-                  )}
-                </motion.button>
               </div>
 
               <div className="flex-1 overflow-y-auto px-5 space-y-3 pb-4">
@@ -903,6 +894,67 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                     </div>
                   </div>
                 ))}
+              </div>
+
+              <div className="flex-shrink-0 px-5 pt-3 pb-5 bg-white border-t border-gray-100">
+                <div className="mb-3">
+                  <div className="flex items-center justify-between gap-3 mb-2">
+                    <p className="text-xs font-black text-gray-500 uppercase tracking-wide">Moyen de paiement</p>
+                    <p className="text-xs font-bold text-gray-400">Obligatoire</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {CLIENT_PAYMENT_METHODS.map(m => {
+                      const selected = paymentMethod === m.key
+                      return (
+                        <motion.button key={m.key} whileTap={{ scale: 0.96 }}
+                          onClick={() => { setPaymentMethod(m.key); setPaymentError('') }}
+                          className="min-h-14 p-2.5 rounded-2xl border-2 flex items-center gap-2 text-left transition-all"
+                          style={selected
+                            ? { borderColor: m.color, backgroundColor: m.color + '10' }
+                            : { borderColor: '#E5E7EB', backgroundColor: '#FFFFFF' }}>
+                          <span className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: m.color + '15' }}>
+                            <m.Icon size={16} style={{ color: m.color }} />
+                          </span>
+                          <span className="flex-1 min-w-0 text-xs font-black leading-tight" style={{ color: selected ? m.color : '#4B5563' }}>
+                            {m.label}
+                          </span>
+                          {selected && <CheckCircle size={15} className="flex-shrink-0" style={{ color: m.color }} />}
+                        </motion.button>
+                      )
+                    })}
+                  </div>
+                  {paymentError && (
+                    <p className="mt-2 text-xs font-bold text-red-500">{paymentError}</p>
+                  )}
+                </div>
+
+                <motion.button
+                  whileTap={{ scale: (ordering || transitioning) ? 1 : 0.96 }}
+                  onClick={placeOrder}
+                  disabled={ordering || transitioning}
+                  className="w-full py-4 rounded-2xl text-white font-black text-base flex items-center justify-between gap-3 px-5 disabled:opacity-90 transition-all"
+                  style={{ backgroundColor: ordering ? '#10B981' : paymentMethod ? p : '#111827', boxShadow: `0 4px 20px ${paymentMethod ? p : '#111827'}40` }}>
+                  {ordering ? (
+                    <>
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                        className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white" />
+                      <span>Envoi en cours...</span>
+                      <span className="opacity-0">·</span>
+                    </>
+                  ) : transitioning ? (
+                    <>
+                      <motion.div animate={{ rotate: 360 }} transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                        className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white" />
+                      <span>Préparation...</span>
+                      <span className="opacity-0">·</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{paymentMethod ? 'Valider la commande' : 'Choisir un paiement'}</span>
+                      <span className="font-black whitespace-nowrap">{formatPrice(cart.total, restaurant.currency)}</span>
+                    </>
+                  )}
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>

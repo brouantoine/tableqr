@@ -154,6 +154,10 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
   const liveOrders = orders.filter(o => !['served', 'cancelled'].includes(o.status))
   const pendingPayment = orders.filter(o => o.status === 'served' && o.payment_status === 'unpaid')
 
+  useEffect(() => {
+    if (tab === 'caisse' && pendingPayment.length === 0) setTab('live')
+  }, [tab, pendingPayment.length])
+
   const byMethod: Record<string, number> = {}
   paidOrders.forEach(o => {
     const key = o.payment_method || 'cash'
@@ -192,6 +196,10 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
     histByDate[key].push(o)
   })
 
+  const selectedOrderPayment = selectedOrder?.payment_method
+    ? PAYMENT_METHODS.find(m => m.key === selectedOrder.payment_method)
+    : null
+
   return (
     <div className="min-h-screen bg-gray-50">
 
@@ -209,7 +217,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
           { label: 'CA total', value: formatPrice(totalRevenue, restaurant.currency), Icon: TrendingUp, color: '#10B981', bg: '#ECFDF5' },
           { label: 'Via commandes', value: formatPrice(orderRevenue, restaurant.currency), Icon: ShoppingBag, color: p, bg: p + '15' },
           { label: 'Ventes directes', value: formatPrice(manualRevenue, restaurant.currency), Icon: Receipt, color: '#8B5CF6', bg: '#F5F3FF' },
-          { label: 'À encaisser', value: String(pendingPayment.length), Icon: CreditCard, color: '#F59E0B', bg: '#FFFBEB' },
+          { label: pendingPayment.length > 0 ? 'À encaisser' : 'Paiements classés', value: String(pendingPayment.length > 0 ? pendingPayment.length : paidOrders.length), Icon: CreditCard, color: pendingPayment.length > 0 ? '#F59E0B' : '#10B981', bg: pendingPayment.length > 0 ? '#FFFBEB' : '#ECFDF5' },
         ].map((s, i) => (
           <motion.div key={i} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
             className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
@@ -226,7 +234,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
         <div className="flex bg-gray-100 rounded-2xl p-1 gap-1 min-w-max">
           {[
             { key: 'live', label: 'Live', badge: liveOrders.length },
-            { key: 'caisse', label: 'Caisse', badge: pendingPayment.length },
+            ...(pendingPayment.length > 0 ? [{ key: 'caisse', label: 'Caisse', badge: pendingPayment.length }] : []),
             { key: 'ventes', label: 'Ventes +', badge: 0 },
             { key: 'historique', label: 'Historique', badge: 0 },
             { key: 'recap', label: 'Récap', badge: 0 },
@@ -260,6 +268,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                   const cfg = STATUS_DISPLAY[order.status] || STATUS_DISPLAY.pending
                   const flow = STATUS_FLOW[order.status]
                   const isNew = order.id === newOrderId
+                  const method = PAYMENT_METHODS.find(m => m.key === order.payment_method)
                   return (
                     <motion.div key={order.id}
                       initial={{ opacity: 0, scale: 0.95, y: 16 }}
@@ -286,6 +295,9 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                       </div>
                       <div className="px-4 py-2 border-b border-gray-50">
                         <p className="text-xs text-gray-500">Table <span className="font-bold text-gray-900">{(order as any).table?.table_number || '—'}</span></p>
+                        {method && (
+                          <p className="text-xs font-bold mt-1" style={{ color: method.color }}>Paiement : {method.label}</p>
+                        )}
                       </div>
                       <div className="px-4 py-3 space-y-1.5">
                         {(order.items || []).map(item => (
@@ -682,6 +694,9 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                 <div>
                   <h3 className="font-black text-lg">{selectedOrder.order_number}</h3>
                   <p className="text-xs text-gray-400">Table {(selectedOrder as any).table?.table_number || '—'}</p>
+                  {selectedOrderPayment && (
+                    <p className="text-xs font-bold mt-1" style={{ color: selectedOrderPayment.color }}>Paiement : {selectedOrderPayment.label}</p>
+                  )}
                 </div>
                 <button onClick={() => setSelectedOrder(null)} className="w-8 h-8 rounded-2xl bg-gray-100 flex items-center justify-center">
                   <X size={15} className="text-gray-600" />

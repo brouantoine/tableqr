@@ -8,14 +8,41 @@ import { MENU_ICON_OPTIONS, MenuCategoryIcon, getMenuIconOption, normalizeMenuIc
 import type { MenuCategory, MenuItem, Restaurant } from '@/types'
 import ImagePickerModal from './ImagePickerModal'
 
+type MenuItemFormKey = 'category_id' | 'name' | 'price' | 'description' | 'image_url' | 'is_vegetarian' | 'is_vegan' | 'is_halal' | 'is_spicy' | 'is_available'
+type MenuItemTextField = 'name' | 'price' | 'description'
+type MenuItemOptionKey = 'is_vegetarian' | 'is_vegan' | 'is_halal' | 'is_spicy'
+
+
+function sortMenuItems(items: MenuItem[] = []) {
+  return [...items].sort((a, b) => {
+    const positionA = Number.isFinite(Number(a.position)) ? Number(a.position) : Number.MAX_SAFE_INTEGER
+    const positionB = Number.isFinite(Number(b.position)) ? Number(b.position) : Number.MAX_SAFE_INTEGER
+    if (positionA !== positionB) return positionA - positionB
+    return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+  })
+}
+
+function sortMenuCategories(categories: MenuCategory[]) {
+  return [...categories]
+    .sort((a, b) => {
+      const positionA = Number.isFinite(Number(a.position)) ? Number(a.position) : Number.MAX_SAFE_INTEGER
+      const positionB = Number.isFinite(Number(b.position)) ? Number(b.position) : Number.MAX_SAFE_INTEGER
+      if (positionA !== positionB) return positionA - positionB
+      return a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })
+    })
+    .map(category => ({
+      ...category,
+      items: sortMenuItems(category.items || []),
+    }))
+}
 
 
 export default function MenuAdminPage({ restaurant, initialCategories }: {
   restaurant: Restaurant
   initialCategories: MenuCategory[]
 }) {
-  const [categories, setCategories] = useState(initialCategories)
-  const [activeCategory, setActiveCategory] = useState(initialCategories[0]?.id)
+  const [categories, setCategories] = useState(() => sortMenuCategories(initialCategories))
+  const [activeCategory, setActiveCategory] = useState(() => sortMenuCategories(initialCategories)[0]?.id)
   const [showForm, setShowForm] = useState(false)
   const [editItem, setEditItem] = useState<Partial<MenuItem> | null>(null)
   const [showCatForm, setShowCatForm] = useState(false)
@@ -30,31 +57,31 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
 
   async function toggleAvailable(item: MenuItem) {
     await supabase.from('menu_items').update({ is_available: !item.is_available }).eq('id', item.id)
-    setCategories(prev => prev.map(c => ({
+    setCategories(prev => sortMenuCategories(prev.map(c => ({
       ...c, items: (c.items || []).map(i => i.id === item.id ? { ...i, is_available: !i.is_available } : i)
-    })))
+    }))))
   }
 
   async function deleteItem(item: MenuItem) {
     if (!confirm(`Supprimer "${item.name}" ?`)) return
     await supabase.from('menu_items').delete().eq('id', item.id)
-    setCategories(prev => prev.map(c => ({
+    setCategories(prev => sortMenuCategories(prev.map(c => ({
       ...c, items: (c.items || []).filter(i => i.id !== item.id)
-    })))
+    }))))
   }
 
   async function saveItem(data: Partial<MenuItem>) {
     if (data.id) {
       const { data: updated } = await supabase.from('menu_items').update(data).eq('id', data.id).select().single()
-      if (updated) setCategories(prev => prev.map(c => ({
+      if (updated) setCategories(prev => sortMenuCategories(prev.map(c => ({
         ...c, items: (c.items || []).map(i => i.id === data.id ? { ...i, ...updated } : i)
-      })))
+      }))))
     } else {
       const { data: created } = await supabase.from('menu_items')
         .insert({ ...data, restaurant_id: restaurant.id }).select().single()
-      if (created) setCategories(prev => prev.map(c =>
+      if (created) setCategories(prev => sortMenuCategories(prev.map(c =>
         c.id === data.category_id ? { ...c, items: [...(c.items || []), created as MenuItem] } : c
-      ))
+      )))
     }
     setEditItem(null)
     setShowForm(false)
@@ -65,7 +92,7 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
     const { data } = await supabase.from('menu_categories')
       .insert({ restaurant_id: restaurant.id, name: newCatName, icon: normalizeMenuIcon(newCatIcon), position: categories.length, is_active: true })
       .select().single()
-    if (data) { setCategories(prev => [...prev, { ...data as MenuCategory, items: [] }]); setActiveCategory(data.id) }
+    if (data) { setCategories(prev => sortMenuCategories([...prev, { ...data as MenuCategory, items: [] }])); setActiveCategory(data.id) }
     setNewCatName(''); setShowCatForm(false)
   }
 
@@ -223,7 +250,9 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
   const [showPicker, setShowPicker] = useState(false)
   const p = restaurant.primary_color
 
-  function set(key: string, value: any) { setForm(prev => ({ ...prev, [key]: value })) }
+  function set<K extends MenuItemFormKey>(key: K, value: Partial<MenuItem>[K]) {
+    setForm(prev => ({ ...prev, [key]: value }))
+  }
 
   async function handleSave() {
     if (!form.name || !form.price) return
@@ -254,16 +283,19 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
               {categories.map(c => <option key={c.id} value={c.id}>{getMenuIconOption(c.icon).label} - {c.name}</option>)}
             </select>
           </div>
-          {[
+          {([
             { label: 'Nom du plat *', key: 'name', type: 'text', placeholder: 'Ex: Attiéké Poisson' },
             { label: `Prix (${restaurant.currency}) *`, key: 'price', type: 'number', placeholder: '2500' },
             { label: 'Description', key: 'description', type: 'text', placeholder: 'Description courte...' },
-          ].map(f => (
+          ] satisfies Array<{ label: string; key: MenuItemTextField; type: 'text' | 'number'; placeholder: string }>).map(f => (
             <div key={f.key}>
               <label className="text-xs font-bold text-gray-500 block mb-1.5">{f.label}</label>
               <input type={f.type} placeholder={f.placeholder}
-                value={(form as any)[f.key] || ''}
-                onChange={e => set(f.key, f.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value)}
+                value={form[f.key] || ''}
+                onChange={e => {
+                  if (f.key === 'price') set('price', parseFloat(e.target.value) || 0)
+                  else set(f.key, e.target.value)
+                }}
                 className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none" />
             </div>
           ))}
@@ -302,18 +334,18 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
           <div>
             <label className="text-xs font-bold text-gray-500 block mb-2">Options</label>
             <div className="grid grid-cols-2 gap-2">
-              {[
+              {([
                 { key: 'is_vegetarian', label: 'Végétarien', Icon: Leaf },
                 { key: 'is_vegan', label: 'Vegan', Icon: Vegan },
                 { key: 'is_halal', label: 'Halal', Icon: ShieldCheck },
                 { key: 'is_spicy', label: 'Épicé', Icon: Flame },
-              ].map(opt => (
-                <button key={opt.key} onClick={() => set(opt.key, !(form as any)[opt.key])}
+              ] satisfies Array<{ key: MenuItemOptionKey; label: string; Icon: typeof Leaf }>).map(opt => (
+                <button key={opt.key} onClick={() => set(opt.key, !form[opt.key])}
                   className="flex items-center gap-2 p-3 rounded-2xl text-sm font-medium border-2 transition-all"
-                  style={(form as any)[opt.key] ? { borderColor: p, backgroundColor: p + '10', color: p } : { borderColor: '#E5E7EB', color: '#6B7280' }}>
-                  <div className={`w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${(form as any)[opt.key] ? '' : 'border-gray-300'}`}
-                    style={(form as any)[opt.key] ? { borderColor: p, backgroundColor: p } : {}}>
-                    {(form as any)[opt.key] && <Check size={10} className="text-white" strokeWidth={3} />}
+                  style={form[opt.key] ? { borderColor: p, backgroundColor: p + '10', color: p } : { borderColor: '#E5E7EB', color: '#6B7280' }}>
+                  <div className={`w-4 h-4 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${form[opt.key] ? '' : 'border-gray-300'}`}
+                    style={form[opt.key] ? { borderColor: p, backgroundColor: p } : {}}>
+                    {form[opt.key] && <Check size={10} className="text-white" strokeWidth={3} />}
                   </div>
                   <opt.Icon size={14} />
                   {opt.label}

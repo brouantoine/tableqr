@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut, ChefHat, Headset, ArrowLeft, CreditCard } from 'lucide-react'
+import { LayoutDashboard, UtensilsCrossed, QrCode, BarChart3, Settings, Gamepad2, LogOut, ChefHat, Headset, ArrowLeft, CreditCard, RefreshCw } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import RestaurantLogo, { getRestaurantLogoUrl } from '@/components/RestaurantLogo'
 import PushToggle from './PushToggle'
@@ -26,6 +26,7 @@ export default function AdminShell({ children, restaurantName, primaryColor, res
 }) {
   const pathname = usePathname()
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const logoUrl = getRestaurantLogoUrl(restaurantLogoUrl)
 
   useEffect(() => {
@@ -40,6 +41,11 @@ export default function AdminShell({ children, restaurantName, primaryColor, res
   async function handleLogout() {
     await supabase.auth.signOut()
     window.location.href = '/admin/login'
+  }
+
+  function handleRefresh() {
+    setIsRefreshing(true)
+    window.location.reload()
   }
 
   return (
@@ -73,6 +79,14 @@ export default function AdminShell({ children, restaurantName, primaryColor, res
             </Link>
           )}
           <PushToggle />
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            aria-label="Actualiser"
+            title="Actualiser"
+            className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors disabled:opacity-60">
+            <RefreshCw size={14} className={`text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
           <button onClick={handleLogout}
             className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-red-50 transition-colors">
             <LogOut size={14} className="text-gray-500" />

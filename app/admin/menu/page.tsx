@@ -17,7 +17,14 @@ export default function AdminMenuPage() {
       const email = session.user.email!.toLowerCase()
       const { data: resto } = await supabase.from('restaurants').select('*').eq('admin_email', email).maybeSingle()
       if (!resto) { window.location.href = '/admin/login'; return }
-      const { data: cats } = await supabase.from('menu_categories').select('*, items:menu_items(*)').eq('restaurant_id', resto.id).eq('is_active', true).order('position')
+      const { data: cats } = await supabase
+        .from('menu_categories')
+        .select('*, items:menu_items(*)')
+        .eq('restaurant_id', resto.id)
+        .eq('is_active', true)
+        .order('position')
+        .order('position', { referencedTable: 'items', ascending: true })
+        .order('name', { referencedTable: 'items', ascending: true })
       setRestaurant(resto)
       setCategories(cats || [])
       setLoading(false)

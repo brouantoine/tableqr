@@ -3,52 +3,81 @@ import { getSupabaseAdmin } from '@/lib/supabase/client'
 import { sendPushToRestaurantAdmins } from '@/lib/push'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const CLIENT_PAYMENT_METHODS = new Set(['orange_money', 'wave', 'cash', 'card'])
-const PAYMENT_LABELS: Record<string, string> = {
+type ClientPaymentMethod = 'orange_money' | 'wave' | 'cash' | 'card'
+type OrderRequestItem = {
+  menu_item_id: string
+  quantity: number
+  notes?: string | null
+}
+type OrderRequestBody = {
+  session_id?: string
+  restaurant_id?: string
+  table_id?: string | null
+  items?: OrderRequestItem[]
+  notes?: string | null
+  order_type?: string
+  payment_method?: string | null
+}
+type MenuItemRow = {
+  id: string
+  name: string
+  price: number
+  is_available: boolean
+}
+
+const CLIENT_PAYMENT_METHODS = new Set<ClientPaymentMethod>(['orange_money', 'wave', 'cash', 'card'])
+const PAYMENT_LABELS: Record<ClientPaymentMethod, string> = {
   orange_money: 'Orange Money',
   wave: 'Wave',
   cash: 'Espèces',
   card: 'Carte bancaire',
 }
 
+function isClientPaymentMethod(value: unknown): value is ClientPaymentMethod {
+  return typeof value === 'string' && CLIENT_PAYMENT_METHODS.has(value as ClientPaymentMethod)
+}
+
 export async function POST(req: NextRequest) {
   try {
     const admin = getSupabaseAdmin()
-    const { session_id, restaurant_id, table_id, items, notes, order_type, payment_method } = await req.json()
-    if (!session_id || !restaurant_id || !items?.length)
+    const { session_id, restaurant_id, table_id, items, notes, order_type, payment_method } = await req.json() as OrderRequestBody
+    if (!session_id || !restaurant_id || !Array.isArray(items) || items.length === 0)
       return NextResponse.json({ error: 'Données manquantes' }, { status: 400 })
-    if (payment_method && !CLIENT_PAYMENT_METHODS.has(payment_method))
+    if (payment_method && !isClientPaymentMethod(payment_method))
       return NextResponse.json({ error: 'Moyen de paiement invalide' }, { status: 400 })
 
     const { data: menuItems } = await admin
       .from('menu_items').select('id, name, price, is_available')
-      .in('id', items.map((i: any) => i.menu_item_id)).eq('restaurant_id', restaurant_id)
+      .in('id', items.map(i => i.menu_item_id)).eq('restaurant_id', restaurant_id)
 
     if (!menuItems) return NextResponse.json({ error: 'Plats introuvables' }, { status: 400 })
 
     let subtotal = 0
-    const lines = items.map((item: any) => {
-      const m = menuItems.find((x: any) => x.id === item.menu_item_id)
+    const menuRows = menuItems as MenuItemRow[]
+    const lines = items.map((item) => {
+      const m = menuRows.find(x => x.id === item.menu_item_id)
       if (!m?.is_available) throw new Error('Plat indisponible')
-      const total = m.price * item.quantity; subtotal += total
-      return { restaurant_id, menu_item_id: m.id, item_name: m.name, item_price: m.price, quantity: item.quantity, total, notes: item.notes || null }
+      const quantity = Number(item.quantity)
+      if (!Number.isFinite(quantity) || quantity <= 0) throw new Error('Quantité invalide')
+      const total = m.price * quantity; subtotal += total
+      return { restaurant_id, menu_item_id: m.id, item_name: m.name, item_price: m.price, quantity, total, notes: item.notes || null }
     })
 
     const { data: cnt } = await admin.from('orders').select('id', { count: 'exact' }).eq('restaurant_id', restaurant_id)
     const order_number = `CMD-${String((cnt?.length || 0) + 1).padStart(4, '0')}`
 
     const safeTableId = table_id && UUID_REGEX.test(table_id) ? table_id : null
-    const safePaymentMethod = payment_method && CLIENT_PAYMENT_METHODS.has(payment_method) ? payment_method : null
+    const safePaymentMethod = isClientPaymentMethod(payment_method) ? payment_method : null
 
     const { data: order, error } = await admin.from('orders')
-      .insert({ restaurant_id, session_id, table_id: safeTableId, order_number, status: 'pending', payment_status: safePaymentMethod ? 'paid' : 'unpaid', payment_method: safePaymentMethod, subtotal, tax_amount: 0, total: subtotal, order_type: order_type || 'dine_in', notes: notes || null, is_remote: order_type === 'delivery' })
+      .insert({ restaurant_id, session_id, table_id: safeTableId, order_number, status: 'pending', payment_status: 'unpaid', payment_method: safePaymentMethod, subtotal, tax_amount: 0, total: subtotal, order_type: order_type || 'dine_in', notes: notes || null, is_remote: order_type === 'delivery' })
       .select().single()
 
     if (error || !order) {
       console.error('Supabase insert error:', JSON.stringify(error))
       return NextResponse.json({ error: 'Erreur création' }, { status: 500 })
     }
-    await admin.from('order_items').insert(lines.map((l: any) => ({ ...l, order_id: order.id })))
+    await admin.from('order_items').insert(lines.map(l => ({ ...l, order_id: order.id })))
 
     try {
       let tableLabel = ''
@@ -70,7 +99,10 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ data: order })
-  } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }) }
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : 'Erreur serveur'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 export async function GET(req: NextRequest) {

@@ -3,8 +3,8 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice, formatTimeAgo } from '@/lib/utils'
-import type { Order, Restaurant } from '@/types'
-import { TrendingUp, ShoppingBag, Clock, CheckCircle, ChefHat, X, CreditCard, Plus, Receipt, Bell, Calendar, ChevronDown, History, FileText, AlertTriangle, Banknote, Smartphone, Wallet } from 'lucide-react'
+import type { Order, PaymentMethod, Restaurant } from '@/types'
+import { TrendingUp, ShoppingBag, Clock, CheckCircle, ChefHat, X, CreditCard, Plus, Receipt, Bell, Calendar, ChevronDown, History, FileText, AlertTriangle, Banknote, Smartphone, Wallet, type LucideIcon } from 'lucide-react'
 import { useNotificationSound } from '@/hooks/useNotificationSound'
 import { useRealtimeRefresh } from '@/hooks/useRealtimeRefresh'
 
@@ -13,12 +13,16 @@ interface ManualSale {
   total: number; payment_method: string; note?: string; created_at: string
 }
 
-const PAYMENT_METHODS = [
+const PAYMENT_METHODS: Array<{ key: PaymentMethod; label: string; color: string; Icon: LucideIcon }> = [
   { key: 'orange_money', label: 'Orange Money', color: '#FF6600', Icon: Smartphone },
   { key: 'wave', label: 'Wave', color: '#0099FF', Icon: Wallet },
   { key: 'card', label: 'Carte', color: '#3B82F6', Icon: CreditCard },
   { key: 'cash', label: 'Espèces', color: '#10B981', Icon: Banknote },
 ]
+
+function getPaymentMethod(method?: string | null) {
+  return PAYMENT_METHODS.find(m => m.key === method) || null
+}
 
 const STATUS_FLOW: Record<string, { next: string; label: string; color: string; Icon: any }> = {
   pending:   { next: 'preparing', label: 'Reçu',           color: '#F59E0B', Icon: CheckCircle },
@@ -116,12 +120,17 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: status as Order['status'] } : o))
   }
 
-  async function markPaid(orderId: string, method: string) {
-    await fetch(`/api/orders/${orderId}`, {
+  async function markPaid(orderId: string, method?: PaymentMethod | null) {
+    const body = method
+      ? { payment_status: 'paid', payment_method: method }
+      : { payment_status: 'paid' }
+    const res = await fetch(`/api/orders/${orderId}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ payment_status: 'paid', payment_method: method })
+      body: JSON.stringify(body)
     })
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, payment_status: 'paid', payment_method: method as any } : o))
+    if (!res.ok) return
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, payment_status: 'paid', payment_method: method || o.payment_method } : o))
+    setSelectedOrder(prev => prev?.id === orderId ? { ...prev, payment_status: 'paid', payment_method: method || prev.payment_method } : prev)
   }
 
   async function addManualSale() {
@@ -196,9 +205,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
     histByDate[key].push(o)
   })
 
-  const selectedOrderPayment = selectedOrder?.payment_method
-    ? PAYMENT_METHODS.find(m => m.key === selectedOrder.payment_method)
-    : null
+  const selectedOrderPayment = getPaymentMethod(selectedOrder?.payment_method)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -268,7 +275,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                   const cfg = STATUS_DISPLAY[order.status] || STATUS_DISPLAY.pending
                   const flow = STATUS_FLOW[order.status]
                   const isNew = order.id === newOrderId
-                  const method = PAYMENT_METHODS.find(m => m.key === order.payment_method)
+                  const method = getPaymentMethod(order.payment_method)
                   return (
                     <motion.div key={order.id}
                       initial={{ opacity: 0, scale: 0.95, y: 16 }}
@@ -296,7 +303,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                       <div className="px-4 py-2 border-b border-gray-50">
                         <p className="text-xs text-gray-500">Table <span className="font-bold text-gray-900">{(order as any).table?.table_number || '—'}</span></p>
                         {method && (
-                          <p className="text-xs font-bold mt-1" style={{ color: method.color }}>Paiement : {method.label}</p>
+                          <p className="text-xs font-bold mt-1" style={{ color: method.color }}>Moyen choisi : {method.label}</p>
                         )}
                       </div>
                       <div className="px-4 py-3 space-y-1.5">
@@ -350,33 +357,59 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {pendingPayment.map(order => (
-                <motion.div key={order.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
-                  <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex justify-between items-start">
-                    <div>
-                      <p className="font-black text-gray-900">{order.order_number}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Table {(order as any).table?.table_number || '—'} · {formatTimeAgo(order.created_at)}</p>
+              {pendingPayment.map(order => {
+                const method = getPaymentMethod(order.payment_method)
+                return (
+                  <motion.div key={order.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                    className="bg-white rounded-3xl overflow-hidden shadow-sm border border-gray-100">
+                    <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex justify-between items-start">
+                      <div>
+                        <p className="font-black text-gray-900">{order.order_number}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Table {(order as any).table?.table_number || '—'} · {formatTimeAgo(order.created_at)}</p>
+                      </div>
+                      <p className="text-2xl font-black" style={{ color: p }}>{formatPrice(Number(order.total) || 0, restaurant.currency)}</p>
                     </div>
-                    <p className="text-2xl font-black" style={{ color: p }}>{formatPrice(Number(order.total) || 0, restaurant.currency)}</p>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Encaisser via</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {PAYMENT_METHODS.map(m => (
-                        <motion.button key={m.key} whileTap={{ scale: 0.93 }}
-                          onClick={() => markPaid(order.id, m.key)}
-                          className="flex items-center gap-3 p-3 rounded-2xl border-2 border-gray-100 hover:bg-gray-50 transition-all">
-                          <span className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: m.color + '15' }}>
-                            <m.Icon size={17} style={{ color: m.color }} />
-                          </span>
-                          <span className="text-sm font-bold text-gray-700">{m.label}</span>
-                        </motion.button>
-                      ))}
+                    <div className="p-4">
+                      {method ? (
+                        <div className="space-y-3">
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Moyen choisi par le client</p>
+                          <div className="flex items-center gap-3 p-3 rounded-2xl border-2" style={{ borderColor: method.color + '30', backgroundColor: method.color + '10' }}>
+                            <span className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: method.color + '15' }}>
+                              <method.Icon size={19} style={{ color: method.color }} />
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-black" style={{ color: method.color }}>{method.label}</p>
+                              <p className="text-xs text-gray-500">À encaisser avec ce moyen</p>
+                            </div>
+                          </div>
+                          <motion.button whileTap={{ scale: 0.96 }}
+                            onClick={() => markPaid(order.id, method.key)}
+                            className="w-full py-3.5 rounded-2xl text-white text-sm font-black"
+                            style={{ backgroundColor: method.color }}>
+                            Encaisser en {method.label}
+                          </motion.button>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Aucun moyen choisi, sélectionner pour encaisser</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {PAYMENT_METHODS.map(m => (
+                              <motion.button key={m.key} whileTap={{ scale: 0.93 }}
+                                onClick={() => markPaid(order.id, m.key)}
+                                className="flex items-center gap-3 p-3 rounded-2xl border-2 border-gray-100 hover:bg-gray-50 transition-all">
+                                <span className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: m.color + '15' }}>
+                                  <m.Icon size={17} style={{ color: m.color }} />
+                                </span>
+                                <span className="text-sm font-bold text-gray-700">{m.label}</span>
+                              </motion.button>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                )
+              })}
             </div>
           )}
         </div>
@@ -473,6 +506,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                       {dayOrders.map(order => {
                         const isExpanded = expandedHistOrder === order.id
                         const cfg = STATUS_DISPLAY[order.status] || STATUS_DISPLAY.served
+                        const method = getPaymentMethod(order.payment_method)
                         return (
                           <div key={order.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
                             <button onClick={() => setExpandedHistOrder(isExpanded ? null : order.id)}
@@ -485,9 +519,9 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                                 <p className="font-bold text-sm text-gray-900">{order.order_number}</p>
                                 <p className="text-xs text-gray-400 mt-0.5">
                                   Table {(order as any).table?.table_number || '—'} · {formatTimeAgo(order.created_at)}
-                                  {order.payment_status === 'paid' && order.payment_method && (
-                                    <span className="ml-1 font-semibold" style={{ color: PAYMENT_METHODS.find(m => m.key === order.payment_method)?.color || '#6B7280' }}>
-                                      · {PAYMENT_METHODS.find(m => m.key === order.payment_method)?.label || order.payment_method}
+                                  {method && (
+                                    <span className="ml-1 font-semibold" style={{ color: method.color }}>
+                                      · {method.label}{order.payment_status !== 'paid' ? ' prévu' : ''}
                                     </span>
                                   )}
                                 </p>
@@ -695,7 +729,7 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
                   <h3 className="font-black text-lg">{selectedOrder.order_number}</h3>
                   <p className="text-xs text-gray-400">Table {(selectedOrder as any).table?.table_number || '—'}</p>
                   {selectedOrderPayment && (
-                    <p className="text-xs font-bold mt-1" style={{ color: selectedOrderPayment.color }}>Paiement : {selectedOrderPayment.label}</p>
+                    <p className="text-xs font-bold mt-1" style={{ color: selectedOrderPayment.color }}>Moyen choisi : {selectedOrderPayment.label}</p>
                   )}
                 </div>
                 <button onClick={() => setSelectedOrder(null)} className="w-8 h-8 rounded-2xl bg-gray-100 flex items-center justify-center">
@@ -743,18 +777,32 @@ export default function CaissePage({ restaurant, initialOrders }: { restaurant: 
               )}
               {selectedOrder.payment_status === 'unpaid' && selectedOrder.status === 'served' && (
                 <div className="px-5 pb-5">
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Encaisser</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {PAYMENT_METHODS.map(m => (
-                      <button key={m.key} onClick={() => { markPaid(selectedOrder.id, m.key); setSelectedOrder(null) }}
-                        className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                        <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: m.color + '15' }}>
-                          <m.Icon size={17} style={{ color: m.color }} />
-                        </span>
-                        <span className="text-sm font-bold text-gray-700">{m.label}</span>
+                  {selectedOrderPayment ? (
+                    <div className="space-y-3">
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Encaisser avec le moyen choisi</p>
+                      <button onClick={() => { markPaid(selectedOrder.id, selectedOrderPayment.key); setSelectedOrder(null) }}
+                        className="w-full flex items-center justify-center gap-2 p-3.5 rounded-2xl text-white font-black text-sm"
+                        style={{ backgroundColor: selectedOrderPayment.color }}>
+                        <selectedOrderPayment.Icon size={18} />
+                        <span>Encaisser en {selectedOrderPayment.label}</span>
                       </button>
-                    ))}
-                  </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Aucun moyen choisi, sélectionner pour encaisser</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {PAYMENT_METHODS.map(m => (
+                          <button key={m.key} onClick={() => { markPaid(selectedOrder.id, m.key); setSelectedOrder(null) }}
+                            className="flex items-center gap-3 p-3 rounded-2xl bg-gray-50 border border-gray-100">
+                            <span className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: m.color + '15' }}>
+                              <m.Icon size={17} style={{ color: m.color }} />
+                            </span>
+                            <span className="text-sm font-bold text-gray-700">{m.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </motion.div>

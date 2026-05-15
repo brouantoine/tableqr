@@ -7,6 +7,7 @@ type ClientPaymentMethod = 'orange_money' | 'wave' | 'cash' | 'card'
 type OrderRequestItem = {
   menu_item_id: string
   quantity: number
+  unit_price?: number | null
   notes?: string | null
 }
 type OrderRequestBody = {
@@ -22,6 +23,9 @@ type MenuItemRow = {
   id: string
   name: string
   price: number
+  price_mode?: 'fixed' | 'customer_entered' | null
+  min_price?: number | null
+  max_price?: number | null
   is_available: boolean
 }
 
@@ -37,6 +41,11 @@ function isClientPaymentMethod(value: unknown): value is ClientPaymentMethod {
   return typeof value === 'string' && CLIENT_PAYMENT_METHODS.has(value as ClientPaymentMethod)
 }
 
+function parsePositiveAmount(value: unknown) {
+  const amount = Number(value)
+  return Number.isFinite(amount) && amount > 0 ? amount : null
+}
+
 export async function POST(req: NextRequest) {
   try {
     const admin = getSupabaseAdmin()
@@ -47,7 +56,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Moyen de paiement invalide' }, { status: 400 })
 
     const { data: menuItems } = await admin
-      .from('menu_items').select('id, name, price, is_available')
+      .from('menu_items').select('id, name, price, price_mode, min_price, max_price, is_available')
       .in('id', items.map(i => i.menu_item_id)).eq('restaurant_id', restaurant_id)
 
     if (!menuItems) return NextResponse.json({ error: 'Plats introuvables' }, { status: 400 })
@@ -59,8 +68,18 @@ export async function POST(req: NextRequest) {
       if (!m?.is_available) throw new Error('Plat indisponible')
       const quantity = Number(item.quantity)
       if (!Number.isFinite(quantity) || quantity <= 0) throw new Error('Quantité invalide')
-      const total = m.price * quantity; subtotal += total
-      return { restaurant_id, menu_item_id: m.id, item_name: m.name, item_price: m.price, quantity, total, notes: item.notes || null }
+      let unitPrice = Number(m.price) || 0
+      if (m.price_mode === 'customer_entered') {
+        const selectedPrice = parsePositiveAmount(item.unit_price)
+        const minPrice = Number(m.min_price) || 0
+        const maxPrice = Number(m.max_price) || 0
+        if (!selectedPrice) throw new Error(`Prix requis pour ${m.name}`)
+        if (minPrice > 0 && selectedPrice < minPrice) throw new Error(`Prix minimum pour ${m.name}: ${minPrice}`)
+        if (maxPrice > 0 && selectedPrice > maxPrice) throw new Error(`Prix maximum pour ${m.name}: ${maxPrice}`)
+        unitPrice = selectedPrice
+      }
+      const total = unitPrice * quantity; subtotal += total
+      return { restaurant_id, menu_item_id: m.id, item_name: m.name, item_price: unitPrice, quantity, total, notes: item.notes || null }
     })
 
     const { data: cnt } = await admin.from('orders').select('id', { count: 'exact' }).eq('restaurant_id', restaurant_id)

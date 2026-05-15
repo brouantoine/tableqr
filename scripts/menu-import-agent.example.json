@@ -8,6 +8,8 @@
       "category": "Boissons",
       "name": "Coca Cola",
       "price": 1000,
+      "price_mode": "fixed",
+      "min_price": null,
       "description": "Canette de Coca Cola fraiche.",
       "image": "canette-coca-cola.png"
     },
@@ -15,6 +17,8 @@
       "category": "Pizzas",
       "name": "Pizza Royale - Petite",
       "price": 4000,
+      "price_mode": "fixed",
+      "min_price": null,
       "description": "Pizza garnie facon royale.",
       "image": "pizza-royale.webp"
     }

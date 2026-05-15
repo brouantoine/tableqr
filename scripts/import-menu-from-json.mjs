@@ -78,6 +78,15 @@ function isRemoteImage(value) {
   return /^https?:\/\//i.test(String(value || ''))
 }
 
+function normalizePriceMode(value) {
+  return value === 'customer_entered' ? 'customer_entered' : 'fixed'
+}
+
+function optionalPositiveNumber(value) {
+  const number = Number(value)
+  return Number.isFinite(number) && number > 0 ? number : null
+}
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -126,10 +135,14 @@ function readMenu(file) {
 
   const categoryOrder = new Map(categories.map((category, index) => [normalize(category.name), index]))
   const items = data.items.map((entry) => {
-    const price = Number(entry.price)
+    const priceMode = normalizePriceMode(entry.price_mode)
+    const price = priceMode === 'customer_entered' && entry.price === undefined ? 0 : Number(entry.price)
+    const minPrice = optionalPositiveNumber(entry.min_price ?? entry.minimum_price)
+    const maxPrice = optionalPositiveNumber(entry.max_price ?? entry.maximum_price)
     if (!entry.category) throw new Error(`Categorie manquante pour le plat: ${entry.name || '(sans nom)'}`)
     if (!entry.name) throw new Error('Un plat a un nom manquant.')
     if (!Number.isFinite(price)) throw new Error(`Prix invalide pour "${entry.name}".`)
+    if (priceMode === 'customer_entered' && !minPrice) throw new Error(`Prix minimum manquant pour "${entry.name}".`)
 
     const image = entry.image || entry.image_file || null
     const imageUrl = entry.image_url || (isRemoteImage(image) ? image : null)
@@ -139,6 +152,10 @@ function readMenu(file) {
       category: String(entry.category).trim(),
       name: String(entry.name).trim(),
       price,
+      price_mode: priceMode,
+      min_price: priceMode === 'customer_entered' ? minPrice : null,
+      max_price: priceMode === 'customer_entered' ? maxPrice : null,
+      price_hint: priceMode === 'customer_entered' ? String(entry.price_hint || '').trim() || null : null,
       description: String(entry.description || '').trim(),
       imageFile,
       imageUrl,
@@ -240,6 +257,19 @@ async function getRestaurant(supabase, restaurantId) {
   return data
 }
 
+async function ensureCustomerPriceSchema(supabase, items) {
+  if (!items.some((entry) => entry.price_mode === 'customer_entered')) return
+
+  const { error } = await supabase
+    .from('menu_items')
+    .select('price_mode, min_price, max_price, price_hint')
+    .limit(1)
+
+  if (error) {
+    throw new Error('Migration prix client manquante: executez migration_menu_item_price_mode.sql dans Supabase SQL Editor puis relancez l import.')
+  }
+}
+
 async function upsertCategories(supabase, restaurantId, categories) {
   const { data: existing, error } = await supabase
     .from('menu_categories')
@@ -303,6 +333,10 @@ async function upsertItems(supabase, restaurantId, items, categoryIds, uploadedI
       name: entry.name,
       description: entry.description,
       price: entry.price,
+      price_mode: entry.price_mode,
+      min_price: entry.min_price,
+      max_price: entry.max_price,
+      price_hint: entry.price_hint,
       allergens: entry.allergens,
       is_vegetarian: entry.is_vegetarian,
       is_vegan: entry.is_vegan,
@@ -390,6 +424,7 @@ async function main() {
   const restaurant = await getRestaurant(supabase, restaurantId)
   console.log(`Restaurant trouve: ${restaurant.name} (${restaurant.slug})`)
 
+  await ensureCustomerPriceSchema(supabase, items)
   await ensureBucket(supabase)
   const uploadedImages = await uploadImages(supabase, restaurantId, imageDir, uniqueImages)
   const categoryIds = await upsertCategories(supabase, restaurantId, categories)

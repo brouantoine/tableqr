@@ -1,4 +1,5 @@
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[]
+export type MenuItemPriceMode = 'fixed' | 'customer_entered'
 
 export interface Restaurant {
   id: string
@@ -119,6 +120,10 @@ export interface MenuItem {
   name_en?: string
   description?: string
   price: number
+  price_mode?: MenuItemPriceMode
+  min_price?: number | null
+  max_price?: number | null
+  price_hint?: string | null
   image_url?: string
   allergens: string[]
   is_vegetarian: boolean
@@ -320,6 +325,7 @@ export interface CartItem {
   menu_item: MenuItem
   quantity: number
   notes?: string
+  unit_price?: number
   subtotal: number
 }
 

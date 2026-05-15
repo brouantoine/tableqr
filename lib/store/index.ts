@@ -11,7 +11,7 @@ interface SessionStore {
   setSession: (s: ClientSession) => void
   setRestaurant: (r: Restaurant) => void
   clearSession: () => void
-  addToCart: (item: MenuItem, quantity?: number, notes?: string) => void
+  addToCart: (item: MenuItem, quantity?: number, notes?: string, unitPrice?: number) => void
   removeFromCart: (item_id: string) => void
   updateQuantity: (item_id: string, qty: number) => void
   clearCart: () => void
@@ -20,6 +20,16 @@ interface SessionStore {
 }
 
 const emptyCart: Cart = { items: [], total: 0, item_count: 0 }
+
+function resolveCartUnitPrice(item: MenuItem, unitPrice?: number) {
+  if (item.price_mode === 'customer_entered') {
+    const selected = Number(unitPrice)
+    if (Number.isFinite(selected) && selected > 0) return selected
+    const minimum = Number(item.min_price)
+    return Number.isFinite(minimum) && minimum > 0 ? minimum : 0
+  }
+  return Number(item.price) || 0
+}
 
 function recompute(items: CartItem[]): Cart {
   return {
@@ -43,14 +53,15 @@ export const useSessionStore = create<SessionStore>()(
         }
       },
       clearSession: () => set({ session: null, cart: emptyCart, notifications: [], unread_count: 0 }),
-      addToCart: (menu_item, quantity = 1, notes) => {
+      addToCart: (menu_item, quantity = 1, notes, unitPrice) => {
         const { cart } = get()
         const existing = cart.items.find(i => i.menu_item.id === menu_item.id)
+        const nextUnitPrice = resolveCartUnitPrice(menu_item, unitPrice ?? existing?.unit_price)
         const items = existing
           ? cart.items.map(i => i.menu_item.id === menu_item.id
-              ? { ...i, quantity: i.quantity + quantity, subtotal: (i.quantity + quantity) * menu_item.price }
+              ? { ...i, unit_price: nextUnitPrice, quantity: i.quantity + quantity, subtotal: (i.quantity + quantity) * nextUnitPrice }
               : i)
-          : [...cart.items, { menu_item, quantity, notes, subtotal: menu_item.price * quantity }]
+          : [...cart.items, { menu_item, quantity, notes, unit_price: nextUnitPrice, subtotal: nextUnitPrice * quantity }]
         set({ cart: recompute(items) })
       },
       removeFromCart: (item_id) => {
@@ -58,7 +69,7 @@ export const useSessionStore = create<SessionStore>()(
       },
       updateQuantity: (item_id, qty) => {
         if (qty <= 0) { get().removeFromCart(item_id); return }
-        set({ cart: recompute(get().cart.items.map(i => i.menu_item.id === item_id ? { ...i, quantity: qty, subtotal: qty * i.menu_item.price } : i)) })
+        set({ cart: recompute(get().cart.items.map(i => i.menu_item.id === item_id ? { ...i, quantity: qty, subtotal: qty * resolveCartUnitPrice(i.menu_item, i.unit_price) } : i)) })
       },
       clearCart: () => set({ cart: emptyCart }),
       addNotification: (n) => set(s => ({ notifications: [n, ...s.notifications].slice(0, 50), unread_count: s.unread_count + 1 })),

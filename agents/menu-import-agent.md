@@ -13,9 +13,9 @@ Required inputs:
 
 - `restaurantId`: UUID from `restaurants.id`
 - image folder path, usually relative to the repo
-- price list with names and prices
+- price list with names and prices, or explicit instruction that prices are entered by the customer
 
-If prices are missing, ask for them. The `menu_items.price` column is required. Only use `0` when the user explicitly asks for temporary prices.
+If prices are missing, ask for them unless the user explicitly wants customer-entered pricing. For customer-entered pricing, use `price_mode: "customer_entered"`, `price: 0`, and a positive `min_price`.
 
 Workflow:
 
@@ -59,6 +59,8 @@ JSON schema:
       "category": "Boissons",
       "name": "Coca Cola",
       "price": 1000,
+      "price_mode": "fixed",
+      "min_price": null,
       "description": "Canette de Coca Cola fraiche.",
       "image": "canette-coca-cola.png",
       "is_vegetarian": false,

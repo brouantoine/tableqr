@@ -3133,3 +3133,11 @@ J’ai créé l’agent projet menu-import ici : agents/menu-import-agent.md:1
 
   Important : il faudra toujours les prix, sauf si tu me dis explicitement de mettre 0 temporairement, parce que la base exige un prix
   pour chaque plat.
+
+
+
+
+ ok, voici le id du restaurant, c1679e9b-62a0-4cd0-894a-94ad81d1b87a, voici le repertoir d'image /
+  home/zen/Bureau/Projets/TableQR_Projet/osac biblio image , utilise l'agent menu import, cette
+  fois, il n'ya pas de prix, le client lui meme precisera le p
+ 

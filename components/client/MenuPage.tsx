@@ -54,6 +54,23 @@ function isDrinkOrDessert(categoryName?: string | null, itemName?: string | null
   ].some(term => haystack.includes(normalizeLabel(term)))
 }
 
+function isCustomerPricedItem(item?: Pick<MenuItem, 'price_mode'> | null) {
+  return item?.price_mode === 'customer_entered'
+}
+
+function menuItemMinPrice(item: Pick<MenuItem, 'min_price'>) {
+  const min = Number(item.min_price)
+  return Number.isFinite(min) && min > 0 ? min : 0
+}
+
+function menuItemPriceLabel(item: MenuItem, currency: string) {
+  if (!isCustomerPricedItem(item)) return formatPrice(item.price, currency)
+  const hint = item.price_hint?.trim()
+  if (hint) return hint
+  const minPrice = menuItemMinPrice(item)
+  return minPrice > 0 ? `À partir de ${formatPrice(minPrice, currency)}` : 'Prix à préciser'
+}
+
 function sortMenuItems(items: MenuItem[]) {
   return [...items].sort((a, b) => {
     const pa = Number.isFinite(Number(a.position)) ? Number(a.position) : Number.MAX_SAFE_INTEGER
@@ -70,6 +87,8 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   const [activeCategory, setActiveCategory] = useState<string | undefined>()
   const [search, setSearch] = useState('')
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
+  const [selectedUnitPrice, setSelectedUnitPrice] = useState('')
+  const [selectedPriceError, setSelectedPriceError] = useState('')
   const [showCart, setShowCart] = useState(false)
   const [orderPlaced, setOrderPlaced] = useState(false)
   const [liked, setLiked] = useState<string[]>([])
@@ -189,10 +208,60 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
 
   const activeItems = search ? searchResults : allItems
   const cartQty = (id: string) => cart.items.find(i => i.menu_item.id === id)?.quantity || 0
+  const cartUnitPrice = (id: string) => cart.items.find(i => i.menu_item.id === id)?.unit_price
   const isAnonymousSession = (sess: typeof session) => !sess || sess.pseudo === 'Invité' || sess.avatar_icon === 'ghost'
   const activeCategoryName = menuCategories.find(c => c.id === activeCategory)?.name || 'Menu'
   const tableLabel = tableDisplayName || tableId
   const displayLogoUrl = resolveStorageImageUrl(logoPreviewUrl || restaurant.logo_url)
+
+  useEffect(() => {
+    if (!selectedItem) {
+      setSelectedUnitPrice('')
+      setSelectedPriceError('')
+      return
+    }
+    if (!isCustomerPricedItem(selectedItem)) return
+    const existingPrice = cart.items.find(i => i.menu_item.id === selectedItem.id)?.unit_price
+    const initialPrice = existingPrice || menuItemMinPrice(selectedItem)
+    setSelectedUnitPrice(initialPrice > 0 ? String(initialPrice) : '')
+    setSelectedPriceError('')
+  }, [selectedItem, cart.items])
+
+  function addMenuItem(item: MenuItem) {
+    if (!isCustomerPricedItem(item)) {
+      addToCart(item)
+      return
+    }
+    const existingPrice = cartUnitPrice(item.id)
+    if (existingPrice) {
+      addToCart(item, 1, undefined, existingPrice)
+      return
+    }
+    setSelectedItem(item)
+  }
+
+  function addSelectedItemToCart() {
+    if (!selectedItem) return
+    if (!isCustomerPricedItem(selectedItem)) {
+      addToCart(selectedItem)
+      setSelectedItem(null)
+      return
+    }
+
+    const unitPrice = Number(selectedUnitPrice)
+    const minPrice = menuItemMinPrice(selectedItem)
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      setSelectedPriceError('Saisissez le prix de ce plat.')
+      return
+    }
+    if (minPrice > 0 && unitPrice < minPrice) {
+      setSelectedPriceError(`Minimum ${formatPrice(minPrice, restaurant.currency)}.`)
+      return
+    }
+
+    addToCart(selectedItem, 1, undefined, unitPrice)
+    setSelectedItem(null)
+  }
 
   const registerCategorySection = useCallback((id: string, node: HTMLElement | null) => {
     if (node) sectionRefs.current.set(id, node)
@@ -266,6 +335,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
           items: itemsSnapshot.map(i => ({
             menu_item_id: i.menu_item.id,
             quantity: i.quantity,
+            unit_price: i.unit_price || i.menu_item.price,
             notes: notesSnapshot[i.menu_item.id] || null,
           })),
         }),
@@ -431,13 +501,13 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
           </div>
 
           <div className="mt-auto pt-3 flex items-center justify-between gap-3">
-            <span className="font-black text-base whitespace-nowrap" style={{ color: p }}>{formatPrice(item.price, restaurant.currency)}</span>
+            <span className="font-black text-base whitespace-nowrap" style={{ color: p }}>{menuItemPriceLabel(item, restaurant.currency)}</span>
             <AnimatePresence mode="wait">
               {quantity === 0 ? (
                 <motion.button key="add"
                   initial={{ scale: 0.85 }} animate={{ scale: 1 }} exit={{ scale: 0.85 }}
                   whileTap={{ scale: 0.9 }}
-                  onClick={(e) => { e.stopPropagation(); addToCart(item) }}
+                  onClick={(e) => { e.stopPropagation(); addMenuItem(item) }}
                   aria-label={`Ajouter ${item.name}`}
                   className="h-9 px-3 rounded-2xl flex items-center gap-1.5 text-white font-black text-sm flex-shrink-0"
                   style={{ backgroundColor: p, boxShadow: `0 6px 16px ${p}35` }}>
@@ -454,7 +524,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                     <Minus size={12} style={{ color: p }} strokeWidth={3} />
                   </button>
                   <span className="font-black text-sm w-6 text-center text-gray-900">{quantity}</span>
-                  <button onClick={(e) => { e.stopPropagation(); addToCart(item) }}
+                  <button onClick={(e) => { e.stopPropagation(); addMenuItem(item) }}
                     aria-label={`Ajouter ${item.name}`}
                     className="w-7 h-7 rounded-xl flex items-center justify-center text-white"
                     style={{ backgroundColor: p }}>
@@ -599,9 +669,9 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                 <div className="p-3">
                   <p className="font-black text-gray-950 text-sm leading-tight line-clamp-2 min-h-9">{item.name}</p>
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="font-black text-sm whitespace-nowrap" style={{ color: p }}>{formatPrice(item.price, restaurant.currency)}</span>
+                    <span className="font-black text-sm whitespace-nowrap" style={{ color: p }}>{menuItemPriceLabel(item, restaurant.currency)}</span>
                     {cartQty(item.id) === 0 ? (
-                      <button onClick={(e) => { e.stopPropagation(); addToCart(item) }}
+                      <button onClick={(e) => { e.stopPropagation(); addMenuItem(item) }}
                         aria-label={`Ajouter ${item.name}`}
                         className="w-8 h-8 rounded-2xl flex items-center justify-center text-white flex-shrink-0"
                         style={{ backgroundColor: p }}>
@@ -746,16 +816,37 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
               <div className="p-6">
                 <div className="flex items-start justify-between mb-3">
                   <h2 className="text-2xl font-black text-gray-900 flex-1 leading-tight">{selectedItem.name}</h2>
-                  <span className="text-2xl font-black ml-3 flex-shrink-0" style={{ color: p }}>{formatPrice(selectedItem.price, restaurant.currency)}</span>
+                  <span className="text-2xl font-black ml-3 flex-shrink-0" style={{ color: p }}>{menuItemPriceLabel(selectedItem, restaurant.currency)}</span>
                 </div>
                 {selectedItem.description && (
                   <p className="text-gray-500 text-sm leading-relaxed mb-4">{selectedItem.description}</p>
                 )}
+                {isCustomerPricedItem(selectedItem) && (
+                  <div className="mb-4">
+                    <label className="text-xs font-black text-gray-500 uppercase tracking-wide block mb-1.5">Prix choisi</label>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={menuItemMinPrice(selectedItem) || 0}
+                      step="100"
+                      placeholder={menuItemMinPrice(selectedItem) > 0 ? String(menuItemMinPrice(selectedItem)) : '0'}
+                      value={selectedUnitPrice}
+                      onChange={e => { setSelectedUnitPrice(e.target.value); setSelectedPriceError('') }}
+                      className="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 outline-none text-gray-900 font-black"
+                      style={{ fontSize: '16px' }}
+                    />
+                    {selectedPriceError ? (
+                      <p className="mt-1.5 text-xs font-bold text-red-500">{selectedPriceError}</p>
+                    ) : menuItemMinPrice(selectedItem) > 0 ? (
+                      <p className="mt-1.5 text-xs font-bold text-gray-400">Minimum {formatPrice(menuItemMinPrice(selectedItem), restaurant.currency)}</p>
+                    ) : null}
+                  </div>
+                )}
                 <motion.button whileTap={{ scale: 0.97 }}
-                  onClick={() => { addToCart(selectedItem); setSelectedItem(null) }}
+                  onClick={addSelectedItemToCart}
                   className="w-full py-4 rounded-2xl text-white font-black text-base"
                   style={{ backgroundColor: p, boxShadow: `0 8px 25px ${p}50` }}>
-                  Ajouter au panier — {formatPrice(selectedItem.price, restaurant.currency)}
+                  Ajouter au panier — {isCustomerPricedItem(selectedItem) && Number(selectedUnitPrice) > 0 ? formatPrice(Number(selectedUnitPrice), restaurant.currency) : menuItemPriceLabel(selectedItem, restaurant.currency)}
                 </motion.button>
               </div>
             </motion.div>
@@ -875,7 +966,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                           <Minus size={12} style={{ color: p }} strokeWidth={3} />
                         </motion.button>
                         <span className="font-black text-sm w-4 text-center">{ci.quantity}</span>
-                        <motion.button whileTap={{ scale: 0.8 }} onClick={() => addToCart(ci.menu_item)}
+                        <motion.button whileTap={{ scale: 0.8 }} onClick={() => addToCart(ci.menu_item, 1, undefined, ci.unit_price)}
                           className="w-7 h-7 rounded-xl flex items-center justify-center text-white shadow-sm"
                           style={{ backgroundColor: p }}>
                           <Plus size={12} strokeWidth={3} />

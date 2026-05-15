@@ -8,8 +8,8 @@ import { MENU_ICON_OPTIONS, MenuCategoryIcon, getMenuIconOption, normalizeMenuIc
 import type { MenuCategory, MenuItem, Restaurant } from '@/types'
 import ImagePickerModal from './ImagePickerModal'
 
-type MenuItemFormKey = 'category_id' | 'name' | 'price' | 'description' | 'image_url' | 'is_vegetarian' | 'is_vegan' | 'is_halal' | 'is_spicy' | 'is_available'
-type MenuItemTextField = 'name' | 'price' | 'description'
+type MenuItemFormKey = 'category_id' | 'name' | 'price' | 'price_mode' | 'min_price' | 'max_price' | 'price_hint' | 'description' | 'image_url' | 'is_vegetarian' | 'is_vegan' | 'is_halal' | 'is_spicy' | 'is_available'
+type MenuItemTextField = 'name' | 'price' | 'min_price' | 'price_hint' | 'description'
 type MenuItemOptionKey = 'is_vegetarian' | 'is_vegan' | 'is_halal' | 'is_spicy'
 
 
@@ -34,6 +34,53 @@ function sortMenuCategories(categories: MenuCategory[]) {
       ...category,
       items: sortMenuItems(category.items || []),
     }))
+}
+
+function newMenuItem(categoryId?: string): Partial<MenuItem> {
+  return {
+    category_id: categoryId,
+    price: 0,
+    price_mode: 'fixed',
+    min_price: null,
+    max_price: null,
+    price_hint: null,
+    allergens: [],
+    is_vegetarian: false,
+    is_vegan: false,
+    is_halal: false,
+    is_spicy: false,
+    spicy_level: 0,
+    is_available: true,
+    order_count: 0,
+    position: 0,
+  }
+}
+
+function itemMinPrice(item: Pick<MenuItem, 'min_price'>) {
+  const min = Number(item.min_price)
+  return Number.isFinite(min) && min > 0 ? min : 0
+}
+
+function itemPriceLabel(item: MenuItem, currency: string) {
+  if (item.price_mode !== 'customer_entered') return formatPrice(item.price, currency)
+  const hint = item.price_hint?.trim()
+  if (hint) return hint
+  const min = itemMinPrice(item)
+  return min > 0 ? `À partir de ${formatPrice(min, currency)}` : 'Prix à préciser'
+}
+
+function normalizeItemForSave(data: Partial<MenuItem>) {
+  const customerEntered = data.price_mode === 'customer_entered'
+  const minPrice = Number(data.min_price)
+  const maxPrice = Number(data.max_price)
+  return {
+    ...data,
+    price_mode: customerEntered ? 'customer_entered' : 'fixed',
+    price: customerEntered ? 0 : Number(data.price) || 0,
+    min_price: customerEntered && Number.isFinite(minPrice) && minPrice > 0 ? minPrice : null,
+    max_price: customerEntered && Number.isFinite(maxPrice) && maxPrice > 0 ? maxPrice : null,
+    price_hint: customerEntered ? (data.price_hint?.trim() || null) : null,
+  }
 }
 
 
@@ -71,14 +118,15 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
   }
 
   async function saveItem(data: Partial<MenuItem>) {
+    const payload = normalizeItemForSave(data)
     if (data.id) {
-      const { data: updated } = await supabase.from('menu_items').update(data).eq('id', data.id).select().single()
+      const { data: updated } = await supabase.from('menu_items').update(payload).eq('id', data.id).select().single()
       if (updated) setCategories(prev => sortMenuCategories(prev.map(c => ({
         ...c, items: (c.items || []).map(i => i.id === data.id ? { ...i, ...updated } : i)
       }))))
     } else {
       const { data: created } = await supabase.from('menu_items')
-        .insert({ ...data, restaurant_id: restaurant.id }).select().single()
+        .insert({ ...payload, restaurant_id: restaurant.id }).select().single()
       if (created) setCategories(prev => sortMenuCategories(prev.map(c =>
         c.id === data.category_id ? { ...c, items: [...(c.items || []), created as MenuItem] } : c
       )))
@@ -102,7 +150,7 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-black text-gray-900">Gestion du menu</h2>
           <motion.button whileTap={{ scale: 0.95 }} onClick={() => {
-            setEditItem({ category_id: activeCategory, allergens: [], is_vegetarian: false, is_vegan: false, is_halal: false, is_spicy: false, spicy_level: 0, is_available: true, order_count: 0, position: 0 })
+            setEditItem(newMenuItem(activeCategory))
             setShowForm(true)
           }}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-white text-sm font-bold"
@@ -160,7 +208,7 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
                   </div>
                 </div>
                 <div className="flex items-center justify-between mt-2">
-                  <span className="font-black text-sm" style={{ color: p }}>{formatPrice(item.price, restaurant.currency)}</span>
+                  <span className="font-black text-sm" style={{ color: p }}>{itemPriceLabel(item, restaurant.currency)}</span>
                   <div className="flex items-center gap-2">
                     <button onClick={() => toggleAvailable(item)}
                       className="w-7 h-7 rounded-lg flex items-center justify-center bg-gray-100">
@@ -184,7 +232,7 @@ export default function MenuAdminPage({ restaurant, initialCategories }: {
           <div className="text-center py-16">
             <UtensilsCrossed size={40} className="text-gray-300 mb-2 mx-auto" />
             <p className="text-gray-400 font-medium">Aucun plat dans cette catégorie</p>
-            <button onClick={() => { setEditItem({ category_id: activeCategory, allergens: [], is_vegetarian: false, is_vegan: false, is_halal: false, is_spicy: false, spicy_level: 0, is_available: true, order_count: 0, position: 0 }); setShowForm(true) }}
+            <button onClick={() => { setEditItem(newMenuItem(activeCategory)); setShowForm(true) }}
               className="mt-3 text-sm font-bold" style={{ color: p }}>+ Ajouter un plat</button>
           </div>
         )}
@@ -249,13 +297,15 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
   const [loading, setLoading] = useState(false)
   const [showPicker, setShowPicker] = useState(false)
   const p = restaurant.primary_color
+  const isCustomerEntered = form.price_mode === 'customer_entered'
+  const priceIsValid = isCustomerEntered ? Number(form.min_price) > 0 : Number(form.price) > 0
 
   function set<K extends MenuItemFormKey>(key: K, value: Partial<MenuItem>[K]) {
     setForm(prev => ({ ...prev, [key]: value }))
   }
 
   async function handleSave() {
-    if (!form.name || !form.price) return
+    if (!form.name || !form.category_id || !priceIsValid) return
     setLoading(true)
     await onSave(form)
     setLoading(false)
@@ -283,9 +333,39 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
               {categories.map(c => <option key={c.id} value={c.id}>{getMenuIconOption(c.icon).label} - {c.name}</option>)}
             </select>
           </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 block mb-1.5">Mode de prix</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { key: 'fixed', label: 'Prix fixe' },
+                { key: 'customer_entered', label: 'Prix client' },
+              ].map(option => {
+                const selected = form.price_mode === option.key || (!form.price_mode && option.key === 'fixed')
+                return (
+                  <button key={option.key}
+                    onClick={() => setForm(prev => ({
+                      ...prev,
+                      price_mode: option.key as MenuItem['price_mode'],
+                      price: option.key === 'customer_entered' ? 0 : prev.price,
+                    }))}
+                    className="min-h-12 rounded-2xl border-2 text-sm font-black transition-all"
+                    style={selected ? { borderColor: p, backgroundColor: p + '10', color: p } : { borderColor: '#E5E7EB', color: '#6B7280' }}>
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
           {([
             { label: 'Nom du plat *', key: 'name', type: 'text', placeholder: 'Ex: Attiéké Poisson' },
-            { label: `Prix (${restaurant.currency}) *`, key: 'price', type: 'number', placeholder: '2500' },
+            ...(isCustomerEntered
+              ? [
+                  { label: `Minimum (${restaurant.currency}) *`, key: 'min_price', type: 'number', placeholder: '2000' },
+                  { label: 'Libellé affiché', key: 'price_hint', type: 'text', placeholder: 'À partir de 2 000 FCFA' },
+                ] as const
+              : [
+                  { label: `Prix (${restaurant.currency}) *`, key: 'price', type: 'number', placeholder: '2500' },
+                ] as const),
             { label: 'Description', key: 'description', type: 'text', placeholder: 'Description courte...' },
           ] satisfies Array<{ label: string; key: MenuItemTextField; type: 'text' | 'number'; placeholder: string }>).map(f => (
             <div key={f.key}>
@@ -293,7 +373,7 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
               <input type={f.type} placeholder={f.placeholder}
                 value={form[f.key] || ''}
                 onChange={e => {
-                  if (f.key === 'price') set('price', parseFloat(e.target.value) || 0)
+                  if (f.key === 'price' || f.key === 'min_price') set(f.key, parseFloat(e.target.value) || 0)
                   else set(f.key, e.target.value)
                 }}
                 className="w-full px-4 py-3 rounded-2xl bg-gray-50 text-sm outline-none" />
@@ -367,7 +447,7 @@ function ItemFormModal({ item, restaurant, categories, onSave, onClose }: {
         </div>
         <div className="p-5 border-t">
           <motion.button whileTap={{ scale: 0.97 }} onClick={handleSave}
-            disabled={!form.name || !form.price || loading}
+            disabled={!form.name || !form.category_id || !priceIsValid || loading}
             className="w-full py-4 rounded-2xl text-white font-black text-base disabled:opacity-40 flex items-center justify-center gap-2"
             style={{ backgroundColor: p }}>
             {loading ? 'Sauvegarde...' : form.id ? <><Check size={17} /> Sauvegarder</> : <><Plus size={17} /> Ajouter le plat</>}

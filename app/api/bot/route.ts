@@ -136,6 +136,9 @@ function menuLine(item: {
   name: string
   description?: string | null
   price: number
+  price_mode?: 'fixed' | 'customer_entered' | null
+  min_price?: number | null
+  price_hint?: string | null
   is_vegetarian?: boolean
   is_vegan?: boolean
   is_halal?: boolean
@@ -153,7 +156,12 @@ function menuLine(item: {
     item.allergens?.length ? `allergènes: ${item.allergens.join(', ')}` : '',
   ].filter(Boolean)
 
-  return `- ${category?.name ? `[${category.name}] ` : ''}${item.name} (${item.price} ${currency})${item.description ? `: ${item.description}` : ''}${tags.length ? ` (${tags.join(', ')})` : ''}`
+  const minPrice = Number(item.min_price)
+  const priceLabel = item.price_mode === 'customer_entered'
+    ? (item.price_hint?.trim() || (Number.isFinite(minPrice) && minPrice > 0 ? `à partir de ${minPrice} ${currency}` : 'prix à préciser'))
+    : `${item.price} ${currency}`
+
+  return `- ${category?.name ? `[${category.name}] ` : ''}${item.name} (${priceLabel})${item.description ? `: ${item.description}` : ''}${tags.length ? ` (${tags.join(', ')})` : ''}`
 }
 
 function clipped(text: string, max = 7000) {
@@ -226,7 +234,7 @@ export async function POST(req: NextRequest) {
 
     const { data: items } = await admin
       .from('menu_items')
-      .select('name, description, price, is_vegetarian, is_vegan, is_halal, is_spicy, spicy_level, allergens, category:menu_categories(name)')
+      .select('name, description, price, price_mode, min_price, price_hint, is_vegetarian, is_vegan, is_halal, is_spicy, spicy_level, allergens, category:menu_categories(name)')
       .eq('restaurant_id', restaurantId)
       .eq('is_available', true)
       .order('position')

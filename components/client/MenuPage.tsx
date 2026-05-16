@@ -63,11 +63,17 @@ function menuItemMinPrice(item: Pick<MenuItem, 'min_price'>) {
   return Number.isFinite(min) && min > 0 ? min : 0
 }
 
-function menuItemPriceLabel(item: MenuItem, currency: string) {
+function compactPrice(amount: number, currency: string) {
+  if (currency === 'XOF') return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(amount)} FCFA`
+  return formatPrice(amount, currency)
+}
+
+function menuItemPriceLabel(item: MenuItem, currency: string, compact = false) {
   if (!isCustomerPricedItem(item)) return formatPrice(item.price, currency)
+  const minPrice = menuItemMinPrice(item)
+  if (compact) return minPrice > 0 ? `Dès ${compactPrice(minPrice, currency)}` : 'Prix à préciser'
   const hint = item.price_hint?.trim()
   if (hint) return hint
-  const minPrice = menuItemMinPrice(item)
   return minPrice > 0 ? `À partir de ${formatPrice(minPrice, currency)}` : 'Prix à préciser'
 }
 
@@ -500,8 +506,8 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
             {item.is_vegetarian && <span className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-full font-black bg-green-50 text-green-700"><Leaf size={10} /> Végé</span>}
           </div>
 
-          <div className="mt-auto pt-3 flex items-center justify-between gap-3">
-            <span className="font-black text-base whitespace-nowrap" style={{ color: p }}>{menuItemPriceLabel(item, restaurant.currency)}</span>
+          <div className="mt-auto pt-3 flex items-end justify-between gap-2 min-w-0">
+            <span className="min-w-0 flex-1 font-black text-sm leading-tight" style={{ color: p }}>{menuItemPriceLabel(item, restaurant.currency, true)}</span>
             <AnimatePresence mode="wait">
               {quantity === 0 ? (
                 <motion.button key="add"
@@ -509,7 +515,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                   whileTap={{ scale: 0.9 }}
                   onClick={(e) => { e.stopPropagation(); addMenuItem(item) }}
                   aria-label={`Ajouter ${item.name}`}
-                  className="h-9 px-3 rounded-2xl flex items-center gap-1.5 text-white font-black text-sm flex-shrink-0"
+                  className="h-9 w-[6.25rem] rounded-2xl flex items-center justify-center gap-1.5 text-white font-black text-sm flex-shrink-0"
                   style={{ backgroundColor: p, boxShadow: `0 6px 16px ${p}35` }}>
                   <Plus size={15} strokeWidth={3} />
                   <span>Ajouter</span>
@@ -517,7 +523,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
               ) : (
                 <motion.div key="counter"
                   initial={{ scale: 0.9 }} animate={{ scale: 1 }}
-                  className="h-9 flex items-center gap-1 rounded-2xl bg-gray-100 px-1 flex-shrink-0">
+                  className="h-9 w-[6.25rem] flex items-center justify-center gap-1 rounded-2xl bg-gray-100 px-1 flex-shrink-0">
                   <button onClick={(e) => { e.stopPropagation(); updateQuantity(item.id, quantity - 1) }}
                     aria-label={`Retirer ${item.name}`}
                     className="w-7 h-7 rounded-xl bg-white flex items-center justify-center">
@@ -668,8 +674,8 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
                 </div>
                 <div className="p-3">
                   <p className="font-black text-gray-950 text-sm leading-tight line-clamp-2 min-h-9">{item.name}</p>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="font-black text-sm whitespace-nowrap" style={{ color: p }}>{menuItemPriceLabel(item, restaurant.currency)}</span>
+                  <div className="mt-2 flex items-end justify-between gap-2 min-w-0">
+                    <span className="min-w-0 flex-1 font-black text-[12px] leading-tight" style={{ color: p }}>{menuItemPriceLabel(item, restaurant.currency, true)}</span>
                     {cartQty(item.id) === 0 ? (
                       <button onClick={(e) => { e.stopPropagation(); addMenuItem(item) }}
                         aria-label={`Ajouter ${item.name}`}

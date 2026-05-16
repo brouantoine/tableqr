@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
@@ -65,6 +66,10 @@ function normalize(value) {
 
 function slugify(value) {
   return normalize(value).replace(/\s+/g, '-').replace(/^-|-$/g, '') || 'image'
+}
+
+function shortHash(value) {
+  return createHash('sha1').update(value).digest('hex').slice(0, 8)
 }
 
 function contentType(file) {
@@ -256,7 +261,7 @@ async function uploadImages(supabase, restaurantId, imageDir, uniqueImages) {
     const image = uniqueImages[index]
     const buffer = await readFile(path.join(imageDir, image))
     const ext = path.extname(image).toLowerCase()
-    const storagePath = `${restaurantId}/${IMAGE_PREFIX}/${slugify(path.basename(image, ext))}${ext}`
+    const storagePath = `${restaurantId}/${IMAGE_PREFIX}/${slugify(path.basename(image, ext))}-${shortHash(image)}${ext}`
 
     let uploadError = null
     for (let attempt = 1; attempt <= 4; attempt += 1) {
@@ -427,6 +432,7 @@ async function upsertItems(supabase, restaurantId, items, categoryIds, uploadedI
 
 async function upsertItemImages(supabase, restaurantId, items, itemIds, uploadedImages) {
   const rows = []
+  const seen = new Set()
 
   for (const entry of items) {
     const menuItemId = itemIds.get(normalize(entry.name))
@@ -435,6 +441,9 @@ async function upsertItemImages(supabase, restaurantId, items, itemIds, uploaded
     for (const image of entry.images) {
       const imageUrl = image.imageUrl || (image.imageFile ? uploadedImages.get(image.imageFile) : null)
       if (!imageUrl) continue
+      const key = `${menuItemId}:${imageUrl}`
+      if (seen.has(key)) continue
+      seen.add(key)
       rows.push({
         restaurant_id: restaurantId,
         menu_item_id: menuItemId,

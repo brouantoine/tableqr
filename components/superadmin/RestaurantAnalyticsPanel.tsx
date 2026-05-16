@@ -66,11 +66,13 @@ export default function RestaurantAnalyticsPanel({
   onClose,
   onDeleted,
   onPaymentReviewed,
+  onRestaurantUpdated,
 }: {
   restaurant: Restaurant
   onClose: () => void
   onDeleted: (id: string) => void
   onPaymentReviewed?: (payment: SubscriptionPayment) => void
+  onRestaurantUpdated?: (restaurant: Restaurant) => void
 }) {
   const p = restaurant.primary_color
   const [tab, setTab] = useState<Tab>('apercu')
@@ -171,6 +173,7 @@ export default function RestaurantAnalyticsPanel({
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Validation impossible')
       const updatedPayment = result.data as SubscriptionPayment
+      if (result.restaurant) onRestaurantUpdated?.(result.restaurant as Restaurant)
       setData(prev => prev ? {
         ...prev,
         payments: prev.payments.map(item => item.id === payment.id ? updatedPayment : item),
@@ -202,6 +205,7 @@ export default function RestaurantAnalyticsPanel({
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Validation impossible')
       const updatedPayment = result.data as SubscriptionPayment
+      if (result.restaurant) onRestaurantUpdated?.(result.restaurant as Restaurant)
       setData(prev => prev ? {
         ...prev,
         payments: [

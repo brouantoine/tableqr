@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { resolveStorageImageUrl } from '@/lib/images'
-import { getMonthKey } from '@/lib/subscription'
+import { getMonthKey, getMonthLabel } from '@/lib/subscription'
 import { supabase } from '@/lib/supabase/client'
 import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { Restaurant, SubscriptionPayment } from '@/types'
@@ -81,19 +81,30 @@ function PrintUrlCheck() {
 }
 
 function SubBadge({ r, isPaid }: { r: Restaurant; isPaid: boolean }) {
-  if (r.is_preview) return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-purple-100 text-purple-600">Démo</span>
-  if (!r.is_active) return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-gray-100 text-gray-500">Inactif</span>
+  const base = 'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-black leading-none'
+  if (r.is_preview) return <span className={`${base} border-violet-200 bg-violet-50 text-violet-700`}>Démo</span>
+  if (!r.is_active) return <span className={`${base} border-gray-200 bg-gray-50 text-gray-500`}>Inactif</span>
   const status = r.subscription_status ?? 'subscribed'
-  if (status === 'trial') return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-700">Essai</span>
+  if (status === 'trial') return <span className={`${base} border-amber-200 bg-amber-50 text-amber-700`}>Essai</span>
   if (isPaid) {
-    return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-green-100 text-green-600">Payé</span>
+    return <span className={`${base} border-emerald-200 bg-emerald-50 text-emerald-700`}>Payé</span>
   }
-  return <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-red-100 text-red-600">Non payé</span>
+  return <span className={`${base} border-red-200 bg-red-50 text-red-700`}>Non payé</span>
 }
+
+function formatShortDate(value?: string) {
+  if (!value) return '—'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return '—'
+  return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }).format(date)
+}
+
+type RestaurantFilter = 'all' | 'active' | 'unpaid' | 'trial' | 'preview' | 'inactive'
 
 export default function SuperAdminDashboard({ restaurants: initialRestaurants }: Props) {
   const [tab, setTab] = useState<'restaurants' | 'abonnements'>('restaurants')
   const [search, setSearch] = useState('')
+  const [restaurantFilter, setRestaurantFilter] = useState<RestaurantFilter>('all')
   const [showNew, setShowNew] = useState(false)
   const [showQR, setShowQR] = useState(false)
   const [selectedResto, setSelectedResto] = useState<Restaurant | null>(null)
@@ -133,12 +144,37 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
     [localRestaurants, approvedCurrentRestaurantIds])
   const mrr = subscribed.length * MONTHLY_PRICE
   const activeCount = localRestaurants.filter(r => r.is_active && !r.is_preview).length
+  const previewCount = localRestaurants.filter(r => r.is_preview).length
+  const trialCount = localRestaurants.filter(r => !r.is_preview && r.is_active && (r.subscription_status ?? 'subscribed') === 'trial').length
+  const unpaidCount = localRestaurants.filter(r => !r.is_preview && r.is_active && (r.subscription_status ?? 'subscribed') !== 'trial' && !approvedCurrentRestaurantIds.has(r.id)).length
+  const inactiveCount = localRestaurants.filter(r => !r.is_preview && !r.is_active).length
+  const currentMonthLabel = getMonthLabel(currentMonthKey)
 
-  const filtered = localRestaurants.filter(r =>
-    r.name.toLowerCase().includes(search.toLowerCase()) ||
-    r.slug.toLowerCase().includes(search.toLowerCase()) ||
-    r.city?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = localRestaurants.filter(r => {
+    const q = search.trim().toLowerCase()
+    const matchesSearch = !q ||
+      r.name.toLowerCase().includes(q) ||
+      r.slug.toLowerCase().includes(q) ||
+      r.city?.toLowerCase().includes(q) ||
+      r.admin_email?.toLowerCase().includes(q)
+
+    if (!matchesSearch) return false
+    if (restaurantFilter === 'active') return r.is_active && !r.is_preview
+    if (restaurantFilter === 'unpaid') return !r.is_preview && r.is_active && (r.subscription_status ?? 'subscribed') !== 'trial' && !approvedCurrentRestaurantIds.has(r.id)
+    if (restaurantFilter === 'trial') return !r.is_preview && r.is_active && (r.subscription_status ?? 'subscribed') === 'trial'
+    if (restaurantFilter === 'preview') return Boolean(r.is_preview)
+    if (restaurantFilter === 'inactive') return !r.is_preview && !r.is_active
+    return true
+  })
+
+  const restaurantFilters: Array<{ id: RestaurantFilter; label: string; count: number }> = [
+    { id: 'all', label: 'Tous', count: localRestaurants.length },
+    { id: 'active', label: 'Actifs', count: activeCount },
+    { id: 'unpaid', label: 'À relancer', count: unpaidCount },
+    { id: 'trial', label: 'Essais', count: trialCount },
+    { id: 'preview', label: 'Démos', count: previewCount },
+    { id: 'inactive', label: 'Inactifs', count: inactiveCount },
+  ]
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -155,53 +191,62 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
     })
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50">
+  function handleRestaurantUpdated(updated: Restaurant) {
+    setLocalRestaurants(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r))
+    setSelectedResto(prev => prev?.id === updated.id ? { ...prev, ...updated } : prev)
+  }
 
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-100">
-        <div className="px-4 pt-4 pb-0">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h1 className="text-lg font-black text-gray-900 leading-tight">
-                TABLE<span style={{ color: '#F26522' }}>QR</span>
-                <span className="ml-2 text-xs bg-orange-50 text-orange-500 px-2 py-0.5 rounded-full font-bold border border-orange-100">Admin</span>
-              </h1>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {subscribed.length} abonnés · <span className="font-bold text-gray-700">{formatPrice(mrr, 'XOF')}/mois</span>
-              </p>
+  return (
+    <div className="min-h-screen bg-[#F4F6F8] text-gray-950">
+      <div className="border-b border-gray-200 bg-white">
+        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-950 text-white">
+                  <Store size={18} />
+                </div>
+                <div>
+                  <h1 className="text-xl font-black tracking-normal text-gray-950">
+                    TABLE<span className="text-[#F26522]">QR</span> Superadmin
+                  </h1>
+                  <p className="text-sm font-semibold text-gray-500">
+                    {currentMonthLabel} · {subscribed.length} payés · {formatPrice(mrr, 'XOF')}/mois
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-1">
+                {([
+                  { id: 'restaurants', label: 'Restaurants', Icon: Store },
+                  { id: 'abonnements', label: 'Abonnements', Icon: CreditCard },
+                ] as const).map(t => (
+                  <button key={t.id} onClick={() => setTab(t.id)}
+                    className={`flex h-9 items-center gap-2 rounded-md px-3 text-sm font-black transition-colors ${
+                      tab === t.id ? 'bg-white text-gray-950 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+                    }`}>
+                    <t.Icon size={15} />
+                    {t.label}
+                  </button>
+                ))}
+              </div>
               <button onClick={() => setShowQR(true)}
-                className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
+                className="flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-black text-gray-700 hover:bg-gray-50">
                 <QrCode size={16} />
+                QR
               </button>
-              <motion.button whileTap={{ scale: 0.96 }} onClick={() => setShowNew(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-white text-sm font-black"
-                style={{ backgroundColor: '#F26522' }}>
-                <Plus size={15} strokeWidth={3} />
+              <motion.button whileTap={{ scale: 0.97 }} onClick={() => setShowNew(true)}
+                className="flex h-10 items-center gap-2 rounded-lg bg-[#F26522] px-4 text-sm font-black text-white shadow-sm">
+                <Plus size={16} strokeWidth={3} />
                 Nouveau
               </motion.button>
               <button onClick={handleLogout}
-                className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
-                <LogOut size={15} />
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50">
+                <LogOut size={16} />
               </button>
             </div>
-          </div>
-
-          <div className="flex">
-            {([
-              { id: 'restaurants', label: 'Restaurants', Icon: Store },
-              { id: 'abonnements', label: 'Abonnements', Icon: CreditCard },
-            ] as const).map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold transition-colors border-b-2"
-                style={tab === t.id
-                  ? { color: '#F26522', borderBottomColor: '#F26522' }
-                  : { color: '#9CA3AF', borderBottomColor: 'transparent' }}>
-                <t.Icon size={14} />
-                {t.label}
-              </button>
-            ))}
           </div>
         </div>
       </div>
@@ -209,81 +254,176 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
       {tab === 'abonnements' && (
         <AbonnementsTab
           restaurants={localRestaurants}
-          onRestaurantUpdated={(updated) => {
-            setLocalRestaurants(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r))
-            setSelectedResto(prev => prev?.id === updated.id ? { ...prev, ...updated } : prev)
-          }}
+          onRestaurantUpdated={handleRestaurantUpdated}
           onPaymentReviewed={handleSubscriptionPaymentReviewed}
         />
       )}
 
       {tab === 'restaurants' && (
-        <>
-          <div className="grid grid-cols-3 gap-2 px-4 py-4">
+        <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {[
-              { label: 'Actifs', value: activeCount, sub: `${localRestaurants.filter(r => r.is_preview).length} démos`, color: '#F26522', Icon: Store },
-              { label: 'MRR', value: formatPrice(mrr, 'XOF'), sub: `${subscribed.length} abonnés`, color: '#10B981', Icon: TrendingUp },
-              { label: 'Total', value: localRestaurants.length, sub: 'Restaurants', color: '#6366F1', Icon: Users },
+              { label: 'Revenu mensuel', value: formatPrice(mrr, 'XOF'), sub: `${subscribed.length} restaurants payés`, color: '#0F766E', Icon: TrendingUp },
+              { label: 'Actifs', value: String(activeCount), sub: `${unpaidCount} à relancer`, color: '#F26522', Icon: Store },
+              { label: 'Démos', value: String(previewCount), sub: `${trialCount} essais`, color: '#6D28D9', Icon: Rocket },
+              { label: 'Portefeuille', value: String(localRestaurants.length), sub: `${inactiveCount} inactifs`, color: '#1F2937', Icon: Users },
             ].map((s, i) => (
-              <div key={i} className="bg-white rounded-2xl p-3 shadow-sm">
-                <div className="w-7 h-7 rounded-xl flex items-center justify-center mb-2" style={{ backgroundColor: s.color + '18' }}>
-                  <s.Icon size={13} style={{ color: s.color }} />
+              <div key={i} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ backgroundColor: s.color + '14' }}>
+                    <s.Icon size={17} style={{ color: s.color }} />
+                  </div>
+                  <span className="text-xs font-black uppercase text-gray-400">{currentMonthKey}</span>
                 </div>
-                <p className="font-black text-gray-900 text-sm leading-tight">{s.value}</p>
-                <p className="text-xs text-gray-500 mt-0.5 font-medium">{s.label}</p>
-                <p className="text-xs text-gray-400">{s.sub}</p>
+                <p className="text-2xl font-black leading-tight text-gray-950">{s.value}</p>
+                <p className="mt-1 text-sm font-black text-gray-600">{s.label}</p>
+                <p className="text-xs font-semibold text-gray-400">{s.sub}</p>
               </div>
             ))}
           </div>
 
-          <div className="px-4 mb-3">
-            <div className="relative">
-              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder="Rechercher..." value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-2xl text-sm outline-none bg-white shadow-sm border border-gray-100 focus:border-orange-200" />
+          <section className="mt-5 rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-gray-200 p-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-black text-gray-950">Restaurants</p>
+                <p className="text-xs font-semibold text-gray-500">{filtered.length} résultat{filtered.length > 1 ? 's' : ''} sur {localRestaurants.length}</p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative min-w-0 sm:w-80">
+                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input type="text" placeholder="Nom, ville, email..." value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="h-10 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-sm font-semibold text-gray-900 outline-none focus:border-[#F26522] focus:bg-white" />
+                </div>
+                <button onClick={() => setRestaurantFilter('unpaid')}
+                  className="h-10 rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-black text-red-700 hover:bg-red-100">
+                  {unpaidCount} à relancer
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div className="px-4 space-y-2 pb-10">
-            <p className="text-xs font-bold text-gray-400 mb-2">{filtered.length} RESTAURANT{filtered.length > 1 ? 'S' : ''}</p>
-            <AnimatePresence>
-              {filtered.map((r, i) => (
-                <motion.button key={r.id}
-                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.03 }} whileTap={{ scale: 0.98 }}
-                  onClick={() => setSelectedResto(r)}
-                  className="w-full bg-white rounded-2xl p-3.5 text-left flex items-center gap-3 shadow-sm border border-gray-50 hover:border-gray-200 transition-all">
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 text-white shadow-sm"
-                    style={{ backgroundColor: r.primary_color }}>
-                    {resolveStorageImageUrl(r.logo_url)
-                      ? <RestaurantLogo src={r.logo_url} alt={r.name} className="w-full h-full rounded-2xl" />
-                      : <Store size={20} strokeWidth={2.2} />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                      <p className="font-black text-gray-900 text-sm">{r.name}</p>
-                      <SubBadge r={r} isPaid={approvedCurrentRestaurantIds.has(r.id)} />
-                    </div>
-                    <p className="text-xs text-gray-400 truncate">/{r.slug} · {r.city || '—'}</p>
-                  </div>
-                  <div className="flex-shrink-0 text-right">
-                    {!r.is_preview && approvedCurrentRestaurantIds.has(r.id) && r.is_active && (
-                      <p className="text-xs font-black text-green-600">{formatPrice(MONTHLY_PRICE, 'XOF')}</p>
-                    )}
-                    <ChevronRight size={14} className="text-gray-300 mt-0.5 ml-auto" />
-                  </div>
-                </motion.button>
+            <div className="flex gap-2 overflow-x-auto border-b border-gray-200 px-4 py-3">
+              {restaurantFilters.map(filter => (
+                <button key={filter.id} onClick={() => setRestaurantFilter(filter.id)}
+                  className={`flex h-9 flex-shrink-0 items-center gap-2 rounded-lg border px-3 text-sm font-black transition-colors ${
+                    restaurantFilter === filter.id
+                      ? 'border-gray-950 bg-gray-950 text-white'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                  }`}>
+                  <span>{filter.label}</span>
+                  <span className={`rounded-md px-1.5 py-0.5 text-[11px] ${
+                    restaurantFilter === filter.id ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-500'
+                  }`}>{filter.count}</span>
+                </button>
               ))}
-            </AnimatePresence>
+            </div>
+
+            <div className="hidden overflow-x-auto lg:block">
+              <table className="w-full min-w-[920px] text-left">
+                <thead className="bg-gray-50 text-xs font-black uppercase text-gray-500">
+                  <tr>
+                    <th className="px-4 py-3">Restaurant</th>
+                    <th className="px-4 py-3">Statut</th>
+                    <th className="px-4 py-3">Contact</th>
+                    <th className="px-4 py-3">Paiement</th>
+                    <th className="px-4 py-3">Créé</th>
+                    <th className="px-4 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {filtered.map((r) => {
+                    const paid = approvedCurrentRestaurantIds.has(r.id)
+                    return (
+                      <tr key={r.id} className="group hover:bg-gray-50/80">
+                        <td className="px-4 py-3">
+                          <button onClick={() => setSelectedResto(r)} className="flex min-w-0 items-center gap-3 text-left">
+                            <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg text-white"
+                              style={{ backgroundColor: r.primary_color }}>
+                              {resolveStorageImageUrl(r.logo_url)
+                                ? <RestaurantLogo src={r.logo_url} alt={r.name} className="h-full w-full rounded-lg bg-white" />
+                                : <Store size={19} strokeWidth={2.2} />}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-black text-gray-950">{r.name}</p>
+                              <p className="truncate text-xs font-semibold text-gray-500">/{r.slug}</p>
+                            </div>
+                          </button>
+                        </td>
+                        <td className="px-4 py-3"><SubBadge r={r} isPaid={paid} /></td>
+                        <td className="px-4 py-3">
+                          <p className="text-sm font-bold text-gray-800">{r.city || '—'}</p>
+                          <p className="max-w-[220px] truncate text-xs font-semibold text-gray-400">{r.admin_email || r.email || r.phone || '—'}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          {!r.is_preview && r.is_active ? (
+                            paid ? (
+                              <p className="text-sm font-black text-emerald-700">{formatPrice(MONTHLY_PRICE, 'XOF')}</p>
+                            ) : (
+                              <p className="text-sm font-black text-red-600">À relancer</p>
+                            )
+                          ) : (
+                            <p className="text-sm font-bold text-gray-400">—</p>
+                          )}
+                          <p className="text-xs font-semibold text-gray-400">{currentMonthLabel}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <p className="text-sm font-bold text-gray-700">{formatShortDate(r.created_at)}</p>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button onClick={() => setSelectedResto(r)}
+                            className="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-black text-gray-700 hover:border-[#F26522] hover:text-[#F26522]">
+                            Ouvrir
+                            <ChevronRight size={15} />
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="space-y-3 p-4 lg:hidden">
+              <AnimatePresence>
+                {filtered.map((r, i) => {
+                  const paid = approvedCurrentRestaurantIds.has(r.id)
+                  return (
+                    <motion.button key={r.id}
+                      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(i, 8) * 0.025 }} whileTap={{ scale: 0.99 }}
+                      onClick={() => setSelectedResto(r)}
+                      className="w-full rounded-lg border border-gray-200 bg-white p-3 text-left shadow-sm">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg text-white"
+                          style={{ backgroundColor: r.primary_color }}>
+                          {resolveStorageImageUrl(r.logo_url)
+                            ? <RestaurantLogo src={r.logo_url} alt={r.name} className="h-full w-full rounded-lg bg-white" />
+                            : <Store size={20} strokeWidth={2.2} />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                            <p className="truncate text-sm font-black text-gray-950">{r.name}</p>
+                            <SubBadge r={r} isPaid={paid} />
+                          </div>
+                          <p className="truncate text-xs font-semibold text-gray-500">/{r.slug} · {r.city || '—'}</p>
+                          <p className="mt-2 text-xs font-bold text-gray-400">{formatShortDate(r.created_at)}</p>
+                        </div>
+                        <ChevronRight size={16} className="mt-1 flex-shrink-0 text-gray-300" />
+                      </div>
+                    </motion.button>
+                  )
+                })}
+              </AnimatePresence>
+            </div>
+
             {filtered.length === 0 && (
-              <div className="text-center py-16">
-                <Store size={32} className="mx-auto mb-3 text-gray-200" />
-                <p className="text-gray-400 font-medium text-sm">Aucun restaurant trouvé</p>
+              <div className="py-16 text-center">
+                <Store size={34} className="mx-auto mb-3 text-gray-200" />
+                <p className="text-sm font-black text-gray-500">Aucun restaurant trouvé</p>
               </div>
             )}
-          </div>
-        </>
+          </section>
+        </main>
       )}
 
       <AnimatePresence>
@@ -302,6 +442,7 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
               setSelectedResto(null)
             }}
             onPaymentReviewed={handleSubscriptionPaymentReviewed}
+            onRestaurantUpdated={handleRestaurantUpdated}
           />
         )}
       </AnimatePresence>

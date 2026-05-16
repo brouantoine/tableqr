@@ -131,7 +131,8 @@ export async function POST(req: NextRequest) {
     const admin = getSupabaseAdmin()
     const body = await req.json() as DirectApproveBody
     const paidAt = parseDateInput(body.payment_date || '')
-    const month = paidAt ? getMonthKeyFromDateInput(paidAt) : body.month || ''
+    const requestedMonth = body.month && parseMonthKey(body.month) ? body.month : null
+    const month = requestedMonth || (paidAt ? getMonthKeyFromDateInput(paidAt) : '')
 
     if (!body.restaurant_id) return NextResponse.json({ error: 'Restaurant requis' }, { status: 400 })
     if (!paidAt) return NextResponse.json({ error: 'Date de paiement invalide' }, { status: 400 })

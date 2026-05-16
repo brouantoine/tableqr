@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import LucideAvatar from './LucideAvatar'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Heart, UtensilsCrossed, MessageCircle, Gamepad2, Bell, Package, Star, Flame, Leaf, ShieldCheck, CheckCircle, CreditCard, Banknote, Smartphone, Wallet, type LucideIcon } from 'lucide-react'
+import { Search, ShoppingBag, ClipboardList, Plus, Minus, X, Heart, UtensilsCrossed, MessageCircle, Gamepad2, Bell, Package, Star, Flame, Leaf, ShieldCheck, CheckCircle, CreditCard, Banknote, Smartphone, Wallet, Images, type LucideIcon } from 'lucide-react'
 import { useSessionStore } from '@/lib/store'
 import { supabase } from '@/lib/supabase/client'
 import { formatPrice, generateDeviceFingerprint } from '@/lib/utils'
@@ -77,6 +77,29 @@ function menuItemPriceLabel(item: MenuItem, currency: string, compact = false) {
   return minPrice > 0 ? `À partir de ${formatPrice(minPrice, currency)}` : 'Prix à préciser'
 }
 
+function menuItemImageUrls(item: Pick<MenuItem, 'image_url' | 'images'>) {
+  const sources = [
+    item.image_url,
+    ...[...(item.images || [])]
+      .sort((a, b) => {
+        const pa = Number.isFinite(Number(a.position)) ? Number(a.position) : Number.MAX_SAFE_INTEGER
+        const pb = Number.isFinite(Number(b.position)) ? Number(b.position) : Number.MAX_SAFE_INTEGER
+        return pa - pb
+      })
+      .map(image => image.image_url),
+  ]
+
+  const seen = new Set<string>()
+  return sources
+    .map(source => resolveStorageImageUrl(source))
+    .filter(url => {
+      const key = url.trim()
+      if (!key || seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+}
+
 function sortMenuItems(items: MenuItem[]) {
   return [...items].sort((a, b) => {
     const pa = Number.isFinite(Number(a.position)) ? Number(a.position) : Number.MAX_SAFE_INTEGER
@@ -93,6 +116,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   const [activeCategory, setActiveCategory] = useState<string | undefined>()
   const [search, setSearch] = useState('')
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [selectedUnitPrice, setSelectedUnitPrice] = useState('')
   const [selectedPriceError, setSelectedPriceError] = useState('')
   const [showCart, setShowCart] = useState(false)
@@ -109,6 +133,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   const [transitioning, setTransitioning] = useState(false)
   const [isGuestUpgrade, setIsGuestUpgrade] = useState(false)
   const guestRedirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const selectedGalleryRef = useRef<HTMLDivElement | null>(null)
   const sectionRefs = useRef(new Map<string, HTMLElement>())
   const categoryButtonRefs = useRef(new Map<string, HTMLButtonElement>())
   const cancelGuestRedirect = useCallback(() => {
@@ -182,7 +207,7 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
       .sort((a, b) => {
         const orderDiff = (b.order_count || 0) - (a.order_count || 0)
         if (orderDiff !== 0) return orderDiff
-        const imageDiff = Number(Boolean(b.image_url)) - Number(Boolean(a.image_url))
+        const imageDiff = Number(menuItemImageUrls(b).length > 0) - Number(menuItemImageUrls(a).length > 0)
         if (imageDiff !== 0) return imageDiff
         const rankDiff = categoryRank(a.category) - categoryRank(b.category)
         if (rankDiff !== 0) return rankDiff
@@ -219,6 +244,12 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   const activeCategoryName = menuCategories.find(c => c.id === activeCategory)?.name || 'Menu'
   const tableLabel = tableDisplayName || tableId
   const displayLogoUrl = resolveStorageImageUrl(logoPreviewUrl || restaurant.logo_url)
+  const selectedImageUrls = useMemo(() => selectedItem ? menuItemImageUrls(selectedItem) : [], [selectedItem])
+
+  useEffect(() => {
+    setSelectedImageIndex(0)
+    selectedGalleryRef.current?.scrollTo({ left: 0 })
+  }, [selectedItem?.id])
 
   useEffect(() => {
     if (!selectedItem) {
@@ -267,6 +298,14 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
 
     addToCart(selectedItem, 1, undefined, unitPrice)
     setSelectedItem(null)
+  }
+
+  function handleSelectedGalleryScroll() {
+    const node = selectedGalleryRef.current
+    if (!node) return
+    const width = node.clientWidth || 1
+    const nextIndex = Math.round(node.scrollLeft / width)
+    setSelectedImageIndex(Math.max(0, Math.min(nextIndex, selectedImageUrls.length - 1)))
   }
 
   const registerCategorySection = useCallback((id: string, node: HTMLElement | null) => {
@@ -454,6 +493,8 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
   function renderMenuItemCard(item: MenuItem, index: number, options: { showCategory?: boolean } = {}) {
     const quantity = cartQty(item.id)
     const isFeatured = featuredIds.has(item.id)
+    const imageUrls = menuItemImageUrls(item)
+    const primaryImageUrl = imageUrls[0]
 
     return (
       <motion.div key={item.id}
@@ -468,13 +509,19 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
         onKeyDown={(e) => { if (e.key === 'Enter') setSelectedItem(item) }}
         className="w-full rounded-3xl bg-white border border-gray-100 p-2.5 flex gap-3 text-left shadow-[0_6px_24px_rgba(15,23,42,0.05)] active:scale-[0.99] transition-[transform,box-shadow] duration-300">
         <div className="relative w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0 bg-gray-100">
-          {item.image_url
-            ? <img src={item.image_url} alt={item.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
+          {primaryImageUrl
+            ? <img src={primaryImageUrl} alt={item.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
             : <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: p + '12' }}><UtensilsCrossed size={30} style={{ color: p }} /></div>
           }
           {isFeatured && !search && (
             <span className="absolute left-2 top-2 w-6 h-6 rounded-xl bg-white/95 flex items-center justify-center shadow-sm">
               <Star size={12} fill={p} style={{ color: p }} />
+            </span>
+          )}
+          {imageUrls.length > 1 && (
+            <span className="absolute right-2 bottom-2 min-w-7 h-6 px-1.5 rounded-xl bg-black/55 backdrop-blur flex items-center justify-center gap-1 text-[10px] font-black text-white">
+              <Images size={11} />
+              {imageUrls.length}
             </span>
           )}
         </div>
@@ -653,45 +700,56 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
             <Star size={18} style={{ color: p }} fill={p} />
           </div>
           <div className="flex gap-3 px-5 overflow-x-auto pb-2 scrollbar-hide">
-            {featured.map((item, i) => (
-              <motion.div key={item.id}
-                role="button"
-                tabIndex={0}
-                initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.04 }} whileTap={{ scale: 0.97 }}
-                onClick={() => setSelectedItem(item)}
-                onKeyDown={(e) => { if (e.key === 'Enter') setSelectedItem(item) }}
-                className="flex-shrink-0 w-40 rounded-3xl bg-white overflow-hidden border border-gray-100 shadow-sm text-left">
-                <div className="relative h-24">
-                  {item.image_url
-                    ? <img src={item.image_url} alt={item.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
-                    : <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: p + '12' }}><UtensilsCrossed size={32} style={{ color: p }} /></div>
-                  }
-                  <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-white/90 flex items-center gap-1 text-[10px] font-black text-gray-800">
-                    <Star size={10} fill={p} style={{ color: p }} />
-                    Populaire
-                  </div>
-                </div>
-                <div className="p-3">
-                  <p className="font-black text-gray-950 text-sm leading-tight line-clamp-2 min-h-9">{item.name}</p>
-                  <div className="mt-2 flex items-end justify-between gap-2 min-w-0">
-                    <span className="min-w-0 flex-1 font-black text-[12px] leading-tight" style={{ color: p }}>{menuItemPriceLabel(item, restaurant.currency, true)}</span>
-                    {cartQty(item.id) === 0 ? (
-                      <button onClick={(e) => { e.stopPropagation(); addMenuItem(item) }}
-                        aria-label={`Ajouter ${item.name}`}
-                        className="w-8 h-8 rounded-2xl flex items-center justify-center text-white flex-shrink-0"
-                        style={{ backgroundColor: p }}>
-                        <Plus size={15} strokeWidth={3} />
-                      </button>
-                    ) : (
-                      <span className="min-w-8 h-8 px-2 rounded-2xl bg-gray-100 flex items-center justify-center font-black text-xs text-gray-800">
-                        {cartQty(item.id)}
-                      </span>
+            {featured.map((item, i) => {
+              const imageUrls = menuItemImageUrls(item)
+              const primaryImageUrl = imageUrls[0]
+
+              return (
+                <motion.div key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.04 }} whileTap={{ scale: 0.97 }}
+                  onClick={() => setSelectedItem(item)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') setSelectedItem(item) }}
+                  className="flex-shrink-0 w-40 rounded-3xl bg-white overflow-hidden border border-gray-100 shadow-sm text-left">
+                  <div className="relative h-24">
+                    {primaryImageUrl
+                      ? <img src={primaryImageUrl} alt={item.name} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
+                      : <div className="absolute inset-0 flex items-center justify-center" style={{ backgroundColor: p + '12' }}><UtensilsCrossed size={32} style={{ color: p }} /></div>
+                    }
+                    <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-white/90 flex items-center gap-1 text-[10px] font-black text-gray-800">
+                      <Star size={10} fill={p} style={{ color: p }} />
+                      Populaire
+                    </div>
+                    {imageUrls.length > 1 && (
+                      <div className="absolute right-2 bottom-2 min-w-7 h-6 px-1.5 rounded-xl bg-black/55 backdrop-blur flex items-center justify-center gap-1 text-[10px] font-black text-white">
+                        <Images size={11} />
+                        {imageUrls.length}
+                      </div>
                     )}
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                  <div className="p-3">
+                    <p className="font-black text-gray-950 text-sm leading-tight line-clamp-2 min-h-9">{item.name}</p>
+                    <div className="mt-2 flex items-end justify-between gap-2 min-w-0">
+                      <span className="min-w-0 flex-1 font-black text-[12px] leading-tight" style={{ color: p }}>{menuItemPriceLabel(item, restaurant.currency, true)}</span>
+                      {cartQty(item.id) === 0 ? (
+                        <button onClick={(e) => { e.stopPropagation(); addMenuItem(item) }}
+                          aria-label={`Ajouter ${item.name}`}
+                          className="w-8 h-8 rounded-2xl flex items-center justify-center text-white flex-shrink-0"
+                          style={{ backgroundColor: p }}>
+                          <Plus size={15} strokeWidth={3} />
+                        </button>
+                      ) : (
+                        <span className="min-w-8 h-8 px-2 rounded-2xl bg-gray-100 flex items-center justify-center font-black text-xs text-gray-800">
+                          {cartQty(item.id)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
           </div>
         </section>
       )}
@@ -810,14 +868,38 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
               className="relative bg-white w-full max-w-md mx-auto rounded-t-[2.5rem] overflow-hidden"
               onClick={(e: React.MouseEvent) => e.stopPropagation()}>
               <div className="relative">
-                {selectedItem.image_url
-                  ? <img src={selectedItem.image_url} alt={selectedItem.name} className="w-full h-64 object-cover" />
+                {selectedImageUrls.length > 0
+                  ? (
+                    <div
+                      ref={selectedGalleryRef}
+                      onScroll={handleSelectedGalleryScroll}
+                      className="flex h-64 overflow-x-auto snap-x snap-mandatory scroll-smooth scrollbar-hide">
+                      {selectedImageUrls.map((url, index) => (
+                        <img
+                          key={url}
+                          src={url}
+                          alt={selectedItem.images?.[index]?.alt_text || selectedItem.name}
+                          className="w-full h-64 object-cover flex-shrink-0 snap-center"
+                        />
+                      ))}
+                    </div>
+                  )
                   : <div className="w-full h-52 flex items-center justify-center" style={{ backgroundColor: p + '15' }}><UtensilsCrossed size={64} style={{ color: p + '60' }} /></div>
                 }
                 <button onClick={() => setSelectedItem(null)}
                   className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/40 backdrop-blur flex items-center justify-center">
                   <X size={16} className="text-white" />
                 </button>
+                {selectedImageUrls.length > 1 && (
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-black/45 px-2.5 py-1.5 backdrop-blur">
+                    {selectedImageUrls.map((url, index) => (
+                      <span
+                        key={url}
+                        className={`h-1.5 rounded-full transition-all ${selectedImageIndex === index ? 'w-4 bg-white' : 'w-1.5 bg-white/55'}`}
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="p-6">
                 <div className="flex items-start justify-between mb-3">
@@ -953,44 +1035,48 @@ export default function MenuPage({ restaurant, categories }: { restaurant: Resta
               </div>
 
               <div className="flex-1 overflow-y-auto px-5 space-y-3 pb-4">
-                {cart.items.map(ci => (
-                  <div key={ci.menu_item.id} className="rounded-2xl bg-gray-50 overflow-hidden">
-                    <div className="flex items-center gap-3 p-3">
-                      <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0">
-                        {ci.menu_item.image_url
-                          ? <img src={ci.menu_item.image_url} alt="" className="w-full h-full object-cover" />
-                          : <div className="w-full h-full flex items-center justify-center bg-gray-200"><UtensilsCrossed size={20} className="text-gray-400" /></div>
-                        }
+                {cart.items.map(ci => {
+                  const cartImageUrl = menuItemImageUrls(ci.menu_item)[0]
+
+                  return (
+                    <div key={ci.menu_item.id} className="rounded-2xl bg-gray-50 overflow-hidden">
+                      <div className="flex items-center gap-3 p-3">
+                        <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0">
+                          {cartImageUrl
+                            ? <img src={cartImageUrl} alt="" className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center bg-gray-200"><UtensilsCrossed size={20} className="text-gray-400" /></div>
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm text-gray-900 truncate">{ci.menu_item.name}</p>
+                          <p className="text-xs font-black mt-0.5" style={{ color: p }}>{formatPrice(ci.subtotal, restaurant.currency)}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <motion.button whileTap={{ scale: 0.8 }} onClick={() => updateQuantity(ci.menu_item.id, ci.quantity - 1)}
+                            className="w-7 h-7 rounded-xl bg-white flex items-center justify-center shadow-sm border border-gray-100">
+                            <Minus size={12} style={{ color: p }} strokeWidth={3} />
+                          </motion.button>
+                          <span className="font-black text-sm w-4 text-center">{ci.quantity}</span>
+                          <motion.button whileTap={{ scale: 0.8 }} onClick={() => addToCart(ci.menu_item, 1, undefined, ci.unit_price)}
+                            className="w-7 h-7 rounded-xl flex items-center justify-center text-white shadow-sm"
+                            style={{ backgroundColor: p }}>
+                            <Plus size={12} strokeWidth={3} />
+                          </motion.button>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm text-gray-900 truncate">{ci.menu_item.name}</p>
-                        <p className="text-xs font-black mt-0.5" style={{ color: p }}>{formatPrice(ci.subtotal, restaurant.currency)}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <motion.button whileTap={{ scale: 0.8 }} onClick={() => updateQuantity(ci.menu_item.id, ci.quantity - 1)}
-                          className="w-7 h-7 rounded-xl bg-white flex items-center justify-center shadow-sm border border-gray-100">
-                          <Minus size={12} style={{ color: p }} strokeWidth={3} />
-                        </motion.button>
-                        <span className="font-black text-sm w-4 text-center">{ci.quantity}</span>
-                        <motion.button whileTap={{ scale: 0.8 }} onClick={() => addToCart(ci.menu_item, 1, undefined, ci.unit_price)}
-                          className="w-7 h-7 rounded-xl flex items-center justify-center text-white shadow-sm"
-                          style={{ backgroundColor: p }}>
-                          <Plus size={12} strokeWidth={3} />
-                        </motion.button>
+                      <div className="px-3 pb-3">
+                        <input
+                          type="text"
+                          placeholder="Note pour ce plat (ex: sans sel, bien cuit...)"
+                          value={notes[ci.menu_item.id] || ''}
+                          onChange={e => setNotes(prev => ({ ...prev, [ci.menu_item.id]: e.target.value }))}
+                          className="w-full px-3 py-2.5 rounded-xl bg-white border border-gray-200 outline-none text-gray-800 placeholder-gray-400"
+                          style={{ fontSize: '16px' }}
+                        />
                       </div>
                     </div>
-                    <div className="px-3 pb-3">
-                      <input
-                        type="text"
-                        placeholder="Note pour ce plat (ex: sans sel, bien cuit...)"
-                        value={notes[ci.menu_item.id] || ''}
-                        onChange={e => setNotes(prev => ({ ...prev, [ci.menu_item.id]: e.target.value }))}
-                        className="w-full px-3 py-2.5 rounded-xl bg-white border border-gray-200 outline-none text-gray-800 placeholder-gray-400"
-                        style={{ fontSize: '16px' }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               <div className="flex-shrink-0 px-5 pt-3 pb-5 bg-white border-t border-gray-100">

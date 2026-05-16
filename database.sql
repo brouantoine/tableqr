@@ -133,6 +133,18 @@ CREATE TABLE menu_items (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- IMAGES DES PLATS
+CREATE TABLE menu_item_images (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  restaurant_id UUID NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+  menu_item_id UUID NOT NULL REFERENCES menu_items(id) ON DELETE CASCADE,
+  image_url TEXT NOT NULL,
+  alt_text TEXT,
+  position INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(menu_item_id, image_url)
+);
+
 -- SESSIONS CLIENT (anonymous)
 CREATE TABLE client_sessions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -334,6 +346,8 @@ CREATE TABLE daily_analytics (
 
 -- INDEX
 CREATE INDEX idx_menu_items_restaurant ON menu_items(restaurant_id);
+CREATE INDEX idx_menu_item_images_item ON menu_item_images(menu_item_id, position);
+CREATE INDEX idx_menu_item_images_restaurant ON menu_item_images(restaurant_id);
 CREATE INDEX idx_orders_restaurant ON orders(restaurant_id);
 CREATE INDEX idx_orders_status ON orders(restaurant_id, status);
 CREATE INDEX idx_orders_created ON orders(restaurant_id, created_at DESC);
@@ -353,6 +367,7 @@ ALTER TABLE restaurants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE restaurant_tables ENABLE ROW LEVEL SECURITY;
 ALTER TABLE menu_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE menu_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE menu_item_images ENABLE ROW LEVEL SECURITY;
 ALTER TABLE client_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;

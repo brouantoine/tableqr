@@ -107,6 +107,39 @@ function guessIcon(categoryName) {
   return 'utensils'
 }
 
+function imageInputSource(value) {
+  if (!value) return null
+  if (typeof value === 'string') return value.trim() || null
+  return String(value.image || value.image_file || value.image_url || value.url || '').trim() || null
+}
+
+function normalizeImageInputs(entry) {
+  const rawInputs = []
+  if (entry.image || entry.image_file || entry.image_url) {
+    rawInputs.push(entry.image || entry.image_file || entry.image_url)
+  }
+  for (const key of ['images', 'image_files', 'image_urls']) {
+    if (Array.isArray(entry[key])) rawInputs.push(...entry[key])
+  }
+
+  const seen = new Set()
+  const images = []
+  for (const rawInput of rawInputs) {
+    const source = imageInputSource(rawInput)
+    if (!source) continue
+    const key = source
+    if (seen.has(key)) continue
+    seen.add(key)
+    images.push({
+      imageFile: isRemoteImage(source) ? null : source,
+      imageUrl: isRemoteImage(source) ? source : null,
+      alt_text: typeof rawInput === 'object' && rawInput?.alt_text ? String(rawInput.alt_text).trim() : null,
+    })
+  }
+
+  return images.map((image, index) => ({ ...image, position: index }))
+}
+
 function readMenu(file) {
   const data = JSON.parse(readFileSync(file, 'utf8'))
   if (!Array.isArray(data.items)) throw new Error('Le fichier menu doit contenir un tableau "items".')
@@ -144,9 +177,8 @@ function readMenu(file) {
     if (!Number.isFinite(price)) throw new Error(`Prix invalide pour "${entry.name}".`)
     if (priceMode === 'customer_entered' && !minPrice) throw new Error(`Prix minimum manquant pour "${entry.name}".`)
 
-    const image = entry.image || entry.image_file || null
-    const imageUrl = entry.image_url || (isRemoteImage(image) ? image : null)
-    const imageFile = image && !isRemoteImage(image) ? image : null
+    const images = normalizeImageInputs(entry)
+    const primaryImage = images[0] || null
 
     return {
       category: String(entry.category).trim(),
@@ -157,8 +189,9 @@ function readMenu(file) {
       max_price: priceMode === 'customer_entered' ? maxPrice : null,
       price_hint: priceMode === 'customer_entered' ? String(entry.price_hint || '').trim() || null : null,
       description: String(entry.description || '').trim(),
-      imageFile,
-      imageUrl,
+      imageFile: primaryImage?.imageFile || null,
+      imageUrl: primaryImage?.imageUrl || null,
+      images,
       allergens: Array.isArray(entry.allergens) ? entry.allergens : [],
       is_vegetarian: Boolean(entry.is_vegetarian),
       is_vegan: Boolean(entry.is_vegan),
@@ -190,7 +223,9 @@ function readMenu(file) {
 
 async function ensureImageFiles(items, imageDir) {
   const missing = []
-  const uniqueImages = [...new Set(items.map((entry) => entry.imageFile).filter(Boolean))]
+  const uniqueImages = [
+    ...new Set(items.flatMap((entry) => entry.images.map((image) => image.imageFile).filter(Boolean))),
+  ]
   for (const image of uniqueImages) {
     try {
       await stat(path.join(imageDir, image))
@@ -270,6 +305,19 @@ async function ensureCustomerPriceSchema(supabase, items) {
   }
 }
 
+async function ensureMenuItemImagesSchema(supabase, items) {
+  if (!items.some((entry) => entry.images.length > 1)) return
+
+  const { error } = await supabase
+    .from('menu_item_images')
+    .select('id, menu_item_id, image_url, position')
+    .limit(1)
+
+  if (error) {
+    throw new Error('Migration images plats manquante: executez migration_menu_item_images.sql dans Supabase SQL Editor puis relancez l import.')
+  }
+}
+
 async function upsertCategories(supabase, restaurantId, categories) {
   const { data: existing, error } = await supabase
     .from('menu_categories')
@@ -322,6 +370,7 @@ async function upsertItems(supabase, restaurantId, items, categoryIds, uploadedI
 
   const byName = new Map((existing || []).map((entry) => [normalize(entry.name), entry]))
   const stats = { created: 0, updated: 0 }
+  const itemIds = new Map()
 
   for (const entry of items) {
     const categoryId = categoryIds.get(normalize(entry.category))
@@ -359,20 +408,58 @@ async function upsertItems(supabase, restaurantId, items, categoryIds, uploadedI
         .eq('id', current.id)
       if (updateError) throw new Error(`Mise a jour plat ${entry.name} echouee: ${updateError.message}`)
       stats.updated += 1
+      itemIds.set(normalize(entry.name), current.id)
       continue
     }
 
-    const { error: insertError } = await supabase.from('menu_items').insert(payload)
+    const { data: created, error: insertError } = await supabase
+      .from('menu_items')
+      .insert(payload)
+      .select('id')
+      .single()
     if (insertError) throw new Error(`Creation plat ${entry.name} echouee: ${insertError.message}`)
+    itemIds.set(normalize(entry.name), created.id)
     stats.created += 1
   }
 
-  return stats
+  return { stats, itemIds }
+}
+
+async function upsertItemImages(supabase, restaurantId, items, itemIds, uploadedImages) {
+  const rows = []
+
+  for (const entry of items) {
+    const menuItemId = itemIds.get(normalize(entry.name))
+    if (!menuItemId) throw new Error(`Plat introuvable pour les images: ${entry.name}`)
+
+    for (const image of entry.images) {
+      const imageUrl = image.imageUrl || (image.imageFile ? uploadedImages.get(image.imageFile) : null)
+      if (!imageUrl) continue
+      rows.push({
+        restaurant_id: restaurantId,
+        menu_item_id: menuItemId,
+        image_url: imageUrl,
+        alt_text: image.alt_text || entry.name,
+        position: image.position,
+      })
+    }
+  }
+
+  if (!rows.length) return { upserted: 0 }
+
+  const { error } = await supabase
+    .from('menu_item_images')
+    .upsert(rows, { onConflict: 'menu_item_id,image_url' })
+
+  if (error) throw new Error(`Association images plats echouee: ${error.message}`)
+  return { upserted: rows.length }
 }
 
 function printPlan({ restaurantId, imageDir, menuFile, execute, categories, items, uniqueImages, missing }) {
-  const withoutImage = items.filter((entry) => !entry.imageFile && !entry.imageUrl)
-  const remoteImages = items.filter((entry) => entry.imageUrl).length
+  const withoutImage = items.filter((entry) => entry.images.length === 0)
+  const remoteImages = items.reduce((count, entry) => count + entry.images.filter((image) => image.imageUrl).length, 0)
+  const attachedImages = items.reduce((count, entry) => count + entry.images.length, 0)
+  const multiImageItems = items.filter((entry) => entry.images.length > 1)
 
   console.log(`Restaurant: ${restaurantId}`)
   console.log(`Dossier images: ${imageDir}`)
@@ -380,6 +467,8 @@ function printPlan({ restaurantId, imageDir, menuFile, execute, categories, item
   console.log(`Mode: ${execute ? 'EXECUTE' : 'DRY RUN'}`)
   console.log(`Categories: ${categories.length}`)
   console.log(`Plats: ${items.length}`)
+  console.log(`Photos rattachees aux plats: ${attachedImages}`)
+  console.log(`Plats avec plusieurs photos: ${multiImageItems.length}`)
   console.log(`Images locales a uploader: ${uniqueImages.length}`)
   console.log(`Images URL externes: ${remoteImages}`)
   console.log(`Plats sans image: ${withoutImage.length}`)
@@ -425,12 +514,16 @@ async function main() {
   console.log(`Restaurant trouve: ${restaurant.name} (${restaurant.slug})`)
 
   await ensureCustomerPriceSchema(supabase, items)
+  await ensureMenuItemImagesSchema(supabase, items)
   await ensureBucket(supabase)
   const uploadedImages = await uploadImages(supabase, restaurantId, imageDir, uniqueImages)
   const categoryIds = await upsertCategories(supabase, restaurantId, categories)
-  const stats = await upsertItems(supabase, restaurantId, items, categoryIds, uploadedImages)
+  const { stats, itemIds } = await upsertItems(supabase, restaurantId, items, categoryIds, uploadedImages)
+  const imageStats = items.some((entry) => entry.images.length > 1)
+    ? await upsertItemImages(supabase, restaurantId, items, itemIds, uploadedImages)
+    : { upserted: 0 }
 
-  console.log(`Import termine: ${stats.created} crees, ${stats.updated} mis a jour.`)
+  console.log(`Import termine: ${stats.created} crees, ${stats.updated} mis a jour, ${imageStats.upserted} images associees.`)
 }
 
 main().catch((error) => {

@@ -112,6 +112,16 @@ export interface MenuCategory {
   items?: MenuItem[]
 }
 
+export interface MenuItemImage {
+  id: string
+  restaurant_id: string
+  menu_item_id: string
+  image_url: string
+  alt_text?: string | null
+  position: number
+  created_at: string
+}
+
 export interface MenuItem {
   id: string
   restaurant_id: string
@@ -136,6 +146,7 @@ export interface MenuItem {
   order_count: number
   position: number
   category?: MenuCategory
+  images?: MenuItemImage[]
   avg_rating?: number
 }
 

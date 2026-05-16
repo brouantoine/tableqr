@@ -39,6 +39,7 @@ Rules for customer-entered pricing:
 - If the user says "à partir de deux mille" or equivalent without another amount, use `min_price: 2000`.
 - This is configured per item. Existing and new classic restaurants keep the fixed-price flow unless an item is explicitly imported with `price_mode: "customer_entered"`.
 - If execute mode fails with a missing `price_mode`, `min_price`, `max_price`, or `price_hint` column, ask the user to run `migration_menu_item_price_mode.sql` in Supabase SQL Editor, then rerun the import.
+- If execute mode fails with missing `menu_item_images`, ask the user to run `migration_menu_item_images.sql` in Supabase SQL Editor, then rerun the import.
 
 Restaurant scope:
 
@@ -56,14 +57,15 @@ Workflow:
 6. For multi-price pizzas, create separate items such as `Pizza Royale - Petite`, `Pizza Royale - Moyenne`, `Pizza Royale - Grande`.
 7. For customer-entered-price menus, set every relevant item to `price_mode: "customer_entered"`, `price: 0`, and the agreed `min_price`.
 8. Match each item to the exact local image filename when a clear match exists.
-9. Leave `image` empty only when no reliable image exists.
-10. Run a dry run first:
+9. Use `images` when multiple reliable photos belong to the same dish. Keep the first photo as the primary one.
+10. Leave `image` empty only when no reliable image exists.
+11. Run a dry run first:
 
 ```bash
 node scripts/import-menu-from-json.mjs --restaurant=<restaurantId> --images=<folder> --menu=<jsonFile>
 ```
 
-11. If the dry run is clean, run the import:
+12. If the dry run is clean, run the import:
 
 ```bash
 node scripts/import-menu-from-json.mjs --restaurant=<restaurantId> --images=<folder> --menu=<jsonFile> --execute
@@ -94,6 +96,7 @@ JSON schema:
       "min_price": null,
       "description": "Canette de Coca Cola fraiche.",
       "image": "canette-coca-cola.png",
+      "images": ["canette-coca-cola.png", "canette-coca-cola-2.png"],
       "is_vegetarian": false,
       "is_vegan": false,
       "is_halal": false,

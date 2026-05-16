@@ -11,11 +11,21 @@ export default async function MenuRoute({ params }: { params: Promise<{ slug: st
     .select('*').eq('slug', slug).eq('is_active', true).single()
   if (!restaurant) return notFound()
 
-  const { data: categories } = await admin.from('menu_categories')
-    .select('*, items:menu_items(*)')
+  const categoriesResult = await admin.from('menu_categories')
+    .select('*, items:menu_items(*, images:menu_item_images(*))')
     .eq('restaurant_id', restaurant.id)
     .eq('is_active', true)
     .order('position')
+
+  let categories = categoriesResult.data
+  if (categoriesResult.error) {
+    const fallback = await admin.from('menu_categories')
+      .select('*, items:menu_items(*)')
+      .eq('restaurant_id', restaurant.id)
+      .eq('is_active', true)
+      .order('position')
+    categories = fallback.data
+  }
 
   return (
     <ClientLayout restaurant={restaurant}>

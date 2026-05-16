@@ -16,6 +16,7 @@ import {
   getMonthKey,
   getMonthKeyFromDateInput,
   getMonthLabel,
+  isRestaurantMonthPaid,
 } from '@/lib/subscription'
 import type { Restaurant, SubscriptionPayment } from '@/types'
 
@@ -61,12 +62,15 @@ export default function AbonnementsTab({
   const selectedMonthPaymentByRestaurant = useMemo(() => new Map(
     selectedMonthPayments.map(payment => [payment.restaurant_id, payment]),
   ), [selectedMonthPayments])
+  const isMonthPaid = (restaurant: Restaurant) =>
+    selectedMonthPaymentByRestaurant.get(restaurant.id)?.status === 'approved'
+    || isRestaurantMonthPaid(restaurant, selectedMonth)
   const subscribed = useMemo(() =>
-    real.filter(r => r.is_active && selectedMonthPaymentByRestaurant.get(r.id)?.status === 'approved'),
-    [real, selectedMonthPaymentByRestaurant])
+    real.filter(r => r.is_active && isMonthPaid(r)),
+    [real, selectedMonthPaymentByRestaurant, selectedMonth])
   const unpaid = useMemo(() =>
-    real.filter(r => r.is_active && selectedMonthPaymentByRestaurant.get(r.id)?.status !== 'approved'),
-    [real, selectedMonthPaymentByRestaurant])
+    real.filter(r => r.is_active && !isMonthPaid(r)),
+    [real, selectedMonthPaymentByRestaurant, selectedMonth])
   const trials = useMemo(() => real.filter(r => (r.subscription_status ?? 'subscribed') === 'trial' || (!r.is_active)), [real])
   const previews = useMemo(() => restaurants.filter(r => r.is_preview), [restaurants])
   const monthOptions = useMemo(() => getPaymentTimelineMonthKeys(payments, selectedMonth, currentMonth), [payments, selectedMonth, currentMonth])

@@ -5,7 +5,7 @@ import {
   Plus, Search, Store, Users, TrendingUp, X, Check, LogOut, QrCode, Eye,
   AlertTriangle, Printer, Key, Globe, Phone, Mail, Settings, Rocket,
   CreditCard, Clock, ChevronRight, ImageIcon, Upload, Trash2,
-  Download, Loader2,
+  Download, Loader2, Bell,
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { resolveStorageImageUrl } from '@/lib/images'
@@ -117,6 +117,8 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
   const [selectedResto, setSelectedResto] = useState<Restaurant | null>(null)
   const [localRestaurants, setLocalRestaurants] = useState<Restaurant[]>(initialRestaurants)
   const [approvedSubscriptionPayments, setApprovedSubscriptionPayments] = useState<SubscriptionPayment[]>([])
+  const [notifyBusyRestaurantId, setNotifyBusyRestaurantId] = useState<string | null>(null)
+  const [notificationFeedback, setNotificationFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const currentMonthKey = getMonthKey()
 
   useEffect(() => {
@@ -215,6 +217,31 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
   function handleRestaurantUpdated(updated: Restaurant) {
     setLocalRestaurants(prev => prev.map(r => r.id === updated.id ? { ...r, ...updated } : r))
     setSelectedResto(prev => prev?.id === updated.id ? { ...prev, ...updated } : prev)
+  }
+
+  async function notifyRestaurantDue(restaurant: Restaurant) {
+    const summary = getSubscriptionSummary(restaurant)
+    setNotifyBusyRestaurantId(restaurant.id)
+    setNotificationFeedback(null)
+    try {
+      const res = await fetch('/api/superadmin/subscription-reminders', {
+        method: 'POST',
+        headers: await authJsonHeaders(),
+        body: JSON.stringify({ restaurant_id: restaurant.id }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Notification impossible')
+      const pushCount = Number(result.push?.sent || 0)
+      const emailText = result.email?.sent ? 'email envoyé' : 'email non envoyé'
+      setNotificationFeedback({
+        type: 'success',
+        text: `${restaurant.name} relancé pour ${summary.period_label}. ${pushCount} push · ${emailText}.`,
+      })
+    } catch (e) {
+      setNotificationFeedback({ type: 'error', text: e instanceof Error ? e.message : 'Erreur réseau' })
+    } finally {
+      setNotifyBusyRestaurantId(null)
+    }
   }
 
   return (
@@ -339,6 +366,18 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
               ))}
             </div>
 
+            {notificationFeedback && (
+              <div className="border-b border-gray-100 px-4 py-3">
+                <p className={`rounded-lg px-3 py-2 text-xs font-black ${
+                  notificationFeedback.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-red-50 text-red-700'
+                }`}>
+                  {notificationFeedback.text}
+                </p>
+              </div>
+            )}
+
             <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[920px] text-left">
                 <thead className="bg-gray-50 text-xs font-black uppercase text-gray-500">
@@ -353,7 +392,9 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filtered.map((r) => {
-                    const paid = getSubscriptionSummary(r).due_periods === 0
+                    const summary = getSubscriptionSummary(r)
+                    const paid = summary.due_periods === 0
+                    const showReminder = isBillableRestaurant(r) && summary.due_periods > 0
                     return (
                       <tr key={r.id} className="group hover:bg-gray-50/80">
                         <td className="px-4 py-3">
@@ -380,22 +421,33 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
                             paid ? (
                               <p className="text-sm font-black text-emerald-700">{formatPrice(MONTHLY_PRICE, 'XOF')}</p>
                             ) : (
-                              <p className="text-sm font-black text-red-600">À relancer</p>
+                              <p className="text-sm font-black text-red-600">{formatPrice(summary.amount_due || MONTHLY_PRICE, r.currency)} à relancer</p>
                             )
                           ) : (
                             <p className="text-sm font-bold text-gray-400">—</p>
                           )}
-                          <p className="text-xs font-semibold text-gray-400">{currentMonthLabel}</p>
+                          <p className="text-xs font-semibold text-gray-400">{showReminder ? summary.period_label : currentMonthLabel}</p>
                         </td>
                         <td className="px-4 py-3">
                           <p className="text-sm font-bold text-gray-700">{formatShortDate(r.created_at)}</p>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button onClick={() => setSelectedResto(r)}
-                            className="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-black text-gray-700 hover:border-[#F26522] hover:text-[#F26522]">
-                            Ouvrir
-                            <ChevronRight size={15} />
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            {showReminder && (
+                              <button
+                                onClick={() => notifyRestaurantDue(r)}
+                                disabled={!!notifyBusyRestaurantId}
+                                className="inline-flex h-9 items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-3 text-sm font-black text-orange-700 hover:bg-orange-100 disabled:opacity-50">
+                                <Bell size={14} />
+                                {notifyBusyRestaurantId === r.id ? 'Envoi...' : 'Notifier'}
+                              </button>
+                            )}
+                            <button onClick={() => setSelectedResto(r)}
+                              className="inline-flex h-9 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 text-sm font-black text-gray-700 hover:border-[#F26522] hover:text-[#F26522]">
+                              Ouvrir
+                              <ChevronRight size={15} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -407,14 +459,15 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
             <div className="space-y-3 p-4 lg:hidden">
               <AnimatePresence>
                 {filtered.map((r, i) => {
-                  const paid = getSubscriptionSummary(r).due_periods === 0
+                  const summary = getSubscriptionSummary(r)
+                  const paid = summary.due_periods === 0
+                  const showReminder = isBillableRestaurant(r) && summary.due_periods > 0
                   return (
-                    <motion.button key={r.id}
+                    <motion.div key={r.id}
                       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(i, 8) * 0.025 }} whileTap={{ scale: 0.99 }}
-                      onClick={() => setSelectedResto(r)}
                       className="w-full rounded-lg border border-gray-200 bg-white p-3 text-left shadow-sm">
-                      <div className="flex items-start gap-3">
+                      <button onClick={() => setSelectedResto(r)} className="flex w-full items-start gap-3 text-left">
                         <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg text-white"
                           style={{ backgroundColor: r.primary_color }}>
                           {resolveStorageImageUrl(r.logo_url)
@@ -427,11 +480,22 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
                             <SubBadge r={r} isPaid={paid} />
                           </div>
                           <p className="truncate text-xs font-semibold text-gray-500">/{r.slug} · {r.city || '—'}</p>
-                          <p className="mt-2 text-xs font-bold text-gray-400">{formatShortDate(r.created_at)}</p>
+                          <p className="mt-2 text-xs font-bold text-gray-400">
+                            {showReminder ? summary.period_label : formatShortDate(r.created_at)}
+                          </p>
                         </div>
                         <ChevronRight size={16} className="mt-1 flex-shrink-0 text-gray-300" />
-                      </div>
-                    </motion.button>
+                      </button>
+                      {showReminder && (
+                        <button
+                          onClick={() => notifyRestaurantDue(r)}
+                          disabled={!!notifyBusyRestaurantId}
+                          className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-orange-50 px-3 text-sm font-black text-orange-700 disabled:opacity-50">
+                          <Bell size={15} />
+                          {notifyBusyRestaurantId === r.id ? 'Envoi...' : 'Notifier'}
+                        </button>
+                      )}
+                    </motion.div>
                   )
                 })}
               </AnimatePresence>

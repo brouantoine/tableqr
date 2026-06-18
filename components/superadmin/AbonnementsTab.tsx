@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Clock, CheckCircle,
   Calendar, DollarSign, ArrowUpRight, Store,
-  BarChart2, Zap, Target, RefreshCw, XCircle, Eye,
+  BarChart2, Zap, Target, RefreshCw, XCircle, Eye, Bell,
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
@@ -16,7 +16,7 @@ import {
   getMonthKey,
   getMonthKeyFromDateInput,
   getMonthLabel,
-  isRestaurantMonthPaid,
+  getRestaurantSubscriptionSummary,
 } from '@/lib/subscription'
 import type { Restaurant, SubscriptionPayment } from '@/types'
 
@@ -59,18 +59,29 @@ export default function AbonnementsTab({
   const real = useMemo(() => restaurants.filter(r => !r.is_preview), [restaurants])
   const pendingPayments = useMemo(() => payments.filter(payment => payment.status === 'pending'), [payments])
   const selectedMonthPayments = useMemo(() => payments.filter(payment => payment.month_key === selectedMonth), [payments, selectedMonth])
-  const selectedMonthPaymentByRestaurant = useMemo(() => new Map(
-    selectedMonthPayments.map(payment => [payment.restaurant_id, payment]),
-  ), [selectedMonthPayments])
-  const isMonthPaid = (restaurant: Restaurant) =>
-    selectedMonthPaymentByRestaurant.get(restaurant.id)?.status === 'approved'
-    || isRestaurantMonthPaid(restaurant, selectedMonth)
+  const paymentsByRestaurant = useMemo(() => {
+    const map = new Map<string, SubscriptionPayment[]>()
+    payments.forEach(payment => {
+      const list = map.get(payment.restaurant_id) || []
+      list.push(payment)
+      map.set(payment.restaurant_id, list)
+    })
+    return map
+  }, [payments])
+  const subscriptionSummaries = useMemo(() => new Map(
+    real.map(restaurant => [
+      restaurant.id,
+      getRestaurantSubscriptionSummary(restaurant, paymentsByRestaurant.get(restaurant.id) || []),
+    ]),
+  ), [real, paymentsByRestaurant])
+  const getSummary = (restaurant: Restaurant) =>
+    subscriptionSummaries.get(restaurant.id) || getRestaurantSubscriptionSummary(restaurant, paymentsByRestaurant.get(restaurant.id) || [])
   const subscribed = useMemo(() =>
-    real.filter(r => r.is_active && isMonthPaid(r)),
-    [real, selectedMonthPaymentByRestaurant, selectedMonth])
+    real.filter(r => r.is_active && (subscriptionSummaries.get(r.id)?.due_periods || 0) === 0),
+    [real, subscriptionSummaries])
   const unpaid = useMemo(() =>
-    real.filter(r => r.is_active && !isMonthPaid(r)),
-    [real, selectedMonthPaymentByRestaurant, selectedMonth])
+    real.filter(r => r.is_active && (subscriptionSummaries.get(r.id)?.due_periods || 0) > 0),
+    [real, subscriptionSummaries])
   const trials = useMemo(() => real.filter(r => (r.subscription_status ?? 'subscribed') === 'trial' || (!r.is_active)), [real])
   const previews = useMemo(() => restaurants.filter(r => r.is_preview), [restaurants])
   const monthOptions = useMemo(() => getPaymentTimelineMonthKeys(payments, selectedMonth, currentMonth), [payments, selectedMonth, currentMonth])
@@ -166,6 +177,8 @@ export default function AbonnementsTab({
   }
 
   async function approveRestaurantMonth(restaurant: Restaurant) {
+    const summary = getSummary(restaurant)
+    const periodMonth = getMonthKeyFromDateInput(summary.current_period_start) || selectedMonth
     setReviewBusy(`${restaurant.id}-direct`)
     setFeedback(null)
     try {
@@ -174,7 +187,7 @@ export default function AbonnementsTab({
         headers: await authJsonHeaders(),
         body: JSON.stringify({
           restaurant_id: restaurant.id,
-          month: selectedMonth,
+          month: periodMonth,
           payment_date: paymentDate,
           amount: restaurant.subscription_monthly_amount || PRICE_MONTHLY,
         }),
@@ -185,7 +198,32 @@ export default function AbonnementsTab({
       if (result.restaurant) onRestaurantUpdated?.(result.restaurant)
       setFeedback({
         type: 'success',
-        text: `${restaurant.name} : ${getMonthLabel(selectedMonth)} validé sans reçu restaurateur.`,
+        text: `${restaurant.name} : période ${summary.period_label} validée sans reçu restaurateur.`,
+      })
+    } catch (e) {
+      setFeedback({ type: 'error', text: e instanceof Error ? e.message : 'Erreur réseau' })
+    } finally {
+      setReviewBusy(null)
+    }
+  }
+
+  async function notifyRestaurantDue(restaurant: Restaurant) {
+    const summary = getSummary(restaurant)
+    setReviewBusy(`${restaurant.id}-notify`)
+    setFeedback(null)
+    try {
+      const res = await fetch('/api/superadmin/subscription-reminders', {
+        method: 'POST',
+        headers: await authJsonHeaders(),
+        body: JSON.stringify({ restaurant_id: restaurant.id }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Notification impossible')
+      const emailText = result.email?.sent ? 'email envoyé' : 'email non envoyé'
+      const pushCount = Number(result.push?.sent || 0)
+      setFeedback({
+        type: 'success',
+        text: `${restaurant.name} relancé pour ${summary.period_label}. ${pushCount} push · ${emailText}.`,
       })
     } catch (e) {
       setFeedback({ type: 'error', text: e instanceof Error ? e.message : 'Erreur réseau' })
@@ -268,19 +306,21 @@ export default function AbonnementsTab({
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
           <div className="flex items-center gap-2">
             <XCircle size={15} className="text-red-500" />
-            <p className="font-black text-gray-900 text-sm">Non validés — {getMonthLabel(selectedMonth)}</p>
+            <p className="font-black text-gray-900 text-sm">Échéances à traiter</p>
           </div>
           <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full font-semibold">{unpaid.length}</span>
         </div>
         {unpaid.length === 0 ? (
           <div className="px-5 py-8 text-center">
             <CheckCircle size={28} className="mx-auto mb-2 text-emerald-200" />
-            <p className="text-sm font-bold text-gray-500">Tous les restaurants actifs sont validés pour ce mois.</p>
+            <p className="text-sm font-bold text-gray-500">Tous les restaurants actifs sont à jour.</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
             {unpaid.map(restaurant => {
-              const payment = selectedMonthPaymentByRestaurant.get(restaurant.id)
+              const summary = getSummary(restaurant)
+              const periodMonth = getMonthKeyFromDateInput(summary.current_period_start)
+              const payment = (paymentsByRestaurant.get(restaurant.id) || []).find(item => item.month_key === periodMonth)
               const busyKey = payment ? `${payment.id}-approved` : `${restaurant.id}-direct`
               return (
                 <div key={restaurant.id} className="px-5 py-3.5 flex items-center gap-3">
@@ -293,7 +333,10 @@ export default function AbonnementsTab({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-gray-900 truncate">{restaurant.name}</p>
                     <p className="text-xs text-gray-400">
-                      {payment ? getPaymentStatusLabel(payment.status) : 'Aucun reçu envoyé'}
+                      {summary.status_label} · échéance {new Date(`${summary.next_due_date}T00:00:00`).toLocaleDateString('fr-FR')}
+                    </p>
+                    <p className="text-xs font-semibold text-red-500 mt-0.5">
+                      {formatPrice(summary.amount_due || summary.monthly_amount, restaurant.currency)} · {summary.period_label}
                     </p>
                   </div>
                   {payment?.signed_receipt_url && (
@@ -302,13 +345,21 @@ export default function AbonnementsTab({
                       <Eye size={15} className="text-gray-500" />
                     </a>
                   )}
-                  <button onClick={() => payment ? reviewPayment(payment, 'approved') : approveRestaurantMonth(restaurant)}
-                    disabled={!!reviewBusy || !paymentDate}
-                    className="h-9 px-3 rounded-xl bg-emerald-600 text-white font-black text-xs disabled:opacity-50 flex-shrink-0">
-                    {reviewBusy === busyKey
-                      ? 'Validation...'
-                      : payment?.signed_receipt_url ? 'Valider reçu' : 'Marquer payé'}
-                  </button>
+                  <div className="flex flex-col gap-1.5 flex-shrink-0">
+                    <button onClick={() => notifyRestaurantDue(restaurant)}
+                      disabled={!!reviewBusy}
+                      className="h-8 px-3 rounded-xl bg-orange-50 text-orange-600 font-black text-xs disabled:opacity-50 flex items-center justify-center gap-1">
+                      <Bell size={12} />
+                      {reviewBusy === `${restaurant.id}-notify` ? 'Envoi...' : 'Notifier'}
+                    </button>
+                    <button onClick={() => payment ? reviewPayment(payment, 'approved') : approveRestaurantMonth(restaurant)}
+                      disabled={!!reviewBusy || !paymentDate}
+                      className="h-8 px-3 rounded-xl bg-emerald-600 text-white font-black text-xs disabled:opacity-50">
+                      {reviewBusy === busyKey
+                        ? 'Validation...'
+                        : payment?.signed_receipt_url ? 'Valider reçu' : 'Marquer payé'}
+                    </button>
+                  </div>
                 </div>
               )
             })}

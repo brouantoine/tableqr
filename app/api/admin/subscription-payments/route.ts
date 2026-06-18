@@ -6,6 +6,7 @@ import {
   TABLEQR_MONTHLY_PRICE,
   TABLEQR_SUBSCRIPTION_CURRENCY,
   getMonthKeyFromDateInput,
+  getRestaurantSubscriptionSummary,
   parseDateInput,
 } from '@/lib/subscription'
 import type { Restaurant, SubscriptionPayment } from '@/types'
@@ -109,7 +110,18 @@ export async function POST(req: NextRequest) {
     const form = await req.formData()
     const paidAt = parseDateInput(String(form.get('payment_date') || ''))
     if (!paidAt) return NextResponse.json({ error: 'Date de paiement invalide' }, { status: 400 })
-    const month = getMonthKeyFromDateInput(paidAt)
+    const { data: allPayments, error: allPaymentsError } = await admin
+      .from('subscription_payments')
+      .select('*')
+      .eq('restaurant_id', restaurant.id)
+
+    if (allPaymentsError?.code === '42P01') {
+      return NextResponse.json({ error: 'Migration SQL manquante : exécutez migration_subscription_payments.sql' }, { status: 500 })
+    }
+    if (allPaymentsError) return NextResponse.json({ error: allPaymentsError.message }, { status: 500 })
+
+    const summary = getRestaurantSubscriptionSummary(restaurant, (allPayments || []) as SubscriptionPayment[])
+    const month = getMonthKeyFromDateInput(summary.current_period_start) || getMonthKeyFromDateInput(paidAt)
     if (!month) return NextResponse.json({ error: 'Mois invalide' }, { status: 400 })
     if (form.get('confirmed_paid') !== 'true') {
       return NextResponse.json({ error: 'Confirmez que le mois est payé avant d’envoyer le reçu.' }, { status: 400 })

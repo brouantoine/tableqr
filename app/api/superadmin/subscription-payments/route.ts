@@ -6,8 +6,8 @@ import { PAYMENT_RECEIPTS_BUCKET } from '@/lib/subscription-payments'
 import {
   TABLEQR_MONTHLY_PRICE,
   TABLEQR_SUBSCRIPTION_CURRENCY,
-  getMonthEndDateString,
   getMonthKeyFromDateInput,
+  getRestaurantSubscriptionSummary,
   parseDateInput,
   parseMonthKey,
 } from '@/lib/subscription'
@@ -43,11 +43,6 @@ async function withSignedReceiptUrls(
   }))
 }
 
-function maxPaidUntil(current: string | null | undefined, candidate: string) {
-  if (!current) return candidate
-  return current >= candidate ? current : candidate
-}
-
 function getAmount(value: unknown, restaurant: Restaurant) {
   const amount = Number(value || restaurant.subscription_monthly_amount || TABLEQR_MONTHLY_PRICE)
   return Number.isFinite(amount) && amount > 0 ? amount : TABLEQR_MONTHLY_PRICE
@@ -56,20 +51,27 @@ function getAmount(value: unknown, restaurant: Restaurant) {
 async function markRestaurantPaidUntil(
   admin: ReturnType<typeof getSupabaseAdmin>,
   restaurant: Restaurant,
-  monthKey: string,
   amount: number,
   note: string | null,
   paidAt: string,
 ) {
-  const paidUntil = getMonthEndDateString(monthKey)
-  if (!paidUntil) return { error: NextResponse.json({ error: 'Mois invalide' }, { status: 400 }) }
+  const { data: paymentsData, error: paymentsError } = await admin
+    .from('subscription_payments')
+    .select('*')
+    .eq('restaurant_id', restaurant.id)
 
-  const nextPaidUntil = maxPaidUntil(restaurant.subscription_paid_until, paidUntil)
+  if (paymentsError) return { error: NextResponse.json({ error: paymentsError.message }, { status: 500 }) }
+
+  const summary = getRestaurantSubscriptionSummary(restaurant, (paymentsData || []) as SubscriptionPayment[])
+  if (!summary.paid_until) {
+    return { error: NextResponse.json({ error: 'Période payée introuvable' }, { status: 400 }) }
+  }
+
   const { data, error } = await admin
     .from('restaurants')
     .update({
       subscription_status: 'subscribed',
-      subscription_paid_until: nextPaidUntil,
+      subscription_paid_until: summary.paid_until,
       subscription_last_payment_at: `${paidAt}T00:00:00.000Z`,
       subscription_monthly_amount: amount,
       subscription_payment_note: note,
@@ -205,7 +207,7 @@ export async function POST(req: NextRequest) {
 
     if (paymentError) return NextResponse.json({ error: paymentError.message }, { status: 500 })
 
-    const restaurantResult = await markRestaurantPaidUntil(admin, restaurant, month, amount, reviewNote, paidAt)
+    const restaurantResult = await markRestaurantPaidUntil(admin, restaurant, amount, reviewNote, paidAt)
     if (restaurantResult.error) return restaurantResult.error
 
     const [signedPayment] = await withSignedReceiptUrls(admin, [payment as SubscriptionPayment])
@@ -267,7 +269,7 @@ export async function PATCH(req: NextRequest) {
 
     let updatedRestaurant: Restaurant | null = null
     if (status === 'approved') {
-      const restaurantResult = await markRestaurantPaidUntil(admin, typedPayment.restaurant, typedPayment.month_key, typedPayment.amount, reviewNote, paidAt)
+      const restaurantResult = await markRestaurantPaidUntil(admin, typedPayment.restaurant, typedPayment.amount, reviewNote, paidAt)
       if (restaurantResult.error) return restaurantResult.error
       updatedRestaurant = restaurantResult.restaurant || null
     }

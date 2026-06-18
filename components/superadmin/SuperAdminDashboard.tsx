@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { resolveStorageImageUrl } from '@/lib/images'
-import { getMonthKey, getMonthLabel, isRestaurantMonthPaid } from '@/lib/subscription'
+import { getMonthKey, getMonthLabel, getRestaurantSubscriptionSummary } from '@/lib/subscription'
 import { supabase } from '@/lib/supabase/client'
 import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { Restaurant, SubscriptionPayment } from '@/types'
@@ -109,7 +109,7 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
   const [showQR, setShowQR] = useState(false)
   const [selectedResto, setSelectedResto] = useState<Restaurant | null>(null)
   const [localRestaurants, setLocalRestaurants] = useState<Restaurant[]>(initialRestaurants)
-  const [approvedCurrentRestaurantIds, setApprovedCurrentRestaurantIds] = useState<Set<string>>(() => new Set())
+  const [approvedSubscriptionPayments, setApprovedSubscriptionPayments] = useState<SubscriptionPayment[]>([])
   const currentMonthKey = getMonthKey()
 
   useEffect(() => {
@@ -125,28 +125,45 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
   }, [])
 
   useEffect(() => {
-    async function loadCurrentMonthPayments() {
+    async function loadApprovedPayments() {
       try {
-        const res = await fetch(`/api/superadmin/subscription-payments?month=${currentMonthKey}&status=approved`, {
+        const res = await fetch('/api/superadmin/subscription-payments?status=approved', {
           cache: 'no-store',
           headers: await authJsonHeaders(),
         })
         const result = await res.json()
         if (!res.ok) return
-        setApprovedCurrentRestaurantIds(new Set((result.data || []).map((payment: SubscriptionPayment) => payment.restaurant_id)))
+        setApprovedSubscriptionPayments(result.data || [])
       } catch {}
     }
-    void loadCurrentMonthPayments()
-  }, [currentMonthKey])
+    void loadApprovedPayments()
+  }, [])
 
+  const approvedPaymentsByRestaurant = useMemo(() => {
+    const map = new Map<string, SubscriptionPayment[]>()
+    approvedSubscriptionPayments.forEach(payment => {
+      const list = map.get(payment.restaurant_id) || []
+      list.push(payment)
+      map.set(payment.restaurant_id, list)
+    })
+    return map
+  }, [approvedSubscriptionPayments])
+  const subscriptionSummaries = useMemo(() => new Map(
+    localRestaurants.map(restaurant => [
+      restaurant.id,
+      getRestaurantSubscriptionSummary(restaurant, approvedPaymentsByRestaurant.get(restaurant.id) || []),
+    ]),
+  ), [localRestaurants, approvedPaymentsByRestaurant])
+  const getSubscriptionSummary = (restaurant: Restaurant) =>
+    subscriptionSummaries.get(restaurant.id) || getRestaurantSubscriptionSummary(restaurant, approvedPaymentsByRestaurant.get(restaurant.id) || [])
   const subscribed = useMemo(() =>
-    localRestaurants.filter(r => !r.is_preview && r.is_active && (approvedCurrentRestaurantIds.has(r.id) || isRestaurantMonthPaid(r, currentMonthKey))),
-    [localRestaurants, approvedCurrentRestaurantIds, currentMonthKey])
+    localRestaurants.filter(r => !r.is_preview && r.is_active && (subscriptionSummaries.get(r.id)?.due_periods || 0) === 0),
+    [localRestaurants, subscriptionSummaries])
   const mrr = subscribed.length * MONTHLY_PRICE
   const activeCount = localRestaurants.filter(r => r.is_active && !r.is_preview).length
   const previewCount = localRestaurants.filter(r => r.is_preview).length
   const trialCount = localRestaurants.filter(r => !r.is_preview && r.is_active && (r.subscription_status ?? 'subscribed') === 'trial').length
-  const unpaidCount = localRestaurants.filter(r => !r.is_preview && r.is_active && (r.subscription_status ?? 'subscribed') !== 'trial' && !approvedCurrentRestaurantIds.has(r.id) && !isRestaurantMonthPaid(r, currentMonthKey)).length
+  const unpaidCount = localRestaurants.filter(r => !r.is_preview && r.is_active && (subscriptionSummaries.get(r.id)?.due_periods || 0) > 0).length
   const inactiveCount = localRestaurants.filter(r => !r.is_preview && !r.is_active).length
   const currentMonthLabel = getMonthLabel(currentMonthKey)
 
@@ -160,7 +177,7 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
 
     if (!matchesSearch) return false
     if (restaurantFilter === 'active') return r.is_active && !r.is_preview
-    if (restaurantFilter === 'unpaid') return !r.is_preview && r.is_active && (r.subscription_status ?? 'subscribed') !== 'trial' && !approvedCurrentRestaurantIds.has(r.id) && !isRestaurantMonthPaid(r, currentMonthKey)
+    if (restaurantFilter === 'unpaid') return !r.is_preview && r.is_active && (subscriptionSummaries.get(r.id)?.due_periods || 0) > 0
     if (restaurantFilter === 'trial') return !r.is_preview && r.is_active && (r.subscription_status ?? 'subscribed') === 'trial'
     if (restaurantFilter === 'preview') return Boolean(r.is_preview)
     if (restaurantFilter === 'inactive') return !r.is_preview && !r.is_active
@@ -182,12 +199,9 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
   }
 
   function handleSubscriptionPaymentReviewed(payment: SubscriptionPayment) {
-    if (payment.month_key !== currentMonthKey) return
-    setApprovedCurrentRestaurantIds(prev => {
-      const next = new Set(prev)
-      if (payment.status === 'approved') next.add(payment.restaurant_id)
-      else next.delete(payment.restaurant_id)
-      return next
+    setApprovedSubscriptionPayments(prev => {
+      const withoutPayment = prev.filter(item => item.id !== payment.id)
+      return payment.status === 'approved' ? [payment, ...withoutPayment] : withoutPayment
     })
   }
 
@@ -332,7 +346,7 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filtered.map((r) => {
-                    const paid = approvedCurrentRestaurantIds.has(r.id) || isRestaurantMonthPaid(r, currentMonthKey)
+                    const paid = getSubscriptionSummary(r).due_periods === 0
                     return (
                       <tr key={r.id} className="group hover:bg-gray-50/80">
                         <td className="px-4 py-3">
@@ -386,7 +400,7 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
             <div className="space-y-3 p-4 lg:hidden">
               <AnimatePresence>
                 {filtered.map((r, i) => {
-                  const paid = approvedCurrentRestaurantIds.has(r.id) || isRestaurantMonthPaid(r, currentMonthKey)
+                  const paid = getSubscriptionSummary(r).due_periods === 0
                   return (
                     <motion.button key={r.id}
                       initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}

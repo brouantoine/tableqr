@@ -13,7 +13,7 @@ import { formatPrice } from '@/lib/utils'
 import { MenuCategoryIcon } from '@/lib/icons'
 import RestaurantLogo from '@/components/RestaurantLogo'
 import { getPaymentForMonth, getPaymentStatusClass, getPaymentStatusLabel, getPaymentTimelineMonthKeys } from '@/lib/subscription-payments'
-import { TABLEQR_MONTHLY_PRICE, getDateInputValue, getMonthKey, getMonthKeyFromDateInput, getMonthLabel } from '@/lib/subscription'
+import { TABLEQR_MONTHLY_PRICE, getDateInputValue, getMonthKey, getMonthKeyFromDateInput, getMonthLabel, getRestaurantSubscriptionSummary } from '@/lib/subscription'
 import type { Restaurant, RestaurantTable, QRCode, MenuCategory, MenuItem, Order, ClientSession, SubscriptionPayment } from '@/types'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -188,7 +188,8 @@ export default function RestaurantAnalyticsPanel({
   }
 
   async function approveRestaurantMonth(paymentDate: string) {
-    const monthKey = getMonthKeyFromDateInput(paymentDate) || getMonthKey()
+    const summary = getRestaurantSubscriptionSummary(restaurant, data?.payments || [])
+    const monthKey = getMonthKeyFromDateInput(summary.current_period_start) || getMonthKeyFromDateInput(paymentDate) || getMonthKey()
     setPaymentBusy(`direct-${monthKey}`)
     setPaymentFeedback('')
     try {
@@ -214,7 +215,7 @@ export default function RestaurantAnalyticsPanel({
         ],
       } : prev)
       onPaymentReviewed?.(updatedPayment)
-      setPaymentFeedback(`${getMonthLabel(monthKey)} validé.`)
+      setPaymentFeedback(`Période ${summary.period_label} validée.`)
     } catch (e) {
       setPaymentFeedback(e instanceof Error ? e.message : 'Erreur réseau')
     } finally {
@@ -302,6 +303,7 @@ export default function RestaurantAnalyticsPanel({
               {tab === 'revenus' && <RevenusTab data={data!} p={p} currency={restaurant.currency} />}
               {tab === 'payments' && (
                 <PaymentsTab
+                  restaurant={restaurant}
                   data={data!}
                   p={p}
                   busyId={paymentBusy}
@@ -318,7 +320,8 @@ export default function RestaurantAnalyticsPanel({
   )
 }
 
-function PaymentsTab({ data, p, busyId, feedback, onReview, onDirectApprove }: {
+function PaymentsTab({ restaurant, data, p, busyId, feedback, onReview, onDirectApprove }: {
+  restaurant: Restaurant
   data: PanelData
   p: string
   busyId: string | null
@@ -337,6 +340,7 @@ function PaymentsTab({ data, p, busyId, feedback, onReview, onDirectApprove }: {
   const pending = sorted.filter(payment => payment.status === 'pending').length
   const selectedPayment = getPaymentForMonth(sorted, selectedMonth)
   const selectedStatus = selectedPayment?.status || 'unpaid'
+  const summary = getRestaurantSubscriptionSummary(restaurant, sorted)
 
   function selectPaymentDate(value: string) {
     setPaymentDate(value)
@@ -365,10 +369,14 @@ function PaymentsTab({ data, p, busyId, feedback, onReview, onDirectApprove }: {
 
       <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-50">
-          <p className="font-black text-gray-900 text-sm">Valider un mois</p>
-          <p className="text-xs text-gray-400 mt-0.5">Possible même si le restaurateur n&apos;a pas encore envoyé de reçu.</p>
+          <p className="font-black text-gray-900 text-sm">Valider une période</p>
+          <p className="text-xs text-gray-400 mt-0.5">Basé sur la date de création du restaurant.</p>
         </div>
         <div className="p-4 space-y-3">
+          <div className="rounded-2xl bg-gray-50 border border-gray-100 px-3 py-2.5">
+            <p className="text-xs font-black text-gray-900">{summary.status_label}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Période {summary.period_label}</p>
+          </div>
           <input
             type="date"
             value={paymentDate}
@@ -391,11 +399,11 @@ function PaymentsTab({ data, p, busyId, feedback, onReview, onDirectApprove }: {
             )}
           </div>
           <button onClick={() => onDirectApprove(paymentDate)}
-            disabled={selectedStatus === 'approved' || !!busyId || !paymentDate}
+            disabled={summary.due_periods === 0 || !!busyId || !paymentDate}
             className="w-full h-10 rounded-xl bg-emerald-600 text-white text-xs font-black disabled:opacity-50">
-            {busyId === `direct-${selectedMonth}`
+            {busyId === `direct-${getMonthKeyFromDateInput(summary.current_period_start)}`
               ? 'Validation...'
-              : selectedPayment?.signed_receipt_url ? 'Valider ce reçu' : 'Marquer payé sans reçu'}
+              : summary.due_periods === 0 ? 'Abonnement à jour' : selectedPayment?.signed_receipt_url ? 'Valider ce reçu' : 'Marquer payé sans reçu'}
           </button>
         </div>
       </div>

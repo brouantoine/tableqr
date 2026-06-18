@@ -13,6 +13,9 @@ let getMonthKey
 let getMonthKeyFromDateInput
 let getMonthLabel
 let getPreviousMonthEndDateString
+let getRestaurantSubscriptionSummary
+let getSubscriptionPaidUntilFromPaymentCount
+let getSubscriptionReminderContent
 let isRestaurantMonthPaid
 let parseDateInput
 let parseMonthKey
@@ -39,6 +42,9 @@ before(async () => {
   getMonthKeyFromDateInput = subscription.getMonthKeyFromDateInput
   getMonthLabel = subscription.getMonthLabel
   getPreviousMonthEndDateString = subscription.getPreviousMonthEndDateString
+  getRestaurantSubscriptionSummary = subscription.getRestaurantSubscriptionSummary
+  getSubscriptionPaidUntilFromPaymentCount = subscription.getSubscriptionPaidUntilFromPaymentCount
+  getSubscriptionReminderContent = subscription.getSubscriptionReminderContent
   isRestaurantMonthPaid = subscription.isRestaurantMonthPaid
   parseDateInput = subscription.parseDateInput
   parseMonthKey = subscription.parseMonthKey
@@ -68,6 +74,20 @@ function restaurant(overrides = {}) {
     subscription_status: 'subscribed',
     created_at: '2026-01-01T00:00:00.000Z',
     updated_at: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+function payment(overrides = {}) {
+  return {
+    id: overrides.id || `payment-${overrides.month_key || '2026-05'}`,
+    restaurant_id: 'restaurant-1',
+    month_key: overrides.month_key || '2026-05',
+    amount: 15000,
+    currency: 'XOF',
+    status: 'approved',
+    created_at: '2026-05-11T00:00:00.000Z',
+    updated_at: '2026-05-11T00:00:00.000Z',
     ...overrides,
   }
 }
@@ -137,4 +157,69 @@ test('isRestaurantMonthPaid does not invent paid months without paid_until', () 
     isRestaurantMonthPaid(restaurant({ is_active: false, subscription_paid_until: null }), '2026-05'),
     false,
   )
+})
+
+test('subscription cycles start from restaurant creation date', () => {
+  const resto = restaurant({
+    created_at: '2026-05-09T22:23:32.428656+00:00',
+    subscription_started_at: '2026-05-09T22:23:32.428656+00:00',
+    subscription_paid_until: '2026-05-31',
+  })
+
+  assert.equal(getSubscriptionPaidUntilFromPaymentCount(resto, 1), '2026-06-08')
+
+  const summary = getRestaurantSubscriptionSummary(
+    resto,
+    [payment({ month_key: '2026-05', paid_at: '2026-05-11' })],
+    new Date('2026-06-18T12:00:00.000Z'),
+  )
+
+  assert.equal(summary.paid_until, '2026-06-08')
+  assert.equal(summary.next_due_date, '2026-06-09')
+  assert.equal(summary.current_period_start, '2026-06-09')
+  assert.equal(summary.current_period_end, '2026-07-08')
+  assert.equal(summary.due_periods, 1)
+  assert.equal(summary.amount_due, 15000)
+  assert.equal(summary.status, 'overdue')
+})
+
+test('second approved payment covers the next creation-date cycle', () => {
+  const resto = restaurant({
+    created_at: '2026-05-09T22:23:32.428656+00:00',
+    subscription_started_at: '2026-05-09T22:23:32.428656+00:00',
+    subscription_paid_until: '2026-05-31',
+  })
+
+  const summary = getRestaurantSubscriptionSummary(
+    resto,
+    [
+      payment({ id: 'payment-1', month_key: '2026-05', paid_at: '2026-05-11' }),
+      payment({ id: 'payment-2', month_key: '2026-06', paid_at: '2026-06-18' }),
+    ],
+    new Date('2026-06-18T12:00:00.000Z'),
+  )
+
+  assert.equal(summary.paid_until, '2026-07-08')
+  assert.equal(summary.next_due_date, '2026-07-09')
+  assert.equal(summary.due_periods, 0)
+  assert.equal(summary.amount_due, 0)
+  assert.equal(summary.status, 'paid')
+})
+
+test('subscription reminder content is concise and includes period and amount', () => {
+  const resto = restaurant({
+    name: 'Top Chef',
+    created_at: '2026-05-09T22:23:32.428656+00:00',
+    subscription_started_at: '2026-05-09T22:23:32.428656+00:00',
+  })
+  const summary = getRestaurantSubscriptionSummary(
+    resto,
+    [payment({ month_key: '2026-05' })],
+    new Date('2026-06-18T12:00:00.000Z'),
+  )
+  const content = getSubscriptionReminderContent(resto, summary)
+
+  assert.equal(content.title, 'Rappel paiement TableQR')
+  assert.match(content.short_body, /15 000/)
+  assert.match(content.body, /du 09 juin 2026 au 08 juillet 2026/)
 })

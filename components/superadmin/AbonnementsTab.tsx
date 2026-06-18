@@ -17,6 +17,8 @@ import {
   getMonthKeyFromDateInput,
   getMonthLabel,
   getRestaurantSubscriptionSummary,
+  isBillableRestaurant,
+  isCustomerRestaurant,
 } from '@/lib/subscription'
 import type { Restaurant, SubscriptionPayment } from '@/types'
 
@@ -56,7 +58,7 @@ export default function AbonnementsTab({
   const [reviewBusy, setReviewBusy] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
-  const real = useMemo(() => restaurants.filter(r => !r.is_preview), [restaurants])
+  const real = useMemo(() => restaurants.filter(isCustomerRestaurant), [restaurants])
   const pendingPayments = useMemo(() => payments.filter(payment => payment.status === 'pending'), [payments])
   const selectedMonthPayments = useMemo(() => payments.filter(payment => payment.month_key === selectedMonth), [payments, selectedMonth])
   const paymentsByRestaurant = useMemo(() => {
@@ -77,10 +79,10 @@ export default function AbonnementsTab({
   const getSummary = (restaurant: Restaurant) =>
     subscriptionSummaries.get(restaurant.id) || getRestaurantSubscriptionSummary(restaurant, paymentsByRestaurant.get(restaurant.id) || [])
   const subscribed = useMemo(() =>
-    real.filter(r => r.is_active && (subscriptionSummaries.get(r.id)?.due_periods || 0) === 0),
+    real.filter(r => isBillableRestaurant(r) && (subscriptionSummaries.get(r.id)?.due_periods || 0) === 0),
     [real, subscriptionSummaries])
   const unpaid = useMemo(() =>
-    real.filter(r => r.is_active && (subscriptionSummaries.get(r.id)?.due_periods || 0) > 0),
+    real.filter(r => isBillableRestaurant(r) && (subscriptionSummaries.get(r.id)?.due_periods || 0) > 0),
     [real, subscriptionSummaries])
   const trials = useMemo(() => real.filter(r => (r.subscription_status ?? 'subscribed') === 'trial' || (!r.is_active)), [real])
   const previews = useMemo(() => restaurants.filter(r => r.is_preview), [restaurants])

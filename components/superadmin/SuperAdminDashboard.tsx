@@ -9,7 +9,13 @@ import {
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { resolveStorageImageUrl } from '@/lib/images'
-import { getMonthKey, getMonthLabel, getRestaurantSubscriptionSummary } from '@/lib/subscription'
+import {
+  getMonthKey,
+  getMonthLabel,
+  getRestaurantSubscriptionSummary,
+  isBillableRestaurant,
+  isCustomerRestaurant,
+} from '@/lib/subscription'
 import { supabase } from '@/lib/supabase/client'
 import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { Restaurant, SubscriptionPayment } from '@/types'
@@ -82,6 +88,7 @@ function PrintUrlCheck() {
 
 function SubBadge({ r, isPaid }: { r: Restaurant; isPaid: boolean }) {
   const base = 'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-black leading-none'
+  if (r.slug === 'superadmin') return <span className={`${base} border-gray-200 bg-gray-50 text-gray-500`}>Interne</span>
   if (r.is_preview) return <span className={`${base} border-violet-200 bg-violet-50 text-violet-700`}>Démo</span>
   if (!r.is_active) return <span className={`${base} border-gray-200 bg-gray-50 text-gray-500`}>Inactif</span>
   const status = r.subscription_status ?? 'subscribed'
@@ -157,14 +164,14 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
   const getSubscriptionSummary = (restaurant: Restaurant) =>
     subscriptionSummaries.get(restaurant.id) || getRestaurantSubscriptionSummary(restaurant, approvedPaymentsByRestaurant.get(restaurant.id) || [])
   const subscribed = useMemo(() =>
-    localRestaurants.filter(r => !r.is_preview && r.is_active && (subscriptionSummaries.get(r.id)?.due_periods || 0) === 0),
+    localRestaurants.filter(r => isBillableRestaurant(r) && (subscriptionSummaries.get(r.id)?.due_periods || 0) === 0),
     [localRestaurants, subscriptionSummaries])
   const mrr = subscribed.length * MONTHLY_PRICE
-  const activeCount = localRestaurants.filter(r => r.is_active && !r.is_preview).length
+  const activeCount = localRestaurants.filter(isBillableRestaurant).length
   const previewCount = localRestaurants.filter(r => r.is_preview).length
-  const trialCount = localRestaurants.filter(r => !r.is_preview && r.is_active && (r.subscription_status ?? 'subscribed') === 'trial').length
-  const unpaidCount = localRestaurants.filter(r => !r.is_preview && r.is_active && (subscriptionSummaries.get(r.id)?.due_periods || 0) > 0).length
-  const inactiveCount = localRestaurants.filter(r => !r.is_preview && !r.is_active).length
+  const trialCount = localRestaurants.filter(r => isBillableRestaurant(r) && (r.subscription_status ?? 'subscribed') === 'trial').length
+  const unpaidCount = localRestaurants.filter(r => isBillableRestaurant(r) && (subscriptionSummaries.get(r.id)?.due_periods || 0) > 0).length
+  const inactiveCount = localRestaurants.filter(r => isCustomerRestaurant(r) && !r.is_active).length
   const currentMonthLabel = getMonthLabel(currentMonthKey)
 
   const filtered = localRestaurants.filter(r => {
@@ -176,11 +183,11 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
       r.admin_email?.toLowerCase().includes(q)
 
     if (!matchesSearch) return false
-    if (restaurantFilter === 'active') return r.is_active && !r.is_preview
-    if (restaurantFilter === 'unpaid') return !r.is_preview && r.is_active && (subscriptionSummaries.get(r.id)?.due_periods || 0) > 0
-    if (restaurantFilter === 'trial') return !r.is_preview && r.is_active && (r.subscription_status ?? 'subscribed') === 'trial'
+    if (restaurantFilter === 'active') return isBillableRestaurant(r)
+    if (restaurantFilter === 'unpaid') return isBillableRestaurant(r) && (subscriptionSummaries.get(r.id)?.due_periods || 0) > 0
+    if (restaurantFilter === 'trial') return isBillableRestaurant(r) && (r.subscription_status ?? 'subscribed') === 'trial'
     if (restaurantFilter === 'preview') return Boolean(r.is_preview)
-    if (restaurantFilter === 'inactive') return !r.is_preview && !r.is_active
+    if (restaurantFilter === 'inactive') return isCustomerRestaurant(r) && !r.is_active
     return true
   })
 

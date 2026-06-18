@@ -183,6 +183,26 @@ test('subscription cycles start from restaurant creation date', () => {
   assert.equal(summary.status, 'overdue')
 })
 
+test('legacy month-end paid_until is converted to a creation-date cycle', () => {
+  const resto = restaurant({
+    created_at: '2026-05-09T22:23:32.428656+00:00',
+    subscription_started_at: '2026-05-09T22:23:32.428656+00:00',
+    subscription_paid_until: '2026-05-31',
+  })
+
+  const summary = getRestaurantSubscriptionSummary(
+    resto,
+    [],
+    new Date('2026-06-18T12:00:00.000Z'),
+  )
+
+  assert.equal(summary.paid_until, '2026-06-08')
+  assert.equal(summary.next_due_date, '2026-06-09')
+  assert.equal(summary.current_period_start, '2026-06-09')
+  assert.equal(summary.current_period_end, '2026-07-08')
+  assert.equal(summary.due_periods, 1)
+})
+
 test('second approved payment covers the next creation-date cycle', () => {
   const resto = restaurant({
     created_at: '2026-05-09T22:23:32.428656+00:00',

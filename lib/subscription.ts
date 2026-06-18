@@ -117,12 +117,6 @@ function diffDays(from: Date, to: Date) {
   return Math.floor((to.getTime() - from.getTime()) / DAY_MS)
 }
 
-function maxDate(...dates: Array<Date | null>) {
-  return dates.filter((date): date is Date => !!date).reduce<Date | null>((max, date) => (
-    !max || date > max ? date : max
-  ), null)
-}
-
 function formatShortDate(date: Date) {
   return new Intl.DateTimeFormat('fr-FR', {
     day: '2-digit',
@@ -169,10 +163,30 @@ export function getSubscriptionStartDate(restaurant: Restaurant) {
   return parseDateOnly(restaurant.subscription_started_at || restaurant.created_at) || parseDateOnly(restaurant.created_at)
 }
 
+export function isCustomerRestaurant(restaurant: Pick<Restaurant, 'slug' | 'is_preview'>) {
+  return restaurant.slug !== 'superadmin' && !restaurant.is_preview
+}
+
+export function isBillableRestaurant(restaurant: Pick<Restaurant, 'slug' | 'is_preview' | 'is_active'>) {
+  return isCustomerRestaurant(restaurant) && restaurant.is_active
+}
+
 export function getSubscriptionPaidUntilFromPaymentCount(restaurant: Restaurant, paidPeriods: number) {
   const startDate = getSubscriptionStartDate(restaurant)
   if (!startDate || paidPeriods <= 0) return null
   return toDateString(addDays(addCalendarMonths(startDate, paidPeriods), -1))
+}
+
+function getPaidPeriodCountFromStoredPaidUntil(restaurant: Restaurant, startDate: Date) {
+  const storedPaidUntil = parseDateOnly(restaurant.subscription_paid_until)
+  if (!storedPaidUntil || storedPaidUntil < startDate) return 0
+
+  for (let paidPeriods = 1; paidPeriods <= 120; paidPeriods++) {
+    const cycleEnd = addDays(addCalendarMonths(startDate, paidPeriods), -1)
+    if (cycleEnd >= storedPaidUntil) return paidPeriods
+  }
+
+  return 120
 }
 
 export function getApprovedSubscriptionPaymentCount(payments: SubscriptionPayment[] = []) {
@@ -187,9 +201,9 @@ export function getRestaurantSubscriptionSummary(
   const startDate = getSubscriptionStartDate(restaurant) || new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
   const monthlyAmount = Number(restaurant.subscription_monthly_amount || TABLEQR_MONTHLY_PRICE)
   const approvedCount = getApprovedSubscriptionPaymentCount(payments)
-  const paidUntilByPayments = parseDateOnly(getSubscriptionPaidUntilFromPaymentCount(restaurant, approvedCount))
-  const paidUntilByRestaurant = parseDateOnly(restaurant.subscription_paid_until)
-  const paidUntil = maxDate(paidUntilByPayments, paidUntilByRestaurant)
+  const legacyPaidCount = getPaidPeriodCountFromStoredPaidUntil(restaurant, startDate)
+  const paidPeriods = Math.max(approvedCount, legacyPaidCount)
+  const paidUntil = parseDateOnly(getSubscriptionPaidUntilFromPaymentCount(restaurant, paidPeriods))
 
   const nextDueDate = paidUntil ? addDays(paidUntil, 1) : startDate
   const currentPeriodEnd = addDays(addCalendarMonths(nextDueDate, 1), -1)

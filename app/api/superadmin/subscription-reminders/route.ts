@@ -6,6 +6,7 @@ import { sendPushToRestaurantAdmins } from '@/lib/push'
 import {
   getRestaurantSubscriptionSummary,
   getSubscriptionReminderContent,
+  isBillableRestaurant,
 } from '@/lib/subscription'
 import type { Restaurant, SubscriptionPayment } from '@/types'
 
@@ -82,11 +83,8 @@ export async function POST(req: NextRequest) {
     if (!restaurantData) return NextResponse.json({ error: 'Restaurant introuvable' }, { status: 404 })
 
     const restaurant = restaurantData as Restaurant
-    if (restaurant.is_preview) {
-      return NextResponse.json({ error: 'Les démos ne reçoivent pas de relance paiement.' }, { status: 403 })
-    }
-    if (!restaurant.is_active) {
-      return NextResponse.json({ error: 'Ce restaurant est inactif.' }, { status: 409 })
+    if (!isBillableRestaurant(restaurant)) {
+      return NextResponse.json({ error: 'Ce restaurant ne reçoit pas de relance paiement.' }, { status: 409 })
     }
 
     const { data: paymentsData, error: paymentsError } = await admin

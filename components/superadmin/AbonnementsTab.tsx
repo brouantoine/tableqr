@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Clock, CheckCircle,
   Calendar, DollarSign, ArrowUpRight, Store,
-  BarChart2, Zap, Target, RefreshCw, XCircle, Eye, Bell,
+  BarChart2, Zap, Target, RefreshCw, XCircle, Eye, Bell, MousePointerClick,
 } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
@@ -25,7 +25,37 @@ import type { Restaurant, SubscriptionPayment } from '@/types'
 const PRICE_MONTHLY = TABLEQR_MONTHLY_PRICE
 const CURRENCY = TABLEQR_SUBSCRIPTION_CURRENCY
 
+type ReminderEventData = {
+  period_label?: string
+  amount_due?: number
+  sent_at?: string
+  push_sent?: number
+  email_sent?: boolean
+  opened_at?: string | null
+  last_opened_at?: string | null
+  open_count?: number
+}
+
+type ReminderEvent = {
+  id: string
+  restaurant_id: string
+  title: string
+  body?: string | null
+  data?: ReminderEventData | null
+  is_read: boolean
+  created_at: string
+  restaurant?: Pick<Restaurant, 'id' | 'name' | 'slug' | 'logo_url' | 'primary_color'> | null
+}
+
 function fmt(n: number) { return formatPrice(n, CURRENCY) }
+
+function formatTrackingDate(value: string) {
+  return new Intl.DateTimeFormat('fr-FR', {
+    dateStyle: 'short',
+    timeStyle: 'medium',
+    timeZone: 'Africa/Abidjan',
+  }).format(new Date(value))
+}
 
 function monthsBetween(from: Date, to: Date): number {
   return (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth())
@@ -55,6 +85,8 @@ export default function AbonnementsTab({
   const [projMonth, setProjMonth] = useState(now.getMonth())
   const [payments, setPayments] = useState<SubscriptionPayment[]>([])
   const [paymentsLoading, setPaymentsLoading] = useState(true)
+  const [reminderEvents, setReminderEvents] = useState<ReminderEvent[]>([])
+  const [reminderEventsLoading, setReminderEventsLoading] = useState(true)
   const [reviewBusy, setReviewBusy] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
@@ -114,7 +146,12 @@ export default function AbonnementsTab({
 
   const yearOptions = Array.from({ length: 10 }, (_, i) => now.getFullYear() + i)
 
-  useEffect(() => { void loadPayments() }, [])
+  useEffect(() => {
+    void loadPayments()
+    void loadReminderEvents()
+    const timer = window.setInterval(() => { void loadReminderEvents(false) }, 15000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   function selectPaymentDate(value: string) {
     setPaymentDate(value)
@@ -151,6 +188,23 @@ export default function AbonnementsTab({
       setFeedback({ type: 'error', text: e instanceof Error ? e.message : 'Erreur réseau' })
     } finally {
       setPaymentsLoading(false)
+    }
+  }
+
+  async function loadReminderEvents(showLoading = true) {
+    if (showLoading) setReminderEventsLoading(true)
+    try {
+      const res = await fetch('/api/superadmin/subscription-reminder-events', {
+        cache: 'no-store',
+        headers: await authJsonHeaders(),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Chargement du suivi impossible')
+      setReminderEvents(result.data || [])
+    } catch (e) {
+      if (showLoading) setFeedback({ type: 'error', text: e instanceof Error ? e.message : 'Erreur réseau' })
+    } finally {
+      if (showLoading) setReminderEventsLoading(false)
     }
   }
 
@@ -228,6 +282,7 @@ export default function AbonnementsTab({
         type: 'success',
         text: `${restaurant.name} relancé pour ${summary.period_label}. ${pushCount} push resto · ${superadminPushCount} push superadmin · ${emailText}.`,
       })
+      await loadReminderEvents(false)
     } catch (e) {
       setFeedback({ type: 'error', text: e instanceof Error ? e.message : 'Erreur réseau' })
     } finally {
@@ -302,6 +357,93 @@ export default function AbonnementsTab({
           <p className={`mt-3 text-xs font-bold ${feedback.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
             {feedback.text}
           </p>
+        )}
+      </div>
+
+      <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+          <div className="flex items-center gap-2">
+            <MousePointerClick size={15} className="text-blue-600" />
+            <div>
+              <p className="font-black text-gray-900 text-sm">Ouverture des notifications</p>
+              <p className="text-xs text-gray-400">Heure du clic sur chaque relance push</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => { void loadReminderEvents() }}
+            disabled={reminderEventsLoading}
+            aria-label="Actualiser le suivi des notifications"
+            className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={`text-gray-500 ${reminderEventsLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+
+        {reminderEventsLoading && reminderEvents.length === 0 ? (
+          <div className="px-5 py-8 text-center">
+            <RefreshCw size={22} className="mx-auto mb-2 animate-spin text-gray-300" />
+            <p className="text-xs font-semibold text-gray-400">Chargement du suivi...</p>
+          </div>
+        ) : reminderEvents.length === 0 ? (
+          <div className="px-5 py-8 text-center">
+            <Bell size={26} className="mx-auto mb-2 text-gray-200" />
+            <p className="text-sm font-bold text-gray-500">Aucune relance suivie pour le moment.</p>
+            <p className="mt-1 text-xs text-gray-400">Les prochaines notifications apparaîtront ici.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {reminderEvents.map(event => {
+              const openedAt = event.data?.opened_at
+              const sentAt = event.data?.sent_at || event.created_at
+              const pushSent = Number(event.data?.push_sent || 0)
+              return (
+                <div key={event.id} className="px-5 py-4">
+                  <div className="flex items-start gap-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center text-white flex-shrink-0"
+                      style={{ backgroundColor: event.restaurant?.primary_color || '#F26522' }}
+                    >
+                      {getRestaurantLogoUrl(event.restaurant?.logo_url)
+                        ? <RestaurantLogo src={event.restaurant?.logo_url} alt={event.restaurant?.name || ''} className="w-full h-full rounded-xl bg-white" />
+                        : <Store size={16} strokeWidth={2.2} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="truncate text-sm font-black text-gray-900">{event.restaurant?.name || 'Restaurant'}</p>
+                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${
+                          openedAt
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : pushSent > 0
+                              ? 'bg-amber-50 text-amber-700'
+                              : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {openedAt ? 'Ouverte' : pushSent > 0 ? 'Pas encore ouverte' : 'Push non envoyé'}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs font-semibold text-gray-500">
+                        Envoyée le {formatTrackingDate(sentAt)}
+                      </p>
+                      {openedAt ? (
+                        <p className="mt-1 text-xs font-black text-emerald-700">
+                          Clic enregistré le {formatTrackingDate(openedAt)}
+                        </p>
+                      ) : pushSent > 0 ? (
+                        <p className="mt-1 text-xs font-semibold text-amber-600">En attente du clic du restaurateur</p>
+                      ) : (
+                        <p className="mt-1 text-xs font-semibold text-gray-500">Aucun appareil du restaurant n’était abonné au push</p>
+                      )}
+                      <p className="mt-1.5 text-xs text-gray-400">
+                        {event.data?.period_label || event.body}
+                        {' · '}{pushSent} push envoyé
+                        {event.data?.email_sent ? ' · email envoyé' : ''}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
 

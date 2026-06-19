@@ -1,6 +1,6 @@
 // Service Worker — Web Push pour admin TableQR
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   self.skipWaiting()
 })
 
@@ -29,8 +29,19 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = (event.notification.data && event.notification.data.url) || '/admin/dashboard'
+  const notificationData = event.notification.data || {}
+  const url = notificationData.url || '/admin/dashboard'
   event.waitUntil((async () => {
+    if (notificationData.trackingToken) {
+      try {
+        await fetch('/api/notifications/subscription-reminder-open', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tracking_token: notificationData.trackingToken }),
+        })
+      } catch {}
+    }
+
     const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
     for (const client of clientsList) {
       try {

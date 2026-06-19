@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'node:crypto'
 import nodemailer from 'nodemailer'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 import { requireSuperAdmin } from '@/lib/supabase/superadmin'
@@ -106,6 +107,37 @@ export async function POST(req: NextRequest) {
 
     const content = getSubscriptionReminderContent(restaurant, summary)
     const reminderAmount = getSubscriptionReminderPrice(restaurant)
+    const trackingToken = randomUUID()
+    const sentAt = new Date().toISOString()
+    const trackingData = {
+      tracking_token: trackingToken,
+      period_start: summary.current_period_start,
+      period_end: summary.current_period_end,
+      period_label: summary.period_label,
+      amount_due: reminderAmount,
+      sent_at: sentAt,
+      push_sent: 0,
+      email_sent: false,
+    }
+    const { data: trackingEvent, error: trackingError } = await admin
+      .from('notifications')
+      .insert({
+        restaurant_id: restaurant.id,
+        session_id: null,
+        type: 'subscription_reminder_tracking',
+        title: content.title,
+        body: content.short_body,
+        data: trackingData,
+        is_read: false,
+        created_at: sentAt,
+      })
+      .select('id')
+      .single()
+
+    if (trackingError) {
+      return NextResponse.json({ error: `Suivi de notification impossible : ${trackingError.message}` }, { status: 500 })
+    }
+
     const push = await sendPushToRestaurantAdmins(restaurant.id, {
       title: content.title,
       body: content.short_body,
@@ -119,6 +151,7 @@ export async function POST(req: NextRequest) {
         periodStart: summary.current_period_start,
         periodEnd: summary.current_period_end,
         amountDue: reminderAmount,
+        trackingToken,
       },
     }).catch((e) => ({
       sent: 0,
@@ -162,6 +195,18 @@ export async function POST(req: NextRequest) {
       email = { sent: false, error: 'Email admin manquant' }
     }
 
+    await admin
+      .from('notifications')
+      .update({
+        data: {
+          ...trackingData,
+          push_sent: Number(push.sent || 0),
+          push_failed: Number('failed' in push ? push.failed || 0 : 0),
+          email_sent: email.sent,
+        },
+      })
+      .eq('id', trackingEvent.id)
+
     return NextResponse.json({
       ok: true,
       restaurant_id: restaurant.id,
@@ -170,6 +215,7 @@ export async function POST(req: NextRequest) {
       push,
       superadmin_push: superadminPush,
       email,
+      tracking_event_id: trackingEvent.id,
     })
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Erreur serveur' }, { status: 500 })

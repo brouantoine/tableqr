@@ -3,13 +3,18 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   AlertTriangle,
   Calendar,
+  Check,
   CheckCircle,
   Clock,
+  Copy,
   CreditCard,
+  Download,
   Eye,
   FileText,
   Loader2,
+  Smartphone,
   Upload,
+  Wallet,
   XCircle,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
@@ -22,11 +27,13 @@ import {
   getRestaurantMonthPaymentState,
 } from '@/lib/subscription-payments'
 import {
-  TABLEQR_MONTHLY_PRICE,
+  TABLEQR_PAYMENT_PHONE,
+  TABLEQR_PAYMENT_PHONE_COMPACT,
   getDateInputValue,
   getMonthKey,
   getMonthKeyFromDateInput,
   getMonthLabel,
+  getSubscriptionReminderPrice,
 } from '@/lib/subscription'
 import type { Restaurant, SubscriptionPayment } from '@/types'
 
@@ -57,8 +64,9 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<Feedback>(null)
+  const [copied, setCopied] = useState(false)
   const p = restaurant.primary_color
-  const amount = restaurant.subscription_monthly_amount || TABLEQR_MONTHLY_PRICE
+  const amount = getSubscriptionReminderPrice(restaurant)
   const monthOptions = useMemo(() => getPaymentTimelineMonthKeys(payments, selectedMonth), [payments, selectedMonth])
   const selectedPayment = getPaymentForMonth(payments, selectedMonth)
   const selectedState = getRestaurantMonthPaymentState(payments, selectedMonth)
@@ -67,6 +75,23 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
   const unpaidCount = monthOptions.filter(month => getRestaurantMonthPaymentState(payments, month) === 'unpaid').length
 
   useEffect(() => { void loadPayments() }, [])
+
+  useEffect(() => {
+    if (window.location.hash !== '#instructions-paiement') return
+    window.requestAnimationFrame(() => {
+      document.getElementById('instructions-paiement')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [])
+
+  async function copyPaymentPhone() {
+    try {
+      await navigator.clipboard.writeText(TABLEQR_PAYMENT_PHONE_COMPACT)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2500)
+    } catch {
+      setFeedback({ type: 'error', text: `Numéro à copier : ${TABLEQR_PAYMENT_PHONE}` })
+    }
+  }
 
   function selectPaymentDate(value: string) {
     setPaymentDate(value)
@@ -148,6 +173,67 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
       </div>
 
       <div className="px-4 sm:px-6 py-5 max-w-4xl mx-auto pb-28 space-y-4">
+        <section
+          id="instructions-paiement"
+          className="scroll-mt-24 overflow-hidden rounded-3xl border border-orange-200 bg-white shadow-sm"
+        >
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-5 py-5 text-white">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-white/15">
+                <Wallet size={21} />
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-wider text-orange-100">Règlement de l’abonnement</p>
+                <h3 className="mt-1 text-xl font-black">Effectuer le dépôt</h3>
+                <p className="mt-1 text-sm font-semibold text-orange-50">
+                  Montant à déposer : {formatPrice(amount, restaurant.currency)}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 p-5">
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1.5 text-xs font-black text-sky-700">
+                <Wallet size={13} /> Wave
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-50 px-3 py-1.5 text-xs font-black text-orange-700">
+                <Smartphone size={13} /> Orange Money
+              </span>
+            </div>
+
+            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Numéro de dépôt TableQR</p>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <a href={`tel:${TABLEQR_PAYMENT_PHONE_COMPACT}`} className="text-lg font-black tracking-tight text-gray-950">
+                  {TABLEQR_PAYMENT_PHONE}
+                </a>
+                <button
+                  type="button"
+                  onClick={copyPaymentPhone}
+                  className="inline-flex h-10 flex-shrink-0 items-center gap-2 rounded-xl bg-white px-3 text-xs font-black text-gray-700 shadow-sm ring-1 ring-gray-200"
+                >
+                  {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                  {copied ? 'Copié' : 'Copier'}
+                </button>
+              </div>
+            </div>
+
+            <ol className="space-y-2 text-sm font-semibold text-gray-600">
+              <li className="flex gap-2"><span className="font-black text-orange-500">1.</span>Effectuez le dépôt par Wave ou Orange Money.</li>
+              <li className="flex gap-2"><span className="font-black text-orange-500">2.</span>Conservez la capture ou le reçu de la transaction.</li>
+              <li className="flex gap-2"><span className="font-black text-orange-500">3.</span>Envoyez ce reçu ci-dessous pour validation.</li>
+            </ol>
+
+            <a
+              href="#declarer-paiement"
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-2xl bg-gray-950 text-sm font-black text-white"
+            >
+              <Download size={15} /> J’ai payé, envoyer mon reçu
+            </a>
+          </div>
+        </section>
+
         <div className="grid grid-cols-3 gap-2">
           {[
             { label: 'Validés', value: paidCount, color: '#10B981', Icon: CheckCircle },
@@ -165,7 +251,7 @@ export default function SubscriptionPaymentsPage({ restaurant: initialRestaurant
           ))}
         </div>
 
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+        <div id="declarer-paiement" className="scroll-mt-24 bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-3">
             <div className="w-9 h-9 rounded-2xl flex items-center justify-center" style={{ backgroundColor: p + '15' }}>
               <CreditCard size={17} style={{ color: p }} />

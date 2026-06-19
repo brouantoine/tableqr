@@ -6,6 +6,7 @@ import { sendPushToRestaurantAdmins, sendPushToSuperAdmins } from '@/lib/push'
 import {
   getRestaurantSubscriptionSummary,
   getSubscriptionReminderContent,
+  getSubscriptionReminderPrice,
   isBillableRestaurant,
 } from '@/lib/subscription'
 import type { Restaurant, SubscriptionPayment } from '@/types'
@@ -51,9 +52,9 @@ async function sendReminderEmail(to: string, restaurantName: string, subject: st
         <div style="background:#F9FAFB;border:1px solid #E5E7EB;border-radius:16px;padding:20px;line-height:1.6;font-size:15px">
           ${safeBody}
         </div>
-        <a href="${escapeHtml(process.env.NEXT_PUBLIC_APP_URL || '')}/admin/paiements"
+        <a href="${escapeHtml(process.env.NEXT_PUBLIC_APP_URL || '')}/admin/paiements#instructions-paiement"
           style="display:inline-block;margin-top:18px;background:#F26522;color:#fff;text-decoration:none;padding:12px 18px;border-radius:12px;font-weight:700">
-          Ouvrir mes paiements
+          Voir les instructions de dépôt
         </a>
       </div>
     `,
@@ -104,10 +105,11 @@ export async function POST(req: NextRequest) {
     }
 
     const content = getSubscriptionReminderContent(restaurant, summary)
+    const reminderAmount = getSubscriptionReminderPrice(restaurant)
     const push = await sendPushToRestaurantAdmins(restaurant.id, {
       title: content.title,
       body: content.short_body,
-      url: '/admin/paiements',
+      url: '/admin/paiements#instructions-paiement',
       tag: `subscription-${restaurant.id}-${summary.current_period_start}`,
       icon: '/icon-192.png',
       badge: '/badge.png',
@@ -116,7 +118,7 @@ export async function POST(req: NextRequest) {
         restaurantId: restaurant.id,
         periodStart: summary.current_period_start,
         periodEnd: summary.current_period_end,
-        amountDue: summary.amount_due,
+        amountDue: reminderAmount,
       },
     }).catch((e) => ({
       sent: 0,
@@ -136,7 +138,7 @@ export async function POST(req: NextRequest) {
         restaurantName: restaurant.name,
         periodStart: summary.current_period_start,
         periodEnd: summary.current_period_end,
-        amountDue: summary.amount_due,
+        amountDue: reminderAmount,
         superadminCopy: true,
       },
     }).catch((e) => ({

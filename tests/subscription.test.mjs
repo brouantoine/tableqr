@@ -16,6 +16,7 @@ let getPreviousMonthEndDateString
 let getRestaurantSubscriptionSummary
 let getSubscriptionPaidUntilFromPaymentCount
 let getSubscriptionReminderContent
+let getSubscriptionReminderPrice
 let isRestaurantMonthPaid
 let parseDateInput
 let parseMonthKey
@@ -45,6 +46,7 @@ before(async () => {
   getRestaurantSubscriptionSummary = subscription.getRestaurantSubscriptionSummary
   getSubscriptionPaidUntilFromPaymentCount = subscription.getSubscriptionPaidUntilFromPaymentCount
   getSubscriptionReminderContent = subscription.getSubscriptionReminderContent
+  getSubscriptionReminderPrice = subscription.getSubscriptionReminderPrice
   isRestaurantMonthPaid = subscription.isRestaurantMonthPaid
   parseDateInput = subscription.parseDateInput
   parseMonthKey = subscription.parseMonthKey
@@ -243,4 +245,13 @@ test('subscription reminder content uses the fixed 10 000 F CFA amount', () => {
   assert.match(content.short_body, /10 000/)
   assert.doesNotMatch(content.short_body, /15 000/)
   assert.match(content.body, /du 09 juin 2026 au 08 juillet 2026/)
+})
+
+test('OSAC alone receives a 2 000 F CFA reminder', () => {
+  const osac = restaurant({ slug: 'porc-africain-chez-osac', name: 'Porc Africain Chez Osac' })
+  const otherRestaurant = restaurant({ slug: 'osac-demo', name: 'Autre restaurant' })
+
+  assert.equal(getSubscriptionReminderPrice(osac), 2000)
+  assert.equal(getSubscriptionReminderPrice(otherRestaurant), 10000)
+  assert.match(getSubscriptionReminderContent(osac).short_body, /2 000/)
 })

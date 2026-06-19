@@ -7,6 +7,7 @@ import {
   TABLEQR_SUBSCRIPTION_CURRENCY,
   getMonthKeyFromDateInput,
   getRestaurantSubscriptionSummary,
+  getSubscriptionReminderPrice,
   parseDateInput,
 } from '@/lib/subscription'
 import type { Restaurant, SubscriptionPayment } from '@/types'
@@ -155,7 +156,7 @@ export async function POST(req: NextRequest) {
 
     await ensureReceiptBucket(admin)
 
-    const amount = Number(form.get('amount') || restaurant.subscription_monthly_amount || TABLEQR_MONTHLY_PRICE)
+    const amount = getSubscriptionReminderPrice(restaurant)
     const note = String(form.get('note') || '').trim() || null
     const ext = getReceiptExtension(receipt)
     const fileName = `${cleanFileName(restaurant.slug)}-${month}-${Date.now()}.${ext}`

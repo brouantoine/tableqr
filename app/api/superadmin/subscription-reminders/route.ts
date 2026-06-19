@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 import { requireSuperAdmin } from '@/lib/supabase/superadmin'
-import { sendPushToRestaurantAdmins } from '@/lib/push'
+import { sendPushToRestaurantAdmins, sendPushToSuperAdmins } from '@/lib/push'
 import {
   getRestaurantSubscriptionSummary,
   getSubscriptionReminderContent,
@@ -123,6 +123,27 @@ export async function POST(req: NextRequest) {
       removed: 0,
       error: e instanceof Error ? e.message : 'Erreur push',
     }))
+    const superadminPush = await sendPushToSuperAdmins({
+      title: `Copie relance - ${restaurant.name}`,
+      body: content.short_body,
+      url: '/superadmin',
+      tag: `superadmin-subscription-${restaurant.id}-${summary.current_period_start}`,
+      icon: '/icon-192.png',
+      badge: '/badge.png',
+      requireInteraction: true,
+      data: {
+        restaurantId: restaurant.id,
+        restaurantName: restaurant.name,
+        periodStart: summary.current_period_start,
+        periodEnd: summary.current_period_end,
+        amountDue: summary.amount_due,
+        superadminCopy: true,
+      },
+    }).catch((e) => ({
+      sent: 0,
+      removed: 0,
+      error: e instanceof Error ? e.message : 'Erreur push superadmin',
+    }))
 
     let email: { sent: boolean; error: string | null } = { sent: false, error: null }
     if (restaurant.admin_email) {
@@ -145,6 +166,7 @@ export async function POST(req: NextRequest) {
       summary,
       content,
       push,
+      superadmin_push: superadminPush,
       email,
     })
   } catch (e) {

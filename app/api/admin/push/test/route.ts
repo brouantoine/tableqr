@@ -8,16 +8,29 @@ export async function POST(req: NextRequest) {
     const user = await getRequestUser(req)
     if (!user?.email) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
+    const body = await req.json().catch(() => ({})) as { scope?: 'admin' | 'superadmin' }
+    const scope = body.scope || 'admin'
+    if (scope !== 'admin' && scope !== 'superadmin') {
+      return NextResponse.json({ error: 'Portée push invalide' }, { status: 400 })
+    }
     const admin = getSupabaseAdmin()
-    const { data: restaurant } = await admin
-      .from('restaurants').select('id, name').eq('admin_email', user.email.toLowerCase()).maybeSingle()
+    let query = admin
+      .from('restaurants')
+      .select('id, name, slug')
+      .eq('admin_email', user.email.toLowerCase())
+
+    if (scope === 'superadmin') query = query.eq('slug', 'superadmin')
+
+    const { data: restaurant, error: restaurantError } = await query.maybeSingle()
+    if (restaurantError) return NextResponse.json({ error: restaurantError.message }, { status: 500 })
     if (!restaurant) return NextResponse.json({ error: 'Restaurant introuvable' }, { status: 404 })
+    const isSuperAdmin = restaurant.slug === 'superadmin'
 
     const result = await sendPushToRestaurantAdmins(restaurant.id, {
-      title: 'Test TableQR',
+      title: isSuperAdmin ? 'Test TableQR superadmin' : 'Test TableQR',
       body: `Notifications actives sur ${restaurant.name}`,
-      url: '/admin/dashboard',
-      tag: 'tableqr-test',
+      url: isSuperAdmin ? '/superadmin' : '/admin/dashboard',
+      tag: isSuperAdmin ? 'tableqr-superadmin-test' : 'tableqr-test',
       icon: '/icon-192.png',
       badge: '/badge.png',
       requireInteraction: true,

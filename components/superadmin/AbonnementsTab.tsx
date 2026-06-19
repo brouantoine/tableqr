@@ -223,9 +223,10 @@ export default function AbonnementsTab({
       if (!res.ok) throw new Error(result.error || 'Notification impossible')
       const emailText = result.email?.sent ? 'email envoyé' : 'email non envoyé'
       const pushCount = Number(result.push?.sent || 0)
+      const superadminPushCount = Number(result.superadmin_push?.sent || 0)
       setFeedback({
         type: 'success',
-        text: `${restaurant.name} relancé pour ${summary.period_label}. ${pushCount} push · ${emailText}.`,
+        text: `${restaurant.name} relancé pour ${summary.period_label}. ${pushCount} push resto · ${superadminPushCount} push superadmin · ${emailText}.`,
       })
     } catch (e) {
       setFeedback({ type: 'error', text: e instanceof Error ? e.message : 'Erreur réseau' })

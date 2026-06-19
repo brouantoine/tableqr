@@ -15,6 +15,7 @@ function urlBase64ToUint8Array(base64String: string) {
 type State = 'unsupported-ios' | 'unsupported' | 'denied' | 'idle' | 'subscribed' | 'loading'
 type Hint = null | 'ok' | 'ios' | 'menu' | 'test-ok' | 'test-empty' | 'test-error'
 type NavigatorWithStandalone = Navigator & { standalone?: boolean }
+type PushScope = 'admin' | 'superadmin'
 
 function detectIOS() {
   if (typeof navigator === 'undefined') return false
@@ -28,7 +29,7 @@ function isStandalone() {
     || (window.navigator as NavigatorWithStandalone).standalone === true
 }
 
-export default function PushToggle() {
+export default function PushToggle({ scope = 'admin' }: { scope?: PushScope }) {
   const [state, setState] = useState<State>('loading')
   const [showHint, setShowHint] = useState<Hint>(null)
   const [testStatus, setTestStatus] = useState<'idle' | 'sending'>('idle')
@@ -54,13 +55,26 @@ export default function PushToggle() {
       try {
         const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' })
         const sub = await reg.pushManager.getSubscription()
-        setState(sub ? 'subscribed' : 'idle')
+        if (!sub) {
+          setState('idle')
+          return
+        }
+
+        // Le navigateur peut encore posséder un abonnement alors que la ligne
+        // serveur a expiré ou appartenait à l'autre espace admin. Le rattacher
+        // à chaque ouverture rend aussi les installations existantes utilisables.
+        const res = await fetch('/api/admin/push/subscribe', {
+          method: 'POST',
+          headers: await authJsonHeaders(),
+          body: JSON.stringify({ subscription: sub.toJSON(), scope }),
+        })
+        setState(res.ok ? 'subscribed' : 'idle')
       } catch (e) {
         console.error('SW register error', e)
         setState('idle')
       }
     })()
-  }, [])
+  }, [scope])
 
   useEffect(() => () => {
     if (hintTimer.current) clearTimeout(hintTimer.current)
@@ -96,7 +110,7 @@ export default function PushToggle() {
       const res = await fetch('/api/admin/push/subscribe', {
         method: 'POST',
         headers: await authJsonHeaders(),
-        body: JSON.stringify({ subscription: sub.toJSON() }),
+        body: JSON.stringify({ subscription: sub.toJSON(), scope }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -142,6 +156,7 @@ export default function PushToggle() {
       const res = await fetch('/api/admin/push/test', {
         method: 'POST',
         headers: await authJsonHeaders(),
+        body: JSON.stringify({ scope }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Test impossible')
@@ -168,6 +183,8 @@ export default function PushToggle() {
   const isIos = state === 'unsupported-ios'
   const Icon = isOn ? BellRing : isDenied ? BellOff : isIos ? Smartphone : Bell
   const iconColor = isOn ? 'text-emerald-600' : isDenied ? 'text-red-400' : isIos ? 'text-blue-500' : 'text-gray-500'
+  const audienceLabel = scope === 'superadmin' ? 'super-admin' : 'admin'
+  const notificationLabel = scope === 'superadmin' ? 'relances d’abonnement' : 'commandes'
 
   function handleClick() {
     if (isIos) { setShowHint('ios'); return }
@@ -184,7 +201,7 @@ export default function PushToggle() {
           isIos ? 'iOS : ajoute le site à l\'écran d\'accueil pour activer les notifications' :
           isDenied ? 'Notifications bloquées (autorise dans les réglages du navigateur)' :
           isOn ? 'Notifications activées — clique pour tester ou désactiver' :
-          'Activer les notifications de commandes'
+          `Activer les notifications ${audienceLabel}`
         }
         className="w-9 h-9 sm:w-8 sm:h-8 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors disabled:opacity-50">
         <Icon size={15} className={iconColor} />
@@ -211,7 +228,7 @@ export default function PushToggle() {
 
       {showHint === 'menu' && (
         <div className="absolute right-0 top-full mt-2 w-64 p-3 bg-white rounded-xl shadow-xl border border-gray-100 z-50">
-          <p className="font-black text-gray-900 text-sm mb-2">Notifications admin</p>
+          <p className="font-black text-gray-900 text-sm mb-2">Notifications {audienceLabel}</p>
           <button
             onClick={sendTest}
             disabled={testStatus === 'sending'}
@@ -252,7 +269,7 @@ export default function PushToggle() {
             </div>
             <h3 className="font-black text-gray-900 text-base mb-2">Activer sur iPhone</h3>
             <p className="text-sm text-gray-600 leading-relaxed mb-4">
-              Apple n&apos;autorise les notifications push que depuis l&apos;app installée. Pour recevoir les commandes :
+              Apple n&apos;autorise les notifications push que depuis l&apos;app installée. Pour recevoir les {notificationLabel} :
             </p>
             <ol className="space-y-2 text-sm text-gray-700 mb-4">
               <li className="flex gap-2"><span className="font-black text-blue-500">1.</span><span>Ouvre ce site dans <b>Safari</b></span></li>

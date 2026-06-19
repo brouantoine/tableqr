@@ -24,19 +24,21 @@ export interface PushPayload {
   data?: Record<string, unknown>
 }
 
-export async function sendPushToRestaurantAdmins(restaurantId: string, payload: PushPayload) {
-  configure()
-  const admin = getSupabaseAdmin()
-  const { data: subs } = await admin
-    .from('admin_push_subscriptions')
-    .select('endpoint, p256dh, auth')
-    .eq('restaurant_id', restaurantId)
+type PushSubscriptionRow = {
+  endpoint: string
+  p256dh: string
+  auth: string
+}
 
+async function sendPushToRows(subs: PushSubscriptionRow[] | null | undefined, payload: PushPayload) {
   if (!subs?.length) return { sent: 0, removed: 0 }
+  configure()
 
+  const admin = getSupabaseAdmin()
   const json = JSON.stringify(payload)
   const expired: string[] = []
   let sent = 0
+  let failed = 0
 
   await Promise.all(subs.map(async (s) => {
     try {
@@ -46,15 +48,52 @@ export async function sendPushToRestaurantAdmins(restaurantId: string, payload: 
         { TTL: 60 }
       )
       sent++
-    } catch (err: any) {
-      const code = err?.statusCode
+    } catch (err: unknown) {
+      const error = err as { statusCode?: number; body?: unknown }
+      const code = error.statusCode
       if (code === 404 || code === 410) expired.push(s.endpoint)
-      else console.warn('Push error', code, err?.body)
+      else {
+        failed++
+        console.warn('Push error', code, error.body)
+      }
     }
   }))
 
   if (expired.length) {
     await admin.from('admin_push_subscriptions').delete().in('endpoint', expired)
   }
-  return { sent, removed: expired.length }
+  return { sent, removed: expired.length, failed }
+}
+
+export async function sendPushToRestaurantAdmins(restaurantId: string, payload: PushPayload) {
+  const admin = getSupabaseAdmin()
+  const { data: subs, error } = await admin
+    .from('admin_push_subscriptions')
+    .select('endpoint, p256dh, auth')
+    .eq('restaurant_id', restaurantId)
+
+  if (error) return { sent: 0, removed: 0, failed: 0, error: error.message }
+  return sendPushToRows(subs, payload)
+}
+
+export async function sendPushToSuperAdmins(payload: PushPayload) {
+  const admin = getSupabaseAdmin()
+  const { data: superAdmin, error } = await admin
+    .from('restaurants')
+    .select('id')
+    .eq('slug', 'superadmin')
+    .maybeSingle()
+
+  if (error) return { sent: 0, removed: 0, error: error.message }
+  if (!superAdmin?.id) return { sent: 0, removed: 0, error: 'Restaurant superadmin introuvable' }
+
+  const { data: subs, error: subscriptionsError } = await admin
+    .from('admin_push_subscriptions')
+    .select('endpoint, p256dh, auth')
+    .eq('restaurant_id', superAdmin.id)
+
+  if (subscriptionsError) {
+    return { sent: 0, removed: 0, failed: 0, error: subscriptionsError.message }
+  }
+  return sendPushToRows(subs, payload)
 }

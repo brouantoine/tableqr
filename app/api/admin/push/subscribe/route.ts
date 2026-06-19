@@ -8,14 +8,24 @@ export async function POST(req: NextRequest) {
     if (!user?.email) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
 
     const email = user.email.toLowerCase()
-    const { subscription } = await req.json()
+    const { subscription, scope = 'admin' } = await req.json()
+    if (scope !== 'admin' && scope !== 'superadmin') {
+      return NextResponse.json({ error: 'Portée push invalide' }, { status: 400 })
+    }
     if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
       return NextResponse.json({ error: 'Subscription invalide' }, { status: 400 })
     }
 
     const admin = getSupabaseAdmin()
-    const { data: restaurant } = await admin
-      .from('restaurants').select('id').eq('admin_email', email).maybeSingle()
+    let query = admin
+      .from('restaurants')
+      .select('id')
+      .eq('admin_email', email)
+
+    if (scope === 'superadmin') query = query.eq('slug', 'superadmin')
+
+    const { data: restaurant, error: restaurantError } = await query.maybeSingle()
+    if (restaurantError) return NextResponse.json({ error: restaurantError.message }, { status: 500 })
     if (!restaurant) return NextResponse.json({ error: 'Restaurant introuvable' }, { status: 404 })
 
     const userAgent = req.headers.get('user-agent') || null

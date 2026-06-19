@@ -21,6 +21,7 @@ import { generateQRPrintHTML } from '@/lib/qr-print-template'
 import type { Restaurant, SubscriptionPayment } from '@/types'
 import DesignerKitQuantityModal from '@/components/DesignerKitQuantityModal'
 import RestaurantLogo from '@/components/RestaurantLogo'
+import PushToggle from '@/components/admin/PushToggle'
 import RestaurantAnalyticsPanel from './RestaurantAnalyticsPanel'
 import AbonnementsTab from './AbonnementsTab'
 
@@ -232,10 +233,11 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
       const result = await res.json()
       if (!res.ok) throw new Error(result.error || 'Notification impossible')
       const pushCount = Number(result.push?.sent || 0)
+      const superadminPushCount = Number(result.superadmin_push?.sent || 0)
       const emailText = result.email?.sent ? 'email envoyé' : 'email non envoyé'
       setNotificationFeedback({
         type: 'success',
-        text: `${restaurant.name} relancé pour ${summary.period_label}. ${pushCount} push · ${emailText}.`,
+        text: `${restaurant.name} relancé pour ${summary.period_label}. ${pushCount} push resto · ${superadminPushCount} push superadmin · ${emailText}.`,
       })
     } catch (e) {
       setNotificationFeedback({ type: 'error', text: e instanceof Error ? e.message : 'Erreur réseau' })
@@ -285,6 +287,7 @@ export default function SuperAdminDashboard({ restaurants: initialRestaurants }:
                 <QrCode size={16} />
                 QR
               </button>
+              <PushToggle scope="superadmin" />
               <motion.button whileTap={{ scale: 0.97 }} onClick={() => setShowNew(true)}
                 className="flex h-10 items-center gap-2 rounded-lg bg-[#F26522] px-4 text-sm font-black text-white shadow-sm">
                 <Plus size={16} strokeWidth={3} />

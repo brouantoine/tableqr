@@ -226,7 +226,7 @@ test('second approved payment covers the next creation-date cycle', () => {
   assert.equal(summary.status, 'paid')
 })
 
-test('subscription reminder content is concise and includes period and amount', () => {
+test('subscription reminder content uses the fixed 10 000 F CFA amount', () => {
   const resto = restaurant({
     name: 'Top Chef',
     created_at: '2026-05-09T22:23:32.428656+00:00',
@@ -240,6 +240,7 @@ test('subscription reminder content is concise and includes period and amount', 
   const content = getSubscriptionReminderContent(resto, summary)
 
   assert.equal(content.title, 'Rappel paiement TableQR')
-  assert.match(content.short_body, /15 000/)
+  assert.match(content.short_body, /10 000/)
+  assert.doesNotMatch(content.short_body, /15 000/)
   assert.match(content.body, /du 09 juin 2026 au 08 juillet 2026/)
 })

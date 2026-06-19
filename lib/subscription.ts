@@ -2,6 +2,7 @@ import type { Restaurant, SubscriptionPayment } from '@/types'
 
 export const TABLEQR_MONTHLY_PRICE = 15000
 export const TABLEQR_SUBSCRIPTION_CURRENCY = 'XOF'
+export const TABLEQR_REMINDER_PRICE = 10000
 const DAY_MS = 24 * 60 * 60 * 1000
 
 const MONTHS_FR = [
@@ -251,7 +252,7 @@ export function getSubscriptionReminderContent(
   restaurant: Restaurant,
   summary = getRestaurantSubscriptionSummary(restaurant),
 ): SubscriptionReminderContent {
-  const amount = formatAmount(summary.amount_due || summary.monthly_amount, restaurant.currency || TABLEQR_SUBSCRIPTION_CURRENCY)
+  const amount = formatAmount(TABLEQR_REMINDER_PRICE, restaurant.currency || TABLEQR_SUBSCRIPTION_CURRENCY)
   const period = summary.period_label
   const title = 'Rappel paiement TableQR'
   const shortBody = `Votre abonnement TableQR est à régler: ${amount} pour la période ${period}.`

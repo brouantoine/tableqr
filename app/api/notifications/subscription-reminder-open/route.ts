@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getNotificationRetentionCutoffIso } from '@/lib/notifications'
+import { purgeExpiredNotificationsSafely } from '@/lib/notifications-server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 
 export const runtime = 'nodejs'
@@ -15,10 +17,13 @@ export async function POST(req: NextRequest) {
     }
 
     const admin = getSupabaseAdmin()
+    await purgeExpiredNotificationsSafely(admin)
+    const cutoff = getNotificationRetentionCutoffIso()
     const { data: event, error } = await admin
       .from('notifications')
       .select('id, restaurant_id, title, body')
       .eq('type', 'subscription_reminder_tracking')
+      .gte('created_at', cutoff)
       .contains('data', { tracking_token: trackingToken })
       .maybeSingle()
 
@@ -29,6 +34,7 @@ export async function POST(req: NextRequest) {
       .from('notifications')
       .select('created_at, data')
       .eq('type', 'subscription_reminder_open')
+      .gte('created_at', cutoff)
       .contains('data', { reminder_event_id: event.id })
       .order('created_at', { ascending: true })
       .limit(1)

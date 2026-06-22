@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { purgeExpiredNotificationsSafely } from '@/lib/notifications-server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 
 export async function POST(req: NextRequest) {
@@ -18,6 +19,7 @@ export async function POST(req: NextRequest) {
     .eq('id', order_id)
 
   if (order.session_id) {
+    await purgeExpiredNotificationsSafely(admin)
     await admin.from('notifications').insert({
       restaurant_id: order.restaurant_id,
       session_id: order.session_id,

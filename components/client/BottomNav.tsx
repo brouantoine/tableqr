@@ -5,6 +5,7 @@ import { UtensilsCrossed, MessageCircle, Gamepad2, Bell } from 'lucide-react'
 import { useSessionStore } from '@/lib/store'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
+import { getNotificationRetentionCutoffIso } from '@/lib/notifications'
 
 export default function BottomNav({ slug, primaryColor }: { slug: string; primaryColor: string }) {
   const pathname = usePathname()
@@ -33,9 +34,12 @@ export default function BottomNav({ slug, primaryColor }: { slug: string; primar
     }
 
     async function loadNotifications() {
+      const cutoff = getNotificationRetentionCutoffIso()
       const { count } = await supabase.from('notifications')
         .select('id', { count: 'exact' })
-        .eq('session_id', session!.id).eq('is_read', false)
+        .eq('session_id', session!.id)
+        .eq('is_read', false)
+        .gte('created_at', cutoff)
       setNotifCount(count || 0)
     }
 

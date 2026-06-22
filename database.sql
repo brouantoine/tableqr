@@ -360,6 +360,7 @@ CREATE INDEX idx_support_conversations_restaurant ON support_conversations(resta
 CREATE INDEX idx_support_conversations_client ON support_conversations(client_session_id);
 CREATE INDEX idx_support_messages_conversation ON support_messages(conversation_id, created_at ASC);
 CREATE INDEX idx_notifications_session ON notifications(session_id, is_read);
+CREATE INDEX idx_notifications_created_at ON notifications(created_at DESC);
 CREATE INDEX idx_restaurant_slug ON restaurants(slug);
 
 -- RLS (Row Level Security)

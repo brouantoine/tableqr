@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'node:crypto'
 import nodemailer from 'nodemailer'
+import { purgeExpiredNotificationsSafely } from '@/lib/notifications-server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 import { requireSuperAdmin } from '@/lib/supabase/superadmin'
 import { sendPushToRestaurantAdmins, sendPushToSuperAdmins } from '@/lib/push'
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
     }
 
     const admin = getSupabaseAdmin()
+    await purgeExpiredNotificationsSafely(admin)
     const { data: restaurantData, error: restaurantError } = await admin
       .from('restaurants')
       .select('*')

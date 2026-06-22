@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { purgeExpiredNotificationsSafely } from '@/lib/notifications-server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 
 const STATUS_NOTIF: Record<string, { title: string; body: (orderNumber: string) => string }> = {
@@ -39,6 +40,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ or
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   if (body.status && data.session_id && STATUS_NOTIF[body.status]) {
+    await purgeExpiredNotificationsSafely(admin)
     const cfg = STATUS_NOTIF[body.status]
     await admin.from('notifications').insert({
       restaurant_id: data.restaurant_id,

@@ -7,6 +7,7 @@ import SplashScreen from './SplashScreen'
 import GlobalClientNotifier from './GlobalClientNotifier'
 import TantieWidget from './TantieWidget'
 import { useClientPresence } from '@/hooks/useClientPresence'
+import { ensureNotificationCleanup } from '@/lib/notifications-client'
 import type { Restaurant } from '@/types'
 
 export default function ClientLayout({ children, restaurant }: { children: React.ReactNode; restaurant: Restaurant }) {
@@ -25,6 +26,7 @@ export default function ClientLayout({ children, restaurant }: { children: React
       sessionStorage.setItem(key, '1')
     }
     setRestaurant(restaurant)
+    void ensureNotificationCleanup()
     document.documentElement.style.setProperty('--primary', restaurant.primary_color)
     document.documentElement.style.setProperty('--secondary', restaurant.secondary_color)
     document.documentElement.style.setProperty('--accent', restaurant.accent_color)

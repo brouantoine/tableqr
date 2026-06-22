@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { useSessionStore } from '@/lib/store'
+import { getNotificationRetentionCutoffIso } from '@/lib/notifications'
 import { formatTimeAgo } from '@/lib/utils'
 import { Bell, MessageCircle, Utensils, Heart, Gift, Tag, CheckCheck } from 'lucide-react'
 import type { Restaurant } from '@/types'
@@ -52,9 +53,11 @@ export default function NotificationsPage({ restaurant }: { restaurant: Restaura
   async function loadNotifs() {
     if (!session) return
     setLoading(true)
+    const cutoff = getNotificationRetentionCutoffIso()
     const { data } = await supabase.from('notifications')
       .select('*')
       .eq('session_id', session.id)
+      .gte('created_at', cutoff)
       .order('created_at', { ascending: false })
       .limit(50)
     setNotifs(data || [])
@@ -63,11 +66,15 @@ export default function NotificationsPage({ restaurant }: { restaurant: Restaura
       .update({ is_read: true })
       .eq('session_id', session.id)
       .eq('is_read', false)
+      .gte('created_at', cutoff)
   }
 
   async function markAllRead() {
     if (!session) return
-    await supabase.from('notifications').update({ is_read: true }).eq('session_id', session.id)
+    await supabase.from('notifications')
+      .update({ is_read: true })
+      .eq('session_id', session.id)
+      .gte('created_at', getNotificationRetentionCutoffIso())
     setNotifs(prev => prev.map(n => ({ ...n, is_read: true })))
   }
 

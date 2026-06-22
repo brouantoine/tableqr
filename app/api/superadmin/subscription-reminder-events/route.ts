@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getNotificationRetentionCutoffIso } from '@/lib/notifications'
+import { purgeExpiredNotificationsSafely } from '@/lib/notifications-server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 import { requireSuperAdmin } from '@/lib/supabase/superadmin'
 
@@ -11,10 +13,13 @@ export async function GET(req: NextRequest) {
     if (superAdminError) return superAdminError
 
     const admin = getSupabaseAdmin()
+    await purgeExpiredNotificationsSafely(admin)
+    const cutoff = getNotificationRetentionCutoffIso()
     const { data: events, error } = await admin
       .from('notifications')
       .select('id, restaurant_id, title, body, data, is_read, created_at, restaurant:restaurants(id, name, slug, logo_url, primary_color)')
       .eq('type', 'subscription_reminder_tracking')
+      .gte('created_at', cutoff)
       .order('created_at', { ascending: false })
       .limit(100)
 
@@ -24,6 +29,7 @@ export async function GET(req: NextRequest) {
       .from('notifications')
       .select('created_at, data')
       .eq('type', 'subscription_reminder_open')
+      .gte('created_at', cutoff)
       .order('created_at', { ascending: false })
       .limit(200)
 

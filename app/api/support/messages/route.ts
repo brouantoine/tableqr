@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { purgeExpiredNotificationsSafely } from '@/lib/notifications-server'
 import { getSupabaseAdmin } from '@/lib/supabase/client'
 import { addSupportMessage } from '@/lib/support'
 import { sendPushToRestaurantAdmins } from '@/lib/push'
@@ -89,6 +90,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.sender_type === 'staff') {
+      await purgeExpiredNotificationsSafely(admin)
       await admin.from('notifications').insert({
         restaurant_id: conv.restaurant_id,
         session_id: conv.client_session_id,
